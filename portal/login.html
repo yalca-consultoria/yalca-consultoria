@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Entrar | Área do Cliente Yalca</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="css/portal.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="portal-body">
+
+<div class="login-screen">
+  <div class="login-card">
+    <a href="../index.html" class="logo">Yalca<span>.</span></a>
+
+    <div id="loginView">
+      <h1>Área do Cliente</h1>
+      <p class="login-sub">Acesse suas ferramentas de gestão financeira e de marketplaces.</p>
+
+      <p class="login-error" id="configWarning">
+        Configuração do banco de dados pendente. Preencha <code>portal/js/supabase-config.js</code> com a URL e a chave do seu projeto Supabase para ativar o login.
+      </p>
+
+      <form class="login-form" id="loginForm" novalidate>
+        <div>
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+        </div>
+        <p class="login-error" id="loginError"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Entrar</button>
+      </form>
+
+      <div class="demo-hint">
+        Ainda não tem conta? <a href="#" id="showSignup" style="color:var(--accent); font-weight:600;">Criar conta</a> — sua loja poderá usar as ferramentas assim que a Yalca aprovar o acesso.
+      </div>
+    </div>
+
+    <div id="signupView" style="display:none;">
+      <h1>Criar conta</h1>
+      <p class="login-sub">Crie seu acesso. Depois de criado, a Yalca precisa aprovar antes de você poder entrar.</p>
+
+      <form class="login-form" id="signupForm" novalidate>
+        <div>
+          <label for="suStoreName">Nome da loja</label>
+          <input type="text" id="suStoreName" name="storeName" placeholder="Ex: Minha Loja Ltda" required>
+        </div>
+        <div>
+          <label for="suEmail">E-mail</label>
+          <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="suPassword">Senha</label>
+          <input type="password" id="suPassword" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required>
+        </div>
+        <div>
+          <label for="suPasswordConfirm">Confirmar senha</label>
+          <input type="password" id="suPasswordConfirm" name="passwordConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required>
+        </div>
+        <p class="login-error" id="signupError"></p>
+        <p class="form-success" id="signupSuccess" style="text-align:left;"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Criar conta</button>
+      </form>
+
+      <div class="demo-hint">
+        Já tem conta? <a href="#" id="showLogin" style="color:var(--accent); font-weight:600;">Voltar para o login</a>
+      </div>
+    </div>
+
+    <a href="../index.html" class="login-back">← Voltar para o site</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/portal-data.js"></script>
+<script src="js/portal-auth.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const loginView = document.getElementById('loginView');
+    const signupView = document.getElementById('signupView');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const errorEl = document.getElementById('loginError');
+    const signupErrorEl = document.getElementById('signupError');
+    const signupSuccessEl = document.getElementById('signupSuccess');
+    const configWarning = document.getElementById('configWarning');
+
+    document.getElementById('showSignup').addEventListener('click', (e) => {
+      e.preventDefault();
+      loginView.style.display = 'none';
+      signupView.style.display = 'block';
+    });
+    document.getElementById('showLogin').addEventListener('click', (e) => {
+      e.preventDefault();
+      signupView.style.display = 'none';
+      loginView.style.display = 'block';
+    });
+
+    if (!yalcaSupabaseConfigured) {
+      configWarning.classList.add('is-visible');
+      loginForm.querySelector('button[type="submit"]').disabled = true;
+      signupForm.querySelector('button[type="submit"]').disabled = true;
+      return;
+    }
+
+    if (await yalcaIsLoggedIn()) {
+      window.location.href = 'dashboard.html';
+      return;
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = loginForm.querySelector('button[type="submit"]');
+      const email = loginForm.email.value;
+      const password = loginForm.password.value;
+      errorEl.classList.remove('is-visible');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Entrando...';
+      const result = await yalcaLogin(email, password);
+      if (result.ok) {
+        window.location.href = 'dashboard.html';
+      } else {
+        errorEl.textContent = result.error;
+        errorEl.classList.add('is-visible');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Entrar';
+      }
+    });
+
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = signupForm.querySelector('button[type="submit"]');
+      signupErrorEl.classList.remove('is-visible');
+      signupSuccessEl.classList.remove('is-visible');
+
+      const storeName = signupForm.storeName.value;
+      const email = signupForm.email.value;
+      const password = signupForm.password.value;
+      const passwordConfirm = signupForm.passwordConfirm.value;
+
+      if (password !== passwordConfirm) {
+        signupErrorEl.textContent = 'As senhas não coincidem.';
+        signupErrorEl.classList.add('is-visible');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Criando conta...';
+      const result = await yalcaSignUp(email, password, storeName);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Criar conta';
+
+      if (!result.ok) {
+        signupErrorEl.textContent = result.error;
+        signupErrorEl.classList.add('is-visible');
+        return;
+      }
+
+      signupForm.reset();
+      signupForm.style.display = 'none';
+      signupSuccessEl.classList.add('is-visible');
+      signupSuccessEl.textContent = result.pendingEmailConfirmation
+        ? 'Quase lá! Confirme seu e-mail pelo link que enviamos e depois aguarde a liberação de acesso.'
+        : 'Conta criada! Assim que a Yalca aprovar seu acesso, você poderá entrar por aqui.';
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Painel de Controle | Yalca</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="css/portal.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="portal-body">
+
+<div class="demo-banner">
+  <strong>Painel de controle</strong> — visível apenas para administradores Yalca.
+</div>
+
+<!-- Tela: acesso negado -->
+<div class="login-screen" id="deniedScreen" style="display:none;">
+  <div class="login-card" style="text-align:center;">
+    <a href="../index.html" class="logo">Yalca<span>.</span></a>
+    <h1 style="margin-top:18px;">Acesso restrito</h1>
+    <p class="login-sub">Esta área é exclusiva para administradores da Yalca.</p>
+    <a href="dashboard.html" class="btn btn--primary btn--sm">Ir para o meu painel</a>
+  </div>
+</div>
+
+<div class="portal-main" id="adminShell" style="display:none; margin:0 auto; max-width:1180px;">
+  <header class="portal-topbar" style="position:static;">
+    <h2>Controle de clientes</h2>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <a href="dashboard.html" class="btn btn--ghost btn--sm">Meu painel</a>
+      <button class="btn btn--ghost btn--sm" id="adminLogoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <div class="portal-content">
+    <div class="kpi-grid" id="adminKpis"></div>
+
+    <div class="panel chart-card">
+      <div class="panel__head">
+        <div>
+          <h3>Faturamento por cliente (VGV)</h3>
+          <p>Soma das receitas lançadas por cada cliente no período selecionado.</p>
+        </div>
+        <div class="panel__toolbar">
+          <select class="select-chip" id="periodFilter">
+            <option value="all">Todo o período</option>
+            <option value="month">Mês atual</option>
+            <option value="last3">Últimos 3 meses</option>
+          </select>
+        </div>
+      </div>
+      <div id="vgvChart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <div>
+          <h3>Clientes cadastrados</h3>
+          <p>Acompanhe o faturamento e o lucro de cada cliente, aprove novos acessos ou bloqueie quem não deve mais entrar.</p>
+        </div>
+        <div class="panel__toolbar">
+          <input type="text" class="search-input" id="clientSearch" placeholder="Buscar por nome ou e-mail">
+          <select class="select-chip" id="statusFilter">
+            <option value="todos">Todos os status</option>
+            <option value="pending">Pendentes</option>
+            <option value="approved">Aprovados</option>
+            <option value="blocked">Bloqueados</option>
+          </select>
+          <button class="reset-demo" id="exportClientsCsvBtn">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="sortable-th" data-sort="store_name">Loja <span class="sort-arrow">▾</span></th>
+              <th class="sortable-th" data-sort="email">E-mail <span class="sort-arrow">▾</span></th>
+              <th class="num sortable-th" data-sort="receita">Faturamento <span class="sort-arrow">▾</span></th>
+              <th class="num sortable-th" data-sort="lucro">Lucro <span class="sort-arrow">▾</span></th>
+              <th class="num sortable-th" data-sort="margem">Margem <span class="sort-arrow">▾</span></th>
+              <th class="num sortable-th" data-sort="produtos">Produtos <span class="sort-arrow">▾</span></th>
+              <th class="sortable-th" data-sort="created_at">Cadastro <span class="sort-arrow">▾</span></th>
+              <th class="sortable-th" data-sort="status">Status <span class="sort-arrow">▾</span></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clientsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <div>
+          <h3>Administradores</h3>
+          <p>Quem mais tem acesso a este painel de controle.</p>
+        </div>
+        <div class="panel__toolbar">
+          <select class="select-chip" id="promoteAdminSelect"></select>
+          <button class="btn btn--primary btn--sm" id="promoteAdminBtn">Tornar admin</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Loja</th><th>E-mail</th><th></th></tr></thead>
+          <tbody id="adminsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: detalhes do cliente -->
+<div class="modal-backdrop" id="clientDetailModal">
+  <div class="modal modal--wide">
+    <div class="modal__head">
+      <h3 id="clientDetailTitle">Detalhes do cliente</h3>
+      <button class="modal__close" data-close-modal="clientDetailModal">×</button>
+    </div>
+    <div class="kpi-grid" id="clientDetailKpis"></div>
+    <div id="clientDetailChart" style="margin-top:20px;"></div>
+    <h3 style="margin-top:24px; margin-bottom:12px; font-size:1rem;">Produtos</h3>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Preço</th><th class="num">Margem</th><th class="num">Estoque</th></tr></thead>
+        <tbody id="clientDetailProducts"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: observações internas -->
+<div class="modal-backdrop" id="notesModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3>Observações internas</h3>
+      <button class="modal__close" data-close-modal="notesModal">×</button>
+    </div>
+    <form id="notesForm">
+      <input type="hidden" id="notesUserId">
+      <div class="field">
+        <label for="notesText">Visível só para administradores</label>
+        <textarea id="notesText" rows="6" placeholder="Ex: plano contratado, histórico de contato, combinados..."></textarea>
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="notesModal">Cancelar</button>
+        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/portal-data.js"></script>
+<script src="js/portal-auth.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/admin-app.js"></script>
+</body>
+</html>
