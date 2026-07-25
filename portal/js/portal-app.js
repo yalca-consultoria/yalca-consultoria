@@ -381,13 +381,21 @@ function renderTransactionsTable(transactions) {
       <td>${yalcaEscapeHtml(t.description)}</td>
       <td class="num ${t.type === 'receita' ? 'text-good' : 'text-critical'}">${t.type === 'receita' ? '+' : '-'} ${yalcaFormatCurrency(t.amount)}</td>
       <td class="row-actions">
-        <button class="icon-btn" title="Editar" onclick="editTransaction('${t.id}')">✎</button>
-        <button class="icon-btn" title="Excluir" onclick="deleteTransactionRow('${t.id}')">🗑</button>
+        <button class="icon-btn" title="Editar" data-action="editTransaction" data-id="${t.id}">✎</button>
+        <button class="icon-btn" title="Excluir" data-action="deleteTransactionRow" data-id="${t.id}">🗑</button>
       </td>
     </tr>`).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('transactionsTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === 'editTransaction') editTransaction(id);
+    else if (action === 'deleteTransactionRow') deleteTransactionRow(id);
+  });
+
   document.getElementById('addTransactionBtn').addEventListener('click', () => {
     document.getElementById('transactionForm').reset();
     document.getElementById('tId').value = '';
@@ -551,14 +559,22 @@ function renderMarketplaces() {
       <td class="num">${p.unitsSoldMonth}</td>
       <td>${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}</td>
       <td class="row-actions">
-        <button class="icon-btn" title="Editar" onclick="editProduct('${p.id}')">✎</button>
-        <button class="icon-btn" title="Excluir" onclick="deleteProductRow('${p.id}')">🗑</button>
+        <button class="icon-btn" title="Editar" data-action="editProduct" data-id="${p.id}">✎</button>
+        <button class="icon-btn" title="Excluir" data-action="deleteProductRow" data-id="${p.id}">🗑</button>
       </td>
     </tr>`;
   }).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('productsTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === 'editProduct') editProduct(id);
+    else if (action === 'deleteProductRow') deleteProductRow(id);
+  });
+
   document.getElementById('addProductBtn').addEventListener('click', () => {
     document.getElementById('productForm').reset();
     document.getElementById('prodId').value = '';
@@ -761,6 +777,16 @@ function initPricingCalculator() {
     e.target.textContent = showing ? '⚙ Ajustar taxas dos marketplaces' : '⚙ Ocultar ajuste de taxas';
   });
 
+  document.getElementById('pricingComparisonBody').addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('[data-action="openSaveAsProduct"]');
+    if (saveBtn) {
+      openSaveAsProduct(saveBtn.dataset.channel, parseFloat(saveBtn.dataset.price), parseFloat(saveBtn.dataset.cost));
+      return;
+    }
+    const row = e.target.closest('[data-action="selectVariantForDetail"]');
+    if (row) selectVariantForDetail(row.dataset.key);
+  });
+
   renderFeeEditor();
 }
 
@@ -888,7 +914,7 @@ function recalcPricing() {
     const isSelected = r.key === FOCUSED_VARIANT_KEY;
     const marginClass = r.marginPct < 0 ? 'text-critical' : (r.marginPct < 15 ? '' : 'text-good');
     return `
-    <tr class="${isSelected ? 'comparison-row--selected' : ''}" style="cursor:pointer;" onclick="selectVariantForDetail('${r.key}')">
+    <tr class="${isSelected ? 'comparison-row--selected' : ''}" style="cursor:pointer;" data-action="selectVariantForDetail" data-key="${r.key}">
       <td>
         <div class="marketplace-cell">
           ${renderChannelBadge(r.channel)}
@@ -903,7 +929,7 @@ function recalcPricing() {
       <td class="num ${r.netProfit < 0 ? 'text-critical' : ''}">${yalcaFormatCurrency(r.netProfit)}</td>
       <td class="num ${marginClass}">${r.marginPct.toFixed(1)}%</td>
       <td class="row-actions">
-        <button class="icon-btn" title="Salvar como produto" onclick="event.stopPropagation(); openSaveAsProduct('${r.channel}', ${r.price.toFixed(2)}, ${cost})">＋</button>
+        <button class="icon-btn" title="Salvar como produto" data-action="openSaveAsProduct" data-channel="${yalcaEscapeHtml(r.channel)}" data-price="${r.price.toFixed(2)}" data-cost="${cost}">＋</button>
       </td>
     </tr>`;
   }).join('');
@@ -1075,11 +1101,16 @@ function renderPlannedTable() {
       <td>${yalcaFormatDate(e.date)}</td>
       <td>${yalcaEscapeHtml(e.description)}</td>
       <td class="num ${e.amount >= 0 ? 'text-good' : 'text-critical'}">${e.amount >= 0 ? '+' : ''}${yalcaFormatCurrency(e.amount)}</td>
-      <td class="row-actions"><button class="icon-btn" title="Excluir" onclick="deletePlannedRow('${e.id}')">🗑</button></td>
+      <td class="row-actions"><button class="icon-btn" title="Excluir" data-action="deletePlannedRow" data-id="${e.id}">🗑</button></td>
     </tr>`).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('plannedTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="deletePlannedRow"]');
+    if (btn) deletePlannedRow(btn.dataset.id);
+  });
+
   document.getElementById('addPlannedBtn').addEventListener('click', () => {
     document.getElementById('plannedForm').reset();
     openModal('plannedModal');

@@ -55,6 +55,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('exportClientsCsvBtn').addEventListener('click', exportClientsCsv);
   document.getElementById('promoteAdminBtn').addEventListener('click', promoteSelectedAdmin);
 
+  document.getElementById('clientsTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const { action, id, status } = btn.dataset;
+    if (action === 'openClientDetail') openClientDetail(id);
+    else if (action === 'openNotes') openNotes(id);
+    else if (action === 'updateClientStatus') updateClientStatus(id, status);
+    else if (action === 'deleteClient') deleteClient(id);
+  });
+  document.getElementById('adminsTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="removeAdmin"]');
+    if (!btn) return;
+    removeAdmin(btn.dataset.id);
+  });
+
   initModals();
   document.getElementById('notesForm').addEventListener('submit', saveNotes);
 
@@ -251,12 +266,12 @@ function renderClientsTable() {
       <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
       <td>${badge[c.status] || c.status}</td>
       <td class="row-actions">
-        <button class="icon-btn" title="Ver detalhes" onclick="openClientDetail('${c.user_id}')">👁</button>
-        <button class="icon-btn" title="Observações" onclick="openNotes('${c.user_id}')">📝</button>
-        ${c.status !== 'approved' ? `<button class="icon-btn" title="Aprovar" onclick="updateClientStatus('${c.user_id}','approved')">✔</button>` : ''}
-        ${c.status !== 'blocked' ? `<button class="icon-btn" title="Bloquear" onclick="updateClientStatus('${c.user_id}','blocked')">⛔</button>` : ''}
-        ${c.status === 'blocked' ? `<button class="icon-btn" title="Reativar" onclick="updateClientStatus('${c.user_id}','approved')">↺</button>` : ''}
-        <button class="icon-btn" title="Excluir cliente" onclick="deleteClient('${c.user_id}')">🗑</button>
+        <button class="icon-btn" title="Ver detalhes" data-action="openClientDetail" data-id="${c.user_id}">👁</button>
+        <button class="icon-btn" title="Observações" data-action="openNotes" data-id="${c.user_id}">📝</button>
+        ${c.status !== 'approved' ? `<button class="icon-btn" title="Aprovar" data-action="updateClientStatus" data-id="${c.user_id}" data-status="approved">✔</button>` : ''}
+        ${c.status !== 'blocked' ? `<button class="icon-btn" title="Bloquear" data-action="updateClientStatus" data-id="${c.user_id}" data-status="blocked">⛔</button>` : ''}
+        ${c.status === 'blocked' ? `<button class="icon-btn" title="Reativar" data-action="updateClientStatus" data-id="${c.user_id}" data-status="approved">↺</button>` : ''}
+        <button class="icon-btn" title="Excluir cliente" data-action="deleteClient" data-id="${c.user_id}">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -418,7 +433,7 @@ function renderAdminsPanel() {
         <td>${profile ? yalcaEscapeHtmlSafe(profile.store_name) || '—' : '—'}</td>
         <td>${profile ? yalcaEscapeHtmlSafe(profile.email) : a.user_id}${isSelf ? ' (você)' : ''}</td>
         <td class="row-actions">
-          <button class="icon-btn" title="Remover admin" onclick="removeAdmin('${a.user_id}')">🗑</button>
+          <button class="icon-btn" title="Remover admin" data-action="removeAdmin" data-id="${a.user_id}">🗑</button>
         </td>
       </tr>`;
     }).join('');
