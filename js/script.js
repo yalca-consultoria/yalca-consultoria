@@ -71,8 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', () => {
         const item = btn.closest('.faq-item');
         const isOpen = item.classList.contains('is-open');
-        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('is-open'));
-        if (!isOpen) item.classList.add('is-open');
+        document.querySelectorAll('.faq-item').forEach(i => {
+          i.classList.remove('is-open');
+          i.querySelector('.faq-item__question').setAttribute('aria-expanded', 'false');
+        });
+        if (!isOpen) {
+          item.classList.add('is-open');
+          btn.setAttribute('aria-expanded', 'true');
+        }
       });
     });
   } catch (err) { console.error('Falha no FAQ:', err); }

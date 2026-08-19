@@ -399,6 +399,24 @@ p { color: var(--text-muted); }
   font-weight: 700;
 }
 
+/* =========== QUICK HELP =========== */
+.quick-help {
+  padding: 44px 0;
+  background: rgba(37,211,102,0.06);
+  border-top: 1px solid rgba(37,211,102,0.2);
+  border-bottom: 1px solid rgba(37,211,102,0.2);
+}
+.quick-help__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.quick-help__text h3 { font-size: 1.25rem; margin-bottom: 6px; }
+.quick-help__text p { color: var(--text-muted); max-width: 480px; font-size: 0.95rem; }
+.quick-help .btn--whatsapp { margin-top: 0; flex-shrink: 0; }
+
 /* =========== PROCESS =========== */
 .process { padding: 100px 0; background: var(--bg-alt); }
 .process__grid {
@@ -654,6 +672,22 @@ p { color: var(--text-muted); }
 }
 .back-to-top.is-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
+.whatsapp-float {
+  position: fixed;
+  bottom: 24px; left: 24px;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: var(--whatsapp);
+  color: #06210f;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  text-decoration: none;
+  z-index: 90;
+  box-shadow: 0 10px 24px -8px rgba(37,211,102,0.6);
+  transition: transform 0.2s ease;
+}
+.whatsapp-float:hover { transform: scale(1.08); }
+
 /* =========================================
    RESPONSIVE
    Breakpoints: 1024 (tablet paisagem/desktop pequeno),
@@ -664,6 +698,7 @@ p { color: var(--text-muted); }
 @supports (padding: max(0px)) {
   .header__inner { padding-left: max(0px, env(safe-area-inset-left)); padding-right: max(0px, env(safe-area-inset-right)); }
   .back-to-top { right: max(24px, calc(24px + env(safe-area-inset-right))); bottom: max(24px, calc(24px + env(safe-area-inset-bottom))); }
+  .whatsapp-float { left: max(24px, calc(24px + env(safe-area-inset-left))); bottom: max(24px, calc(24px + env(safe-area-inset-bottom))); }
   .footer__bottom { padding-bottom: max(0px, env(safe-area-inset-bottom)); }
 }
 
@@ -737,6 +772,7 @@ p { color: var(--text-muted); }
   .result-card { padding: 20px 16px; }
   .result-card strong { font-size: 1.9rem; }
   .back-to-top { width: 42px; height: 42px; bottom: 16px; right: 16px; }
+  .whatsapp-float { width: 46px; height: 46px; bottom: 16px; left: 16px; font-size: 1.25rem; }
 }
 
 /* Telas curtas (celulares em paisagem) — evita empurrar o conteúdo do hero para fora da viewport */
