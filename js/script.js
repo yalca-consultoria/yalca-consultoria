@@ -39,18 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   } catch (err) { console.error('Falha no header/voltar ao topo:', err); }
 
-  /* Menu mobile */
-  try {
-    const navToggle = document.getElementById('navToggle');
-    const nav = document.getElementById('nav');
-    navToggle.addEventListener('click', () => {
-      nav.classList.toggle('is-open');
-    });
-    nav.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', () => nav.classList.remove('is-open'));
-    });
-  } catch (err) { console.error('Falha no menu mobile:', err); }
-
   /* Contadores animados */
   try {
     const counters = document.querySelectorAll('.counter');
