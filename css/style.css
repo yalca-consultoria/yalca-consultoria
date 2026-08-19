@@ -2,6 +2,21 @@
    Impulsa — Assessoria de Ecommerce
    ========================================= */
 
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/inter-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../fonts/manrope-latin.woff2') format('woff2');
+}
+
 :root {
   --bg: #0b1120;
   --bg-alt: #0f1729;
