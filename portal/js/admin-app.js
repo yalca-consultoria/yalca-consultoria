@@ -268,7 +268,7 @@ function renderClientsTable() {
       <td class="row-actions">
         <button class="icon-btn" title="Ver detalhes" data-action="openClientDetail" data-id="${c.user_id}">👁</button>
         <button class="icon-btn" title="Observações" data-action="openNotes" data-id="${c.user_id}">📝</button>
-        ${c.status !== 'approved' ? `<button class="icon-btn" title="Aprovar" data-action="updateClientStatus" data-id="${c.user_id}" data-status="approved">✔</button>` : ''}
+        ${c.status === 'pending' ? `<button class="icon-btn" title="Aprovar" data-action="updateClientStatus" data-id="${c.user_id}" data-status="approved">✔</button>` : ''}
         ${c.status !== 'blocked' ? `<button class="icon-btn" title="Bloquear" data-action="updateClientStatus" data-id="${c.user_id}" data-status="blocked">⛔</button>` : ''}
         ${c.status === 'blocked' ? `<button class="icon-btn" title="Reativar" data-action="updateClientStatus" data-id="${c.user_id}" data-status="approved">↺</button>` : ''}
         <button class="icon-btn" title="Excluir cliente" data-action="deleteClient" data-id="${c.user_id}">🗑</button>
