@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Yalca Portal — API Node pra IA (DeepSeek testado, Qwen2.5:7b escolhido —
-// mais rápido e com português melhor nos testes reais de 2026-08-20).
-// Ollama roda local (127.0.0.1:11434, nunca exposto), protegido por
-// systemd (OOMScoreAdjust=1000 + MemoryMax) pra nunca derrubar o Supabase
-// que roda na mesma VPS — ver lib/ollama-client.js pra fila de concorrência.
+// Yalca Portal — API Node pra IA. Testado self-hosted (DeepSeek R1,
+// Qwen2.5) via Ollama local na VPS antes disso — trocado pra API da
+// Claude (Anthropic) depois de reclamação de demora/qualidade real do
+// usuário. Modelo claude-haiku-4-5 (mais barato da Claude), cobrado na
+// conta Anthropic do próprio usuário — ver lib/claude-client.js.
 //
 // Quatro rotas:
 //   POST /assistant   — só admin do portal Yalca: chat livre.
@@ -25,7 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const { makeRestClient } = require('./lib/rest-client');
 const { makeAuthClient } = require('./lib/auth');
-const { chatStream, isBusy } = require('./lib/ollama-client');
+const { chatStream } = require('./lib/claude-client');
 const { buildDiagnosticPrompt } = require('./lib/diagnostic-builder');
 
 function loadEnv(envPath) {
@@ -46,6 +46,7 @@ const PORT = Number(env.PORT || 3002);
 const SUPABASE_URL = env.SUPABASE_URL || 'https://api.yalca.com.br';
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = env.SUPABASE_ANON_KEY;
+const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
 // Duas origens diferentes chamam essa API: o portal da Yalca (/assistant,
 // /diagnostico, /suporte) e o painel pessoal (/chat) — cada uma só pode
 // receber SEU PRÓPRIO Access-Control-Allow-Origin de volta, nunca as duas
@@ -66,6 +67,10 @@ const MAX_HISTORY = 12; // mensagens (não pares) — limita o tamanho do contex
 
 if (!SERVICE_ROLE_KEY || !ANON_KEY) {
   console.error('SUPABASE_SERVICE_ROLE_KEY e/ou SUPABASE_ANON_KEY não configuradas em .env — abortando.');
+  process.exit(1);
+}
+if (!ANTHROPIC_API_KEY) {
+  console.error('ANTHROPIC_API_KEY não configurada em .env — abortando.');
   process.exit(1);
 }
 
@@ -110,6 +115,7 @@ async function streamChatResponse(res, messages, systemPrompt) {
   try {
     const full = await chatStream(messages, {
       systemPrompt,
+      apiKey: ANTHROPIC_API_KEY,
       onChunk: (piece) => res.write(piece),
     });
     res.end();
@@ -194,7 +200,6 @@ async function handleAssistant(req, res) {
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
-  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
   const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
     'Você é um assistente pessoal do Yanderson, que administra a Yalca Consultoria (consultoria de e-commerce) e sua própria marca de suplementos na Amazon (FBA). Responda em português do Brasil, de forma direta e prática.');
   if (!ok) console.error('erro no assistant (stream já iniciado):', error);
@@ -210,7 +215,6 @@ async function handleDiagnostico(req, res) {
     sendJson(res, 200, { ok: false, reason: 'no_data', message: 'Ainda não há dados suficientes cadastrados (lançamentos financeiros ou produtos) pra gerar um diagnóstico.' });
     return;
   }
-  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
 
   const { ok, error } = await streamChatResponse(res, [{
     role: 'user',
@@ -230,7 +234,6 @@ async function handleSuporte(req, res) {
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
-  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
   const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
     'Você é o assistente de suporte do portal da Yalca Consultoria, uma consultoria de e-commerce. Ajude o cliente com dúvidas sobre gestão financeira, marketplaces e as ferramentas do portal (calculadora de preço, controle de estoque, fluxo de caixa). Responda em português do Brasil, de forma clara e objetiva. Se a dúvida for algo que só a equipe da Yalca pode resolver (ex: problema de conta, cobrança), oriente o cliente a entrar em contato com a Yalca diretamente.');
   if (!ok) console.error('erro no suporte (stream já iniciado):', error);
@@ -247,7 +250,6 @@ async function handlePanelChat(req, res) {
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
-  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
   const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
     'Você é um assistente de IA de uso pessoal. Responda em português do Brasil, de forma direta e útil.');
   if (!ok) console.error('erro no chat do painel (stream já iniciado):', error);

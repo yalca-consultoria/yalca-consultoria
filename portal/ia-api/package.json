@@ -2,12 +2,15 @@
   "name": "yalca-ia-api",
   "version": "1.0.0",
   "private": true,
-  "description": "API Node pra IA (assistente interno, diagnóstico de loja, suporte ao cliente) via Ollama local.",
+  "description": "API Node pra IA (assistente interno, diagnóstico de loja, suporte ao cliente) via API da Claude (Anthropic).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0"
   }
 }
