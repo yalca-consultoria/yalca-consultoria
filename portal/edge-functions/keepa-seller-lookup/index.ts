@@ -77,6 +77,9 @@ function parseSeller(s: any) {
       neutral: s.neutralRating ?? null,
     },
     trackedSinceRaw: typeof s.trackedSince === "number" ? s.trackedSince : null,
+    // Formato confirmado no backend oficial do Keepa: [keepaTime, contagem] —
+    // sinal de legitimidade (loja de verdade com catálogo vs. conta nova/pequena).
+    totalStorefrontAsins: Array.isArray(s.totalStorefrontAsins) && typeof s.totalStorefrontAsins[1] === "number" ? s.totalStorefrontAsins[1] : null,
   }
 }
 
@@ -92,6 +95,7 @@ function mockSellerResponse(sellerIds: string[]) {
       negativeRating: { lifetime: 2 },
       neutralRating: { lifetime: 3 },
       trackedSince: 5000000,
+      totalStorefrontAsins: [5000000, 50 + i * 120],
     }
   })
   return { sellers, tokensLeft: 999, tokensConsumed: 0 }
@@ -160,6 +164,7 @@ export default {
         currentRating: row.current_rating,
         currentRatingCount: row.current_rating_count,
         hasFBA: row.has_fba,
+        totalStorefrontAsins: row.total_storefront_asins ?? null,
       }
     }
 
@@ -230,7 +235,7 @@ export default {
         return { seller_id: id, seller_name: null, fetched_at: nowIso, last_error: "not_found_at_keepa" }
       }
       const parsed = parseSeller(raw)
-      result[id] = { sellerName: parsed.sellerName, currentRating: parsed.currentRating, currentRatingCount: parsed.currentRatingCount, hasFBA: parsed.hasFBA }
+      result[id] = { sellerName: parsed.sellerName, currentRating: parsed.currentRating, currentRatingCount: parsed.currentRatingCount, hasFBA: parsed.hasFBA, totalStorefrontAsins: parsed.totalStorefrontAsins }
       return {
         seller_id: id,
         seller_name: parsed.sellerName,
@@ -239,6 +244,7 @@ export default {
         has_fba: parsed.hasFBA,
         rating_breakdown: parsed.ratingBreakdown,
         tracked_since_raw: parsed.trackedSinceRaw,
+        total_storefront_asins: parsed.totalStorefrontAsins,
         fetched_at: nowIso,
         last_error: null,
       }

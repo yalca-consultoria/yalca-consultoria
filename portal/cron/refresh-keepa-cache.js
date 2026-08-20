@@ -187,15 +187,64 @@ function parseCategoryRanks(salesRanks, salesRankReference, categoryTree, primar
   return rows;
 }
 
+// stats.avg30/avg90/avg180/min/max/isLowest/isLowest90/outOfStockPercentage*
+// são indexados por CsvType (confirmado no enum oficial do backend Keepa no
+// GitHub) — índice 18 (BUY_BOX_SHIPPING) é o preço que o comprador realmente
+// pagaria, mesma referência usada como "buybox" em outro lugar da tela.
+const CSV_TYPE_BUYBOX_SHIPPING = 18;
+
+function parseBuyBoxStats(buyBoxStats) {
+  if (!buyBoxStats || typeof buyBoxStats !== 'object') return [];
+  return Object.entries(buyBoxStats).map(([sellerId, s]) => ({
+    sellerId,
+    percentageWon: typeof s?.percentageWon === 'number' ? Math.round(s.percentageWon) : null,
+    avgPrice: centsToReais(s?.avgPrice),
+    avgNewOfferCount: typeof s?.avgNewOfferCount === 'number' ? s.avgNewOfferCount : null,
+    isFBA: !!s?.isFBA,
+    lastSeen: typeof s?.lastSeen === 'number' ? keepaTimeToIso(s.lastSeen) : null,
+  })).sort((a, b) => (b.percentageWon ?? 0) - (a.percentageWon ?? 0));
+}
+
+function parseStats(stats) {
+  if (!stats || typeof stats !== 'object') return null;
+  const idx = CSV_TYPE_BUYBOX_SHIPPING;
+  const avgAt = (arr) => Array.isArray(arr) && typeof arr[idx] === 'number' && arr[idx] >= 0 ? centsToReais(arr[idx]) : null;
+  const extremeAt = (arr) => {
+    const entry = Array.isArray(arr) ? arr[idx] : null;
+    if (!Array.isArray(entry) || entry.length < 2) return null;
+    return { date: keepaTimeToIso(entry[0]), price: centsToReais(entry[1]) };
+  };
+  const pctAt = (arr) => Array.isArray(arr) && typeof arr[idx] === 'number' && arr[idx] >= 0 ? arr[idx] : null;
+  const dropsOrNull = (v) => typeof v === 'number' && v >= 0 ? v : null;
+  return {
+    avg30: avgAt(stats.avg30), avg90: avgAt(stats.avg90), avg180: avgAt(stats.avg180),
+    lowestEver: extremeAt(stats.min), highestEver: extremeAt(stats.max),
+    isLowestEver: Array.isArray(stats.isLowest) ? !!stats.isLowest[idx] : null,
+    isLowest90d: Array.isArray(stats.isLowest90) ? !!stats.isLowest90[idx] : null,
+    outOfStockPct30: pctAt(stats.outOfStockPercentage30), outOfStockPct90: pctAt(stats.outOfStockPercentage90),
+    salesRankDrops30: dropsOrNull(stats.salesRankDrops30), salesRankDrops90: dropsOrNull(stats.salesRankDrops90), salesRankDrops180: dropsOrNull(stats.salesRankDrops180),
+    buyBoxStats: parseBuyBoxStats(stats.buyBoxStats),
+  };
+}
+function mmToCm(mm) { return (mm === null || mm === undefined || mm <= 0) ? null : Math.round((mm / 10) * 10) / 10; }
+function gToKg(g) { return (g === null || g === undefined || g <= 0) ? null : Math.round((g / 1000) * 100) / 100; }
+
 function parseKeepaProduct(p) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true);
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true);
+  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true);
   const bsrHistory = extractCsvSeries(p.csv, 3, false);
   const ratingHistory = extractCsvSeries(p.csv, 16, false);
   const reviewCountHistory = extractCsvSeries(p.csv, 17, false);
   const buyboxPrice = centsToReais(p.buyBoxPrice);
   const currentPrice = buyboxPrice ?? lastValue(priceHistoryNew) ?? lastValue(priceHistoryAmazon);
-  const priceHistory = [...priceHistoryAmazon, ...priceHistoryNew].sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+  // Três séries separadas (Amazon/outros vendedores/buybox), mesmo formato
+  // usado pela Edge Function keepa-search — necessário pro gráfico multi-série.
+  const priceHistory = {
+    amazon: priceHistoryAmazon.slice(-90),
+    new: priceHistoryNew.slice(-90),
+    buybox: priceHistoryBuyBox.slice(-90),
+  };
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
   const fbaFees = p.fbaFees ? {
     pickAndPack: centsToReais(p.fbaFees.pickAndPackFee),
@@ -216,12 +265,20 @@ function parseKeepaProduct(p) {
     offersCount: typeof p.offersCount === 'number' ? p.offersCount : (Array.isArray(p.offers) ? p.offers.length : null),
     availabilityStatus: AVAILABILITY_LABELS[String(p.availabilityAmazon)] ?? null,
     priceHistory,
+    bsrHistory: bsrHistory.slice(-90),
     monthlySold: typeof p.monthlySold === 'number' ? p.monthlySold : null,
     referralFeePct: typeof p.referralFeePercentage === 'number' ? p.referralFeePercentage : null,
     fbaFees,
     offers: parseOffers(p.offers),
     buyboxRotation90d: computeBuyboxRotation(p.buyBoxSellerIdHistory, 90),
     categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
+    stats: parseStats(p.stats),
+    brand: typeof p.brand === 'string' ? p.brand : null,
+    listedSince: typeof p.listedSince === 'number' && p.listedSince > 0 ? keepaTimeToIso(p.listedSince) : null,
+    packageWeightKg: gToKg(p.packageWeight),
+    packageDimensionsCm: (p.packageLength > 0 && p.packageWidth > 0 && p.packageHeight > 0)
+      ? { length: mmToCm(p.packageLength), width: mmToCm(p.packageWidth), height: mmToCm(p.packageHeight) }
+      : null,
   };
 }
 
@@ -256,7 +313,24 @@ function mockKeepaResponse(asin) {
       null, null, null, null, null, null, null, null, null, null, null, null,
       [now, 42],
       [now, 210],
+      [now - 60 * 24 * 2, 10800, now, 10500], // BUY_BOX_SHIPPING (índice 18)
     ],
+    brand: 'Marca Mock',
+    listedSince: now - 60 * 24 * 400,
+    packageWeight: 250, packageHeight: 50, packageLength: 120, packageWidth: 80,
+    stats: {
+      avg30: (() => { const a = new Array(36).fill(-1); a[18] = 10800; return a; })(),
+      avg90: (() => { const a = new Array(36).fill(-1); a[18] = 11200; return a; })(),
+      avg180: (() => { const a = new Array(36).fill(-1); a[18] = 11500; return a; })(),
+      min: (() => { const a = new Array(36).fill(null); a[18] = [now - 60 * 24 * 100, 9800]; return a; })(),
+      max: (() => { const a = new Array(36).fill(null); a[18] = [now - 60 * 24 * 300, 13500]; return a; })(),
+      isLowest: new Array(36).fill(false),
+      isLowest90: new Array(36).fill(false),
+      outOfStockPercentage30: (() => { const a = new Array(36).fill(-1); a[18] = 0; return a; })(),
+      outOfStockPercentage90: (() => { const a = new Array(36).fill(-1); a[18] = 2; return a; })(),
+      salesRankDrops30: 20, salesRankDrops90: 55, salesRankDrops180: 90,
+      buyBoxStats: { A1MOCKSELLER: { percentageWon: 58, avgPrice: 10500, avgNewOfferCount: 2, isFBA: true, lastSeen: now } },
+    },
   };
 }
 
@@ -406,6 +480,26 @@ async function main() {
         offers: parsed.offers,
         buybox_rotation_90d: parsed.buyboxRotation90d,
         category_ranks: parsed.categoryRanks,
+        bsr_history: parsed.bsrHistory,
+        brand: parsed.brand,
+        listed_since: parsed.listedSince,
+        package_weight_kg: parsed.packageWeightKg,
+        package_length_cm: parsed.packageDimensionsCm?.length ?? null,
+        package_width_cm: parsed.packageDimensionsCm?.width ?? null,
+        package_height_cm: parsed.packageDimensionsCm?.height ?? null,
+        price_avg_30: parsed.stats?.avg30 ?? null,
+        price_avg_90: parsed.stats?.avg90 ?? null,
+        price_avg_180: parsed.stats?.avg180 ?? null,
+        price_lowest_ever: parsed.stats?.lowestEver ?? null,
+        price_highest_ever: parsed.stats?.highestEver ?? null,
+        is_lowest_ever: parsed.stats?.isLowestEver ?? null,
+        is_lowest_90d: parsed.stats?.isLowest90d ?? null,
+        out_of_stock_pct_30: parsed.stats?.outOfStockPct30 ?? null,
+        out_of_stock_pct_90: parsed.stats?.outOfStockPct90 ?? null,
+        sales_rank_drops_30: parsed.stats?.salesRankDrops30 ?? null,
+        sales_rank_drops_90: parsed.stats?.salesRankDrops90 ?? null,
+        sales_rank_drops_180: parsed.stats?.salesRankDrops180 ?? null,
+        buybox_stats: parsed.stats?.buyBoxStats ?? [],
         cheap_data_updated_at: nowIso,
         buybox_data_updated_at: item.priority === 0 ? nowIso : (oldRow?.buybox_data_updated_at ?? nowIso),
         last_synced_by: 'cron',

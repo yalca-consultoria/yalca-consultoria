@@ -209,6 +209,13 @@ function renderKeepaSearchResult(result) {
   panel.style.display = '';
 
   document.getElementById('keepaResultTitle').textContent = result.title || result.asin;
+
+  const metaParts = [];
+  if (result.brand) metaParts.push(result.brand);
+  if (result.listedSince) metaParts.push(`no mercado desde ${yalcaFormatDate(result.listedSince.slice(0, 10))}`);
+  if (result.packageDimensionsCm) metaParts.push(`${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm${result.packageWeightKg ? `, ${result.packageWeightKg}kg` : ''}`);
+  document.getElementById('keepaResultMeta').textContent = metaParts.join(' · ');
+
   const sourceLabel = result.source === 'cache' ? 'dado em cache' : 'consulta ao vivo';
   document.getElementById('keepaResultConfidence').textContent =
     `${sourceLabel} · atualizado ${result.cheapDataAgeMinutes != null ? yalcaKeepaMinutesLabel(result.cheapDataAgeMinutes) : 'agora'}`;
@@ -220,31 +227,111 @@ function renderKeepaSearchResult(result) {
     ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: result.buybox.isAmazon ? 'é a própria Amazon' : rotationHint, delta: null }
     : { label: 'Buybox', value: '—', hint: 'ninguém está vendendo agora', delta: null };
 
+  const stats = result.stats || {};
+  const priceNow = result.buybox?.price ?? result.currentPrice;
+  let priceHint = null;
+  if (priceNow != null && stats.avg90 != null && stats.avg90 > 0) {
+    const deltaPct = ((priceNow - stats.avg90) / stats.avg90) * 100;
+    priceHint = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(0)}% vs. média dos últimos 90 dias`;
+  }
+
+  // Vendas estimadas: monthlySold é dado direto da Amazon, mas a maioria dos
+  // produtos não tem esse valor — nesse caso usamos a contagem de quedas no
+  // ranking (que o próprio Keepa já calcula) como estimativa, deixando claro
+  // que é estimativa e não dado direto.
+  let vendasValue = '—';
+  let vendasHint = 'sem dado suficiente pra estimar';
+  if (result.monthlySold != null) {
+    vendasValue = result.monthlySold.toLocaleString('pt-BR');
+    vendasHint = 'dado direto da Amazon';
+  } else if (stats.salesRankDrops30 != null) {
+    vendasValue = `~${stats.salesRankDrops30.toLocaleString('pt-BR')}`;
+    vendasHint = 'estimativa por quedas no ranking (não é dado direto da Amazon)';
+  }
+
+  const ofertasHintParts = [];
+  if (result.availabilityStatus) ofertasHintParts.push(result.availabilityStatus);
+  if (stats.outOfStockPct90 != null && stats.outOfStockPct90 > 0) ofertasHintParts.push(`sem estoque ${stats.outOfStockPct90}% do tempo (90d)`);
+
   const kpis = [
-    { label: 'Preço da buybox', value: result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : (result.currentPrice != null ? yalcaFormatCurrency(result.currentPrice) : '—'), delta: null },
+    { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint },
     buyboxKpi,
     { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende' },
     { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null },
-    { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: result.availabilityStatus || null },
-    { label: 'Vendas estimadas/mês', value: result.monthlySold != null ? result.monthlySold.toLocaleString('pt-BR') : '—', delta: null, hint: result.monthlySold != null ? 'dado direto da Amazon' : 'maioria dos produtos não tem esse dado' },
+    { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: ofertasHintParts.join(' · ') || null },
+    { label: 'Vendas estimadas/mês', value: vendasValue, delta: null, hint: vendasHint },
     { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto' },
     { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem' },
   ];
   renderKpiGrid('keepaResultKpis', kpis);
 
-  const chartContainer = document.getElementById('keepaPriceHistoryChart');
-  if (result.priceHistory && result.priceHistory.length > 1) {
-    yalcaRenderLineChart(chartContainer, {
-      series: [{ name: 'Preço', color: YALCA_COLORS.series1, data: result.priceHistory.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) }],
-      formatValue: (v) => yalcaFormatCurrency(v)
-    });
+  const badgesEl = document.getElementById('keepaPriceBadges');
+  const badges = [];
+  if (stats.isLowestEver) badges.push('<span class="badge badge--ok">🔥 Menor preço histórico</span>');
+  else if (stats.isLowest90d) badges.push('<span class="badge badge--ok">Menor preço em 90 dias</span>');
+  if (stats.lowestEver?.price != null) badges.push(`<span class="kpi-card__hint">menor já registrado: ${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}</span>`);
+  badgesEl.innerHTML = badges.join('');
+
+  // Gráfico de preço: três séries separadas (mesma linguagem de cores que o
+  // Keepa usa de verdade — laranja=Amazon, azul=outros vendedores, magenta=
+  // buybox) em vez de uma linha genérica única.
+  const priceChartContainer = document.getElementById('keepaPriceHistoryChart');
+  const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
+  const priceSeries = [];
+  if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
+  if (priceSeries.length > 0) {
+    yalcaRenderLineChart(priceChartContainer, { series: priceSeries, formatValue: (v) => yalcaFormatCurrency(v) });
   } else {
-    chartContainer.innerHTML = '<p class="alert-empty">Sem histórico de preço suficiente pra mostrar o gráfico ainda.</p>';
+    priceChartContainer.innerHTML = '<p class="alert-empty">Sem histórico de preço suficiente pra mostrar o gráfico ainda.</p>';
   }
 
+  // Ranking (BSR) fica num gráfico SEPARADO do preço (não no mesmo eixo) —
+  // a escala das duas séries é completamente diferente (reais vs. posição
+  // no ranking, que pode estar na casa dos milhões), então combinar as duas
+  // num único eixo esconde uma das duas linhas. Ver dataviz: nunca eixo duplo.
+  const rankWrap = document.getElementById('keepaRankHistoryWrap');
+  const rankChartContainer = document.getElementById('keepaRankHistoryChart');
+  if (result.bsrHistory && result.bsrHistory.length > 1) {
+    rankWrap.style.display = '';
+    yalcaRenderLineChart(rankChartContainer, {
+      series: [{ name: 'Ranking (BSR)', color: YALCA_COLORS.series3, data: result.bsrHistory.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) }],
+      formatValue: (v) => `#${Math.round(v).toLocaleString('pt-BR')}`
+    });
+  } else {
+    rankWrap.style.display = 'none';
+  }
+
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || []);
   renderKeepaCategoryRanks(result.categoryRanks || []);
   renderKeepaOffersTable(result.offers || []);
   autoLoadTopSellerReputation(result.offers || []);
+}
+
+function renderKeepaBuyboxStatsTable(buyBoxStats) {
+  const panel = document.getElementById('keepaBuyboxStatsPanel');
+  const tbody = document.getElementById('keepaBuyboxStatsBody');
+  if (!buyBoxStats || buyBoxStats.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  tbody.innerHTML = buyBoxStats.map(s => {
+    const rep = s.sellerId ? KEEPA_SELLER_REPUTATION[s.sellerId] : null;
+    const sellerLabel = rep && rep.sellerName
+      ? `${yalcaEscapeHtml(rep.sellerName)}<br><span class="kpi-card__hint">${yalcaEscapeHtml(s.sellerId || '—')}</span>`
+      : yalcaEscapeHtml(s.sellerId || '—');
+    const tipoLabel = s.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>';
+    return `
+    <tr>
+      <td data-label="Vendedor">${sellerLabel}</td>
+      <td data-label="% de vezes" class="num">${s.percentageWon != null ? s.percentageWon + '%' : '—'}</td>
+      <td data-label="Preço médio" class="num">${s.avgPrice != null ? yalcaFormatCurrency(s.avgPrice) : '—'}</td>
+      <td data-label="Tipo">${tipoLabel}</td>
+      <td data-label="Visto por último">${s.lastSeen ? yalcaFormatDate(s.lastSeen.slice(0, 10)) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // Chamado sozinho a cada pesquisa nova — carrega a reputação dos
@@ -313,9 +400,15 @@ function renderKeepaOffersTable(offers) {
   panel.style.display = '';
   tbody.innerHTML = offers.map(o => {
     const rep = o.sellerId ? KEEPA_SELLER_REPUTATION[o.sellerId] : null;
-    const sellerLabel = o.isAmazon ? 'Amazon' : yalcaEscapeHtml(o.sellerId || '—');
+    const sellerLabel = o.isAmazon
+      ? 'Amazon'
+      : rep && rep.sellerName
+        ? `${yalcaEscapeHtml(rep.sellerName)}<br><span class="kpi-card__hint">${yalcaEscapeHtml(o.sellerId || '—')}</span>`
+        : yalcaEscapeHtml(o.sellerId || '—');
     const repLabel = rep
-      ? `${rep.sellerName ? yalcaEscapeHtml(rep.sellerName) : '—'}${rep.currentRating != null ? ` · ${rep.currentRating.toFixed(0)}% (${rep.currentRatingCount ?? 0})` : ''}`
+      ? (rep.currentRating != null
+          ? `${rep.currentRating.toFixed(0)}% positiva · ${rep.currentRatingCount ?? 0} avaliações${rep.totalStorefrontAsins != null ? `<br><span class="kpi-card__hint">${rep.totalStorefrontAsins} produtos na loja</span>` : ''}`
+          : '—')
       : (o.isAmazon ? '—' : '<span class="kpi-card__hint">não carregada</span>');
     const tipoLabel = [o.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>', o.isPrime ? 'Prime' : ''].filter(Boolean).join(' ');
     const priceLabel = o.price != null ? yalcaFormatCurrency(o.price) + (o.shipping ? ` + ${yalcaFormatCurrency(o.shipping)} frete` : '') : '—';
@@ -347,6 +440,7 @@ async function loadSellerReputation(sellerIds, offers) {
     }
     Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
     renderKeepaOffersTable(offers);
+    renderKeepaBuyboxStatsTable(LAST_KEEPA_SEARCH_RESULT?.stats?.buyBoxStats || []);
     return true;
   } catch (err) {
     statusEl.textContent = 'Não foi possível buscar agora: ' + err.message;

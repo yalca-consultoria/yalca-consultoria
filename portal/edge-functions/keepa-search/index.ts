@@ -232,9 +232,68 @@ function parseCategoryRanks(salesRanks: any, salesRankReference: any, categoryTr
   return rows
 }
 
+// stats.avg30/avg90/avg180/min/max/isLowest/isLowest90/outOfStockPercentage*
+// são todos indexados por CsvType (confirmado no enum oficial do backend
+// Keepa no GitHub). Usamos o índice 18 (BUY_BOX_SHIPPING) porque é o que
+// reflete o preço que o comprador realmente pagaria — o mesmo preço que já
+// mostramos como "buybox" em outro lugar da tela.
+const CSV_TYPE_BUYBOX_SHIPPING = 18
+
+function parseBuyBoxStats(buyBoxStats: any): any[] {
+  if (!buyBoxStats || typeof buyBoxStats !== "object") return []
+  return Object.entries(buyBoxStats).map(([sellerId, s]: [string, any]) => ({
+    sellerId,
+    percentageWon: typeof s?.percentageWon === "number" ? Math.round(s.percentageWon) : null,
+    avgPrice: centsToReais(s?.avgPrice),
+    avgNewOfferCount: typeof s?.avgNewOfferCount === "number" ? s.avgNewOfferCount : null,
+    isFBA: !!s?.isFBA,
+    lastSeen: typeof s?.lastSeen === "number" ? keepaTimeToIso(s.lastSeen) : null,
+  })).sort((a, b) => (b.percentageWon ?? 0) - (a.percentageWon ?? 0))
+}
+
+function parseStats(stats: any) {
+  if (!stats || typeof stats !== "object") return null
+  const idx = CSV_TYPE_BUYBOX_SHIPPING
+  const avgAt = (arr: unknown) => Array.isArray(arr) && typeof arr[idx] === "number" && arr[idx] >= 0 ? centsToReais(arr[idx] as number) : null
+  const extremeAt = (arr: unknown) => {
+    const entry = Array.isArray(arr) ? (arr as any[])[idx] : null
+    if (!Array.isArray(entry) || entry.length < 2) return null
+    return { date: keepaTimeToIso(entry[0]), price: centsToReais(entry[1]) }
+  }
+  const pctAt = (arr: unknown) => Array.isArray(arr) && typeof arr[idx] === "number" && arr[idx] >= 0 ? arr[idx] as number : null
+  const dropsOrNull = (v: unknown) => typeof v === "number" && v >= 0 ? v : null
+
+  return {
+    avg30: avgAt(stats.avg30),
+    avg90: avgAt(stats.avg90),
+    avg180: avgAt(stats.avg180),
+    lowestEver: extremeAt(stats.min),
+    highestEver: extremeAt(stats.max),
+    isLowestEver: Array.isArray(stats.isLowest) ? !!stats.isLowest[idx] : null,
+    isLowest90d: Array.isArray(stats.isLowest90) ? !!stats.isLowest90[idx] : null,
+    outOfStockPct30: pctAt(stats.outOfStockPercentage30),
+    outOfStockPct90: pctAt(stats.outOfStockPercentage90),
+    salesRankDrops30: dropsOrNull(stats.salesRankDrops30),
+    salesRankDrops90: dropsOrNull(stats.salesRankDrops90),
+    salesRankDrops180: dropsOrNull(stats.salesRankDrops180),
+    buyBoxStats: parseBuyBoxStats(stats.buyBoxStats),
+  }
+}
+
+function mmToCm(mm: number | null | undefined): number | null {
+  if (mm === null || mm === undefined || mm <= 0) return null
+  return Math.round((mm / 10) * 10) / 10
+}
+
+function gToKg(g: number | null | undefined): number | null {
+  if (g === null || g === undefined || g <= 0) return null
+  return Math.round((g / 1000) * 100) / 100
+}
+
 function parseKeepaProduct(p: any) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true)
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true)
+  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true)
   const bsrHistory = extractCsvSeries(p.csv, 3, false)
   const ratingHistory = extractCsvSeries(p.csv, 16, false)
   const reviewCountHistory = extractCsvSeries(p.csv, 17, false)
@@ -242,11 +301,15 @@ function parseKeepaProduct(p: any) {
   const buyboxPrice = centsToReais(p.buyBoxPrice)
   const currentPrice = buyboxPrice ?? lastValue(priceHistoryNew) ?? lastValue(priceHistoryAmazon)
 
-  // Combina histórico Amazon+New num único array pra mostrar no gráfico
-  // (a maioria dos produtos tem só um dos dois ativo em cada período).
-  const priceHistory = [...priceHistoryAmazon, ...priceHistoryNew]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-90)
+  // Três séries SEPARADAS (Amazon / outros vendedores / buybox), não uma
+  // única linha combinada — é isso que faz o gráfico parecer o do Keepa de
+  // verdade (cada linha com sua própria cor e significado) em vez de uma
+  // linha genérica sem contexto. Cada série já limitada aos últimos 90 pontos.
+  const priceHistory = {
+    amazon: priceHistoryAmazon.slice(-90),
+    new: priceHistoryNew.slice(-90),
+    buybox: priceHistoryBuyBox.slice(-90),
+  }
 
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null
 
@@ -275,13 +338,22 @@ function parseKeepaProduct(p: any) {
     offersCount: typeof p.offersCount === "number" ? p.offersCount : (Array.isArray(p.offers) ? p.offers.length : null),
     availabilityStatus: AVAILABILITY_LABELS[p.availabilityAmazon] ?? null,
     priceHistory,
-    // --- campos novos v8, tudo já vem na mesma resposta ---
+    bsrHistory: bsrHistory.slice(-90),
+    // --- campos v8, tudo já vem na mesma resposta ---
     monthlySold: typeof p.monthlySold === "number" ? p.monthlySold : null,
     referralFeePct: typeof p.referralFeePercentage === "number" ? p.referralFeePercentage : null,
     fbaFees,
     offers: parseOffers(p.offers),
     buyboxRotation90d: computeBuyboxRotation(p.buyBoxSellerIdHistory, 90),
     categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
+    // --- campos v9: estatísticas comparativas (stats.*) e ficha técnica ---
+    stats: parseStats(p.stats),
+    brand: typeof p.brand === "string" ? p.brand : null,
+    listedSince: typeof p.listedSince === "number" && p.listedSince > 0 ? keepaTimeToIso(p.listedSince) : null,
+    packageWeightKg: gToKg(p.packageWeight),
+    packageDimensionsCm: (p.packageLength > 0 && p.packageWidth > 0 && p.packageHeight > 0)
+      ? { length: mmToCm(p.packageLength), width: mmToCm(p.packageWidth), height: mmToCm(p.packageHeight) }
+      : null,
   }
 }
 
@@ -332,16 +404,62 @@ function mockKeepaResponse(asin: string) {
         offerCSV: [now, 13990, 0], stockCSV: [now, 999], lastSeen: now, coupon: 0,
       },
     ],
+    // Histórico com vários pontos (não só 2) pra exercitar de verdade o
+    // gráfico multi-série — cada linha (Amazon/New/BuyBox) com sua própria
+    // trajetória, do mesmo jeito que o gráfico real do Keepa mostra.
     csv: [
-      null, // AMAZON
-      [now - 60 * 24 * 5, 13990, now - 60 * 24 * 2, 12990], // NEW
+      [now - 60 * 24 * 60, 14990, now - 60 * 24 * 40, 14990, now - 60 * 24 * 20, 13990, now - 60 * 24 * 5, 13990], // AMAZON
+      [now - 60 * 24 * 60, 14500, now - 60 * 24 * 45, 13800, now - 60 * 24 * 30, 13990, now - 60 * 24 * 15, 12990, now - 60 * 24 * 2, 12990], // NEW
       null, // USED
-      [now - 60 * 24 * 5, 15000, now - 60 * 24 * 2, 12000], // SALES (BSR)
+      [now - 60 * 24 * 60, 22000, now - 60 * 24 * 45, 18500, now - 60 * 24 * 30, 16000, now - 60 * 24 * 15, 13500, now - 60 * 24 * 2, 12000], // SALES (BSR) — melhorando (caindo)
       null, null, null, null, null, null, null, null, null, null, null, null,
       [now - 60 * 24 * 5, 45], // RATING (x10 -> 4.5)
       [now - 60 * 24 * 5, 320], // COUNT_REVIEWS
+      [now - 60 * 24 * 60, 14200, now - 60 * 24 * 40, 13990, now - 60 * 24 * 20, 12990, now - 60 * 24 * 2, 12990], // BUY_BOX_SHIPPING (índice 18)
     ],
+    // --- campos v9: estatísticas (stats.*) e ficha técnica ---
+    brand: "Marca Mock",
+    listedSince: now - 60 * 24 * 900, // ~2.5 anos no mercado
+    packageWeight: 250, packageHeight: 50, packageLength: 120, packageWidth: 80,
+    stats: {
+      avg30: buildStatsArray(12990),
+      avg90: buildStatsArray(13400),
+      avg180: buildStatsArray(13800),
+      min: buildStatsExtremeArray(now - 60 * 24 * 200, 10990),
+      max: buildStatsExtremeArray(now - 60 * 24 * 500, 16990),
+      isLowest: buildStatsBoolArray(false),
+      isLowest90: buildStatsBoolArray(true), // exercita o selo "menor preço em 90 dias"
+      outOfStockPercentage30: buildStatsArray(2),
+      outOfStockPercentage90: buildStatsArray(5),
+      salesRankDrops30: 47,
+      salesRankDrops90: 118,
+      salesRankDrops180: 210,
+      buyBoxStats: {
+        A1MOCKSELLER: { percentageWon: 62, avgPrice: 12990, avgNewOfferCount: 4, isFBA: true, lastSeen: now },
+        A2OUTROSELLER: { percentageWon: 31, avgPrice: 13600, avgNewOfferCount: 4, isFBA: true, lastSeen: now - 60 * 24 * 6 },
+        A3TERCEIRO: { percentageWon: 7, avgPrice: 11800, avgNewOfferCount: 4, isFBA: false, lastSeen: now - 60 * 24 * 20 },
+      },
+    },
   }
+}
+
+// Monta um array de 36 posições (tamanho do enum CsvType) só com o índice
+// 18 (BUY_BOX_SHIPPING) preenchido — os outros ficam -1 ("sem dado"), igual
+// o Keepa faz de verdade. Usado pros campos de stats.* do mock.
+function buildStatsArray(valueAtBuyboxIdx: number): number[] {
+  const arr = new Array(36).fill(-1)
+  arr[CSV_TYPE_BUYBOX_SHIPPING] = valueAtBuyboxIdx
+  return arr
+}
+function buildStatsBoolArray(valueAtBuyboxIdx: boolean): boolean[] {
+  const arr = new Array(36).fill(false)
+  arr[CSV_TYPE_BUYBOX_SHIPPING] = valueAtBuyboxIdx
+  return arr
+}
+function buildStatsExtremeArray(time: number, value: number): (number[] | null)[] {
+  const arr: (number[] | null)[] = new Array(36).fill(null)
+  arr[CSV_TYPE_BUYBOX_SHIPPING] = [time, value]
+  return arr
 }
 
 function formatResult(cache: any) {
@@ -361,7 +479,8 @@ function formatResult(cache: any) {
     } : null,
     offersCount: cache.offers_count,
     availabilityStatus: cache.availability_status,
-    priceHistory: cache.price_history ?? [],
+    priceHistory: cache.price_history ?? { amazon: [], new: [], buybox: [] },
+    bsrHistory: cache.bsr_history ?? [],
     monthlySold: cache.monthly_sold ?? null,
     referralFeePct: cache.referral_fee_pct ?? null,
     fbaFees: (cache.fba_pick_pack_fee ?? cache.fba_storage_fee) != null ? {
@@ -376,6 +495,27 @@ function formatResult(cache: any) {
     offers: cache.offers ?? [],
     buyboxRotation90d: cache.buybox_rotation_90d ?? null,
     categoryRanks: cache.category_ranks ?? [],
+    brand: cache.brand ?? null,
+    listedSince: cache.listed_since ?? null,
+    packageWeightKg: cache.package_weight_kg ?? null,
+    packageDimensionsCm: (cache.package_length_cm != null) ? {
+      length: cache.package_length_cm, width: cache.package_width_cm, height: cache.package_height_cm,
+    } : null,
+    stats: {
+      avg30: cache.price_avg_30 ?? null,
+      avg90: cache.price_avg_90 ?? null,
+      avg180: cache.price_avg_180 ?? null,
+      lowestEver: cache.price_lowest_ever ?? null,
+      highestEver: cache.price_highest_ever ?? null,
+      isLowestEver: cache.is_lowest_ever ?? null,
+      isLowest90d: cache.is_lowest_90d ?? null,
+      outOfStockPct30: cache.out_of_stock_pct_30 ?? null,
+      outOfStockPct90: cache.out_of_stock_pct_90 ?? null,
+      salesRankDrops30: cache.sales_rank_drops_30 ?? null,
+      salesRankDrops90: cache.sales_rank_drops_90 ?? null,
+      salesRankDrops180: cache.sales_rank_drops_180 ?? null,
+      buyBoxStats: cache.buybox_stats ?? [],
+    },
     cheapDataAgeMinutes: cache.cheap_data_updated_at
       ? Math.round((Date.now() - new Date(cache.cheap_data_updated_at).getTime()) / 60000)
       : null,
@@ -414,6 +554,26 @@ function buildCacheRow(asin: string, parsed: ReturnType<typeof parseKeepaProduct
     offers: parsed.offers,
     buybox_rotation_90d: parsed.buyboxRotation90d,
     category_ranks: parsed.categoryRanks,
+    bsr_history: parsed.bsrHistory,
+    brand: parsed.brand,
+    listed_since: parsed.listedSince,
+    package_weight_kg: parsed.packageWeightKg,
+    package_length_cm: parsed.packageDimensionsCm?.length ?? null,
+    package_width_cm: parsed.packageDimensionsCm?.width ?? null,
+    package_height_cm: parsed.packageDimensionsCm?.height ?? null,
+    price_avg_30: parsed.stats?.avg30 ?? null,
+    price_avg_90: parsed.stats?.avg90 ?? null,
+    price_avg_180: parsed.stats?.avg180 ?? null,
+    price_lowest_ever: parsed.stats?.lowestEver ?? null,
+    price_highest_ever: parsed.stats?.highestEver ?? null,
+    is_lowest_ever: parsed.stats?.isLowestEver ?? null,
+    is_lowest_90d: parsed.stats?.isLowest90d ?? null,
+    out_of_stock_pct_30: parsed.stats?.outOfStockPct30 ?? null,
+    out_of_stock_pct_90: parsed.stats?.outOfStockPct90 ?? null,
+    sales_rank_drops_30: parsed.stats?.salesRankDrops30 ?? null,
+    sales_rank_drops_90: parsed.stats?.salesRankDrops90 ?? null,
+    sales_rank_drops_180: parsed.stats?.salesRankDrops180 ?? null,
+    buybox_stats: parsed.stats?.buyBoxStats ?? [],
     cheap_data_updated_at: nowIso,
     buybox_data_updated_at: nowIso,
     last_synced_by: "search",

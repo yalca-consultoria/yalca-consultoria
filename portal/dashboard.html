@@ -312,12 +312,40 @@
             <div class="panel__head">
               <div>
                 <h3 id="keepaResultTitle">—</h3>
+                <p id="keepaResultMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
                 <p id="keepaResultConfidence" style="margin-top:8px;"></p>
               </div>
             </div>
             <div class="kpi-grid" id="keepaResultKpis"></div>
-            <div id="keepaPriceHistoryChart" style="margin-top:20px;"></div>
+            <div id="keepaPriceBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+            <h4 style="margin-top:24px;">Histórico de preço</h4>
+            <div id="keepaPriceHistoryChart" style="margin-top:10px;"></div>
+
+            <div id="keepaRankHistoryWrap" style="display:none;">
+              <h4 style="margin-top:24px;">Histórico de ranking (BSR)</h4>
+              <p class="kpi-card__hint">Quanto menor a posição, mais o produto está vendendo.</p>
+              <div id="keepaRankHistoryChart" style="margin-top:10px;"></div>
+            </div>
+
             <button type="button" class="table-view-toggle" id="keepaUseInPricingBtn" style="margin-top:16px;">Usar este preço na Calculadora de Preço →</button>
+          </div>
+
+          <div class="panel" id="keepaBuyboxStatsPanel" style="display:none;">
+            <div class="panel__head">
+              <div>
+                <h3>Quem domina a buybox</h3>
+                <p>Percentual de vezes que cada vendedor ganhou a exibição principal do produto.</p>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table data-table--cards">
+                <thead>
+                  <tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr>
+                </thead>
+                <tbody id="keepaBuyboxStatsBody"></tbody>
+              </table>
+            </div>
           </div>
 
           <div class="panel" id="keepaCategoryRanksPanel" style="display:none;">
