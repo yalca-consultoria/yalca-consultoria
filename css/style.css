@@ -701,7 +701,7 @@ p { color: var(--text-muted); }
   .whatsapp-float { left: max(24px, calc(24px + env(safe-area-inset-left))); bottom: max(24px, calc(24px + env(safe-area-inset-bottom))); }
 }
 @media (max-width: 640px) {
-  .footer__bottom { padding-bottom: max(90px, calc(90px + env(safe-area-inset-bottom))); }
+  .footer .footer__bottom { padding-bottom: max(90px, calc(90px + env(safe-area-inset-bottom))); }
 }
 
 @media (max-width: 1024px) {
