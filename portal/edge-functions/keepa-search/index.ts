@@ -48,8 +48,13 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 const ASIN_RE = /^[A-Z0-9]{10}$/
 
 // Custo estimado de uma pesquisa completa (base + buybox + offers + stats + rating).
-// PLACEHOLDER até o primeiro teste real — corrigir com o tokens_consumed
-// observado em keepa_token_usage_log (ver seção de verificação do plano).
+// PRÉ-checagem de orçamento (usada só ANTES de saber o custo real da chamada
+// em andamento) — testes reais em 2026-08-20 (ASIN B08MY5ZQ1N, 101 ofertas)
+// mostraram variação real de ~2 a ~12 tokens entre chamadas pro MESMO
+// produto, provavelmente por causa do plano Keepa Pro consumidor (saldo
+// baixo, reposição de só ~1 token/min) reagir diferente conforme o saldo
+// disponível no momento. Fica no teto observado (12) + margem, pra nunca
+// deixar passar uma chamada que estoura o orçamento diário.
 const ESTIMATED_SEARCH_COST = 15
 
 function jsonResponse(status: number, body: unknown) {
@@ -105,11 +110,20 @@ function centsToReais(cents: number | null | undefined): number | null {
   return Math.round(cents) / 100
 }
 
-function extractCsvSeries(csv: (number[] | null)[] | undefined, typeIndex: number, isPrice: boolean): { date: string; value: number }[] {
+// Formato confirmado no enum oficial CsvType do backend Keepa (campo
+// isWithShipping): a MAIORIA dos tipos guarda pares [tempo, valor, ...],
+// mas os tipos "*_SHIPPING" (incluindo BUY_BOX_SHIPPING, índice 18) guardam
+// TRINCAS [tempo, preço, frete, ...] — tratar como par nesses casos lê o
+// frete como se fosse o próximo timestamp e o timestamp seguinte como se
+// fosse preço, produzindo picos absurdos (ex: "R$ 82.000") e datas na época
+// do Keepa (2011). Bug real encontrado com o primeiro teste com chave de
+// verdade — nunca apareceu no mock porque o mock nunca simulou uma trinca.
+function extractCsvSeries(csv: (number[] | null)[] | undefined, typeIndex: number, isPrice: boolean, hasShipping = false): { date: string; value: number }[] {
   const series = csv?.[typeIndex]
   if (!Array.isArray(series)) return []
+  const stride = hasShipping ? 3 : 2
   const points: { date: string; value: number }[] = []
-  for (let i = 0; i + 1 < series.length; i += 2) {
+  for (let i = 0; i + 1 < series.length; i += stride) {
     const rawValue = series[i + 1]
     if (rawValue === -1 || rawValue === null || rawValue === undefined) continue
     points.push({
@@ -293,7 +307,7 @@ function gToKg(g: number | null | undefined): number | null {
 function parseKeepaProduct(p: any) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true)
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true)
-  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true)
+  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true, true)
   const bsrHistory = extractCsvSeries(p.csv, 3, false)
   const ratingHistory = extractCsvSeries(p.csv, 16, false)
   const reviewCountHistory = extractCsvSeries(p.csv, 17, false)
@@ -415,7 +429,7 @@ function mockKeepaResponse(asin: string) {
       null, null, null, null, null, null, null, null, null, null, null, null,
       [now - 60 * 24 * 5, 45], // RATING (x10 -> 4.5)
       [now - 60 * 24 * 5, 320], // COUNT_REVIEWS
-      [now - 60 * 24 * 60, 14200, now - 60 * 24 * 40, 13990, now - 60 * 24 * 20, 12990, now - 60 * 24 * 2, 12990], // BUY_BOX_SHIPPING (índice 18)
+      [now - 60 * 24 * 60, 14200, 0, now - 60 * 24 * 40, 13990, 0, now - 60 * 24 * 20, 12990, 0, now - 60 * 24 * 2, 12990, 0], // BUY_BOX_SHIPPING (índice 18) — formato [tempo,preço,frete] em trincas, não pares
     ],
     // --- campos v9: estatísticas (stats.*) e ficha técnica ---
     brand: "Marca Mock",
@@ -522,6 +536,7 @@ function formatResult(cache: any) {
     buyboxDataAgeMinutes: cache.buybox_data_updated_at
       ? Math.round((Date.now() - new Date(cache.buybox_data_updated_at).getTime()) / 60000)
       : null,
+    isMockData: typeof cache.last_synced_by === "string" && cache.last_synced_by.endsWith("_mock"),
   }
 }
 
@@ -576,7 +591,11 @@ function buildCacheRow(asin: string, parsed: ReturnType<typeof parseKeepaProduct
     buybox_stats: parsed.stats?.buyBoxStats ?? [],
     cheap_data_updated_at: nowIso,
     buybox_data_updated_at: nowIso,
-    last_synced_by: "search",
+    // Sufixo "_mock" marca a linha como dado fictício de teste (sem chave
+    // real do Keepa configurada) — o front-end usa isso pra mostrar um
+    // aviso bem visível, já que "consulta real" e "número inventado" ficam
+    // fáceis de confundir se o aviso for discreto demais.
+    last_synced_by: KEEPA_MOCK ? "search_mock" : "search",
     last_error: null,
   }
 }

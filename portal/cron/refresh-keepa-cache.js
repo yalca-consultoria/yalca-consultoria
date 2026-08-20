@@ -102,11 +102,17 @@ function centsToReais(cents) {
   if (cents === null || cents === undefined || cents < 0) return null;
   return Math.round(cents) / 100;
 }
-function extractCsvSeries(csv, typeIndex, isPrice) {
+// Formato confirmado no enum oficial CsvType do backend Keepa (campo
+// isWithShipping): tipos "*_SHIPPING" (incluindo BUY_BOX_SHIPPING, índice
+// 18) guardam TRINCAS [tempo, preço, frete, ...], não pares — tratar como
+// par lê o frete como próximo timestamp e o timestamp seguinte como preço,
+// gerando picos absurdos. Mesma correção aplicada na Edge Function keepa-search.
+function extractCsvSeries(csv, typeIndex, isPrice, hasShipping) {
   const series = csv && csv[typeIndex];
   if (!Array.isArray(series)) return [];
+  const stride = hasShipping ? 3 : 2;
   const points = [];
-  for (let i = 0; i + 1 < series.length; i += 2) {
+  for (let i = 0; i + 1 < series.length; i += stride) {
     const rawValue = series[i + 1];
     if (rawValue === -1 || rawValue === null || rawValue === undefined) continue;
     points.push({ date: keepaTimeToIso(series[i]), value: isPrice ? (centsToReais(rawValue) ?? 0) : rawValue });
@@ -232,7 +238,7 @@ function gToKg(g) { return (g === null || g === undefined || g <= 0) ? null : Ma
 function parseKeepaProduct(p) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true);
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true);
-  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true);
+  const priceHistoryBuyBox = extractCsvSeries(p.csv, CSV_TYPE_BUYBOX_SHIPPING, true, true);
   const bsrHistory = extractCsvSeries(p.csv, 3, false);
   const ratingHistory = extractCsvSeries(p.csv, 16, false);
   const reviewCountHistory = extractCsvSeries(p.csv, 17, false);
@@ -313,7 +319,7 @@ function mockKeepaResponse(asin) {
       null, null, null, null, null, null, null, null, null, null, null, null,
       [now, 42],
       [now, 210],
-      [now - 60 * 24 * 2, 10800, now, 10500], // BUY_BOX_SHIPPING (índice 18)
+      [now - 60 * 24 * 2, 10800, 0, now, 10500, 0], // BUY_BOX_SHIPPING (índice 18) — trincas [tempo,preço,frete]
     ],
     brand: 'Marca Mock',
     listedSince: now - 60 * 24 * 400,
@@ -502,7 +508,7 @@ async function main() {
         buybox_stats: parsed.stats?.buyBoxStats ?? [],
         cheap_data_updated_at: nowIso,
         buybox_data_updated_at: item.priority === 0 ? nowIso : (oldRow?.buybox_data_updated_at ?? nowIso),
-        last_synced_by: 'cron',
+        last_synced_by: KEEPA_MOCK ? 'cron_mock' : 'cron',
         last_error: null,
       }], 'asin');
 

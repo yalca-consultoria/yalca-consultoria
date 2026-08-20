@@ -216,6 +216,8 @@ function renderKeepaSearchResult(result) {
   if (result.packageDimensionsCm) metaParts.push(`${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm${result.packageWeightKg ? `, ${result.packageWeightKg}kg` : ''}`);
   document.getElementById('keepaResultMeta').textContent = metaParts.join(' · ');
 
+  document.getElementById('keepaMockBanner').style.display = result.isMockData ? '' : 'none';
+
   const sourceLabel = result.source === 'cache' ? 'dado em cache' : 'consulta ao vivo';
   document.getElementById('keepaResultConfidence').textContent =
     `${sourceLabel} · atualizado ${result.cheapDataAgeMinutes != null ? yalcaKeepaMinutesLabel(result.cheapDataAgeMinutes) : 'agora'}`;
