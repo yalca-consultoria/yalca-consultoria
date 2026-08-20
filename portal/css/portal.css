@@ -314,7 +314,7 @@ body.portal-body {
 /* ---------- KPI cards ---------- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
   gap: 16px;
 }
 .kpi-card {
@@ -328,7 +328,7 @@ body.portal-body {
 }
 .kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); }
 .kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.kpi-card__value { font-family: var(--font-heading); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi-card__value { font-family: var(--font-heading); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
 .kpi-card__delta.up { color: var(--good); }
 .kpi-card__delta.down { color: var(--critical); }

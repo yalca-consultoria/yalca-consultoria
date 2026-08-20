@@ -236,7 +236,11 @@ function yalcaDemoSeed() {
 /* ---------- Formatação ---------- */
 
 function yalcaFormatCurrency(value) {
-  return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  // toLocaleString insere um espaco nao-quebravel (U+00A0) entre "R$" e o
+  // numero -- troca por espaco normal via regex para permitir quebra de
+  // linha limpa (antes do numero inteiro, nunca no meio dele) quando o
+  // valor nao cabe no card.
+  return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(' ', ' ');
 }
 
 function yalcaFormatDate(isoDate) {
