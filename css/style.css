@@ -314,7 +314,7 @@ p { color: var(--text-muted); }
 .platform-carousel:hover .platform-carousel__track { animation-play-state: paused; }
 @keyframes platformScroll {
   from { transform: translateX(0); }
-  to { transform: translateX(calc(-100% - 36px)); }
+  to { transform: translateX(-50%); }
 }
 .platform-badge {
   display: flex;
@@ -716,6 +716,7 @@ p { color: var(--text-muted); }
   .header__actions .btn--sm { padding: 10px 16px; font-size: 0.82rem; }
 
   .hero { padding: 130px 0 70px; }
+  .hero__visual { display: none; }
   .services { padding: 80px 0; }
   .process, .about, .faq { padding: 70px 0; }
   .results, .testimonials, .contact { padding: 80px 0; }
