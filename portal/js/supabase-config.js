@@ -4,8 +4,8 @@
    Painel do Supabase → Project Settings → API
    ========================================= */
 
-const SUPABASE_URL = 'https://kjhenrfkmzsglogjkrbr.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqaGVucmZrbXpzZ2xvZ2prcmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1ODY0NTYsImV4cCI6MjEwMDE2MjQ1Nn0.nMzEkcbq9cvHgbKZbbDdwEq9sMYCrdynlYw2zHHU874';
+const SUPABASE_URL = 'https://api.yalca.com.br';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg3MjI0MDQwLCJleHAiOjE5NDQ5MDQwNDB9.bUgjsX5kdmTh1UETkutu2kYZ5OxODO_0Vl3bzBeDxpM';
 
 const yalcaSupabaseConfigured = !SUPABASE_URL.startsWith('COLE_AQUI') && !SUPABASE_ANON_KEY.startsWith('COLE_AQUI');
 
