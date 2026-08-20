@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0b1120">
 <title>Painel do Cliente | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:,">
@@ -12,89 +13,163 @@
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
 <link rel="stylesheet" href="css/portal.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="js/supabase-config.min.js"></script>
+<script defer src="js/portal-data.min.js"></script>
+<script defer src="js/portal-auth.min.js"></script>
+<script defer src="js/charts.min.js"></script>
+<script defer src="js/portal-app.min.js"></script>
 </head>
 <body class="portal-body">
 
-<div class="demo-banner">
-  Seus dados ficam salvos na sua conta Yalca. Use <strong>"Carregar dados de exemplo"</strong> no menu lateral para conhecer as ferramentas antes de cadastrar dados reais.
+<!-- Sprite de ícones: glifos de texto (◎ ▣ ◔) mudam demais entre
+     sistemas; o traço vetorial fica igual em todo lugar. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="ic-inicio"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></g>
+    <g id="ic-financeiro"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><circle cx="12" cy="12" r="3"/><path d="M6 9.5v5M18 9.5v5"/></g>
+    <g id="ic-produtos"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></g>
+    <g id="ic-precificacao"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 7h8M8 11.5h2M8 16h2M14 11.5h2M14 16h2"/></g>
+    <g id="ic-estoque"><rect x="3" y="4" width="18" height="5.5" rx="1.5"/><rect x="3" y="14.5" width="18" height="5.5" rx="1.5"/><path d="M7 6.75h2M7 17.25h2"/></g>
+    <g id="ic-caixa"><path d="M3 20V4"/><path d="M3 20h18"/><path d="m6.5 15.5 4-5 3.5 3 5.5-7"/></g>
+    <g id="ic-config"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1 5.3 5.3"/></g>
+    <g id="ic-mais"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></g>
+  </defs>
+</svg>
+
+
+<!-- ============ ESTADOS DE ENTRADA ============ -->
+<div class="boot-screen" id="bootScreen">
+  <div class="boot-screen__inner">
+    <span class="logo">Yalca<span>.</span></span>
+    <div class="boot-spinner" aria-hidden="true"></div>
+    <p>Carregando seu painel…</p>
+  </div>
 </div>
 
-<!-- Tela: conta aguardando aprovação -->
-<div class="login-screen" id="pendingScreen" style="display:none;">
-  <div class="login-card" style="text-align:center;">
+<div class="login-screen" id="pendingScreen" hidden>
+  <div class="login-card login-card--center">
     <a href="../index.html" class="logo">Yalca<span>.</span></a>
-    <h1 style="margin-top:18px;">Acesso em análise</h1>
+    <div class="state-icon">⏳</div>
+    <h1>Acesso em análise</h1>
     <p class="login-sub">Sua conta foi criada com sucesso. Assim que a equipe Yalca aprovar seu acesso, as ferramentas ficam disponíveis automaticamente aqui.</p>
-    <button class="btn btn--ghost btn--sm" id="pendingLogoutBtn" style="margin-top:8px;">Sair</button>
+    <a class="btn btn--whatsapp btn--sm btn--block" href="https://wa.me/5541987058237?text=Ol%C3%A1%21%20Criei%20minha%20conta%20na%20%C3%A1rea%20do%20cliente%20e%20gostaria%20de%20liberar%20o%20acesso." target="_blank" rel="noopener">Falar com a Yalca no WhatsApp</a>
+    <button class="btn btn--ghost btn--sm btn--block" id="pendingLogoutBtn">Sair</button>
   </div>
 </div>
 
-<!-- Tela: acesso bloqueado -->
-<div class="login-screen" id="blockedScreen" style="display:none;">
-  <div class="login-card" style="text-align:center;">
+<div class="login-screen" id="blockedScreen" hidden>
+  <div class="login-card login-card--center">
     <a href="../index.html" class="logo">Yalca<span>.</span></a>
-    <h1 style="margin-top:18px;">Acesso bloqueado</h1>
+    <div class="state-icon">🔒</div>
+    <h1>Acesso bloqueado</h1>
     <p class="login-sub">Seu acesso a esta área foi bloqueado pela Yalca. Fale com a equipe para regularizar a situação.</p>
-    <button class="btn btn--ghost btn--sm" id="blockedLogoutBtn" style="margin-top:8px;">Sair</button>
+    <a class="btn btn--whatsapp btn--sm btn--block" href="https://wa.me/5541987058237?text=Ol%C3%A1%21%20Meu%20acesso%20%C3%A0%20%C3%A1rea%20do%20cliente%20est%C3%A1%20bloqueado." target="_blank" rel="noopener">Falar com a Yalca no WhatsApp</a>
+    <button class="btn btn--ghost btn--sm btn--block" id="blockedLogoutBtn">Sair</button>
   </div>
 </div>
 
-<div class="portal-shell" id="portalShell" style="display:none;">
+<!-- ============ PAINEL ============ -->
+<div class="portal-shell" id="portalShell" hidden>
 
-  <!-- SIDEBAR -->
-  <aside class="portal-sidebar" id="portalSidebar">
+  <div class="portal-overlay" id="navOverlay" hidden></div>
+
+  <aside class="portal-sidebar" id="portalSidebar" aria-label="Menu principal">
     <div class="portal-sidebar__brand">
       <a href="../index.html" class="logo">Yalca<span>.</span></a>
+      <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Fechar menu">✕</button>
     </div>
 
-    <nav class="portal-nav" id="portalNav">
-      <button class="portal-nav__item is-active" data-section="overview">Visão Geral</button>
-      <button class="portal-nav__item" data-section="financeiro">Financeiro</button>
-      <button class="portal-nav__item" data-section="marketplaces">Gestão de Marketplaces</button>
-      <button class="portal-nav__item" data-section="precificacao">Calculadora de Preço</button>
-      <button class="portal-nav__item" data-section="estoque">Controle de Estoque</button>
-      <button class="portal-nav__item" data-section="fluxocaixa">Fluxo de Caixa</button>
-      <button class="portal-nav__item" data-section="configuracoes">Configurações</button>
+    <nav class="portal-nav" id="portalNav" role="tablist" aria-label="Seções do painel">
+      <button class="portal-nav__item is-active" role="tab" aria-selected="true" data-section="inicio">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-inicio"/></svg><span>Início</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="financeiro">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-financeiro"/></svg><span>Financeiro</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="produtos">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-produtos"/></svg><span>Produtos e margem</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="precificacao">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-precificacao"/></svg><span>Precificação</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="estoque">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-estoque"/></svg><span>Estoque</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="caixa">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-caixa"/></svg><span>Fluxo de caixa</span>
+      </button>
+      <button class="portal-nav__item" role="tab" aria-selected="false" data-section="config">
+        <svg class="nav-icon portal-nav__icon" aria-hidden="true"><use href="#ic-config"/></svg><span>Configurações</span>
+      </button>
     </nav>
 
     <div class="portal-sidebar__footer">
+      <a class="support-link" href="https://wa.me/5541987058237?text=Ol%C3%A1%21%20Preciso%20de%20ajuda%20com%20a%20%C3%A1rea%20do%20cliente." target="_blank" rel="noopener">
+        <span aria-hidden="true">💬</span> Falar com a Yalca
+      </a>
       <div class="portal-user">
-        <div class="portal-user__avatar">LD</div>
-        <div>
-          <div class="portal-user__name" id="clientNameLabel">Loja Demonstração</div>
-          <div class="portal-user__role">Cliente Yalca</div>
+        <div class="portal-user__avatar" id="clientInitials">Y</div>
+        <div class="portal-user__meta">
+          <div class="portal-user__name" id="clientNameLabel">Minha Loja</div>
+          <div class="portal-user__role" id="clientEmailLabel">Cliente Yalca</div>
         </div>
       </div>
-      <button class="reset-demo" id="resetDemoBtn" style="width:100%; margin-bottom:8px;">↺ Restaurar dados de exemplo</button>
+      <a href="admin.html" class="btn btn--ghost btn--sm btn--block" id="adminLink" hidden>Painel de controle</a>
       <button class="btn btn--ghost btn--sm btn--block" id="logoutBtn">Sair</button>
     </div>
   </aside>
 
-  <!-- MAIN -->
   <div class="portal-main">
     <header class="portal-topbar">
-      <div style="display:flex; align-items:center; gap:14px;">
-        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu">☰</button>
-        <h2 id="sectionTitle">Visão Geral</h2>
+      <div class="portal-topbar__left">
+        <button class="icon-btn sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-expanded="false">☰</button>
+        <div>
+          <h2 id="sectionTitle">Início</h2>
+          <p class="portal-topbar__sub" id="sectionSubtitle">Resumo do seu negócio</p>
+        </div>
+      </div>
+      <div class="portal-topbar__right">
+        <label class="visually-hidden" for="periodSelect">Período analisado</label>
+        <select class="select-chip select-chip--period" id="periodSelect"></select>
+        <button class="icon-btn" id="refreshBtn" aria-label="Atualizar dados" title="Atualizar dados">↻</button>
+        <button class="btn btn--primary btn--sm quick-add" id="quickAddBtn">+ <span>Novo</span></button>
       </div>
     </header>
 
-    <div class="portal-content">
+    <div class="portal-content" id="portalContent">
 
-      <!-- ===================== VISÃO GERAL ===================== -->
-      <section class="portal-section is-active" data-section="overview">
-        <div class="section-intro">
-          <p>Resumo do seu negócio com base nos lançamentos financeiros e no estoque cadastrado.</p>
+      <!-- ===================== INÍCIO ===================== -->
+      <section class="portal-section is-active" data-section="inicio" role="tabpanel" aria-label="Início">
+        <div class="onboarding-card" id="onboardingCard" hidden>
+          <div>
+            <h3>Bem-vindo ao seu painel 👋</h3>
+            <p>Ainda não há dados na sua conta. Você pode começar cadastrando seus produtos e lançamentos — ou carregar um conjunto de exemplo para conhecer as ferramentas sem compromisso.</p>
+          </div>
+          <div class="onboarding-card__actions">
+            <button class="btn btn--primary btn--sm" id="seedDemoBtn">Carregar dados de exemplo</button>
+            <button class="btn btn--ghost btn--sm" id="onboardProductBtn">Cadastrar meu 1º produto</button>
+          </div>
         </div>
 
         <div class="kpi-grid" id="overviewKpis"></div>
 
+        <div class="panel panel--accent" id="todayPanel">
+          <div class="panel__head">
+            <div>
+              <h3>O que precisa da sua atenção <span class="pill" id="actionCount">0</span></h3>
+              <p>Lista priorizada: o que está custando mais dinheiro aparece primeiro.</p>
+            </div>
+          </div>
+          <div class="action-list" id="overviewActions"></div>
+        </div>
+
         <div class="grid-2">
-          <div class="panel chart-card">
+          <div class="panel">
             <div class="panel__head">
               <div>
-                <h3>Faturamento x Custo (últimos 6 meses)</h3>
-                <p>Como a receita e o custo total evoluíram mês a mês.</p>
+                <h3>Faturamento, custo e lucro</h3>
+                <p id="overviewTrendSub">Evolução mês a mês no período selecionado.</p>
               </div>
             </div>
             <div id="overviewTrendChart"></div>
@@ -103,176 +178,242 @@
           <div class="panel">
             <div class="panel__head">
               <div>
-                <h3>Alertas</h3>
-                <p>Pontos que merecem atenção agora.</p>
+                <h3>Metas do mês</h3>
+                <p>Defina suas metas em Configurações para acompanhar aqui.</p>
               </div>
             </div>
-            <div class="alert-list" id="overviewAlerts"></div>
+            <div class="goals-grid" id="overviewGoals"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Onde você mais fatura</h3>
+                <p>Receita por canal de venda no período.</p>
+              </div>
+            </div>
+            <div id="overviewChannelChart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Produtos que mais dão lucro</h3>
+                <p>Lucro mensal estimado = margem líquida × unidades vendidas no mês.</p>
+              </div>
+            </div>
+            <div id="overviewTopProducts"></div>
           </div>
         </div>
       </section>
 
       <!-- ===================== FINANCEIRO ===================== -->
-      <section class="portal-section" data-section="financeiro">
-        <div class="section-intro">
-          <p>Controle de receitas e despesas por período e marketplace — a visão financeira completa do seu ecommerce.</p>
-        </div>
-
+      <section class="portal-section" data-section="financeiro" role="tabpanel" aria-label="Financeiro" hidden>
         <div class="kpi-grid" id="financeKpis"></div>
 
+        <div class="panel" id="breakEvenPanel">
+          <div class="panel__head">
+            <div>
+              <h3>Ponto de equilíbrio</h3>
+              <p>Quanto você precisa faturar por mês só para pagar as contas — abaixo disso a loja opera no prejuízo.</p>
+            </div>
+          </div>
+          <div id="breakEvenBody"></div>
+        </div>
+
         <div class="grid-2">
-          <div class="panel chart-card">
+          <div class="panel">
             <div class="panel__head">
-              <div>
-                <h3>Receita x Despesa por mês</h3>
-                <p>Evolução mensal das entradas e saídas.</p>
-              </div>
+              <div><h3>Receita, despesa e lucro por mês</h3><p>As três linhas juntas mostram se o lucro acompanha o crescimento da receita.</p></div>
             </div>
             <div id="financeTrendChart"></div>
           </div>
-          <div class="panel chart-card">
+          <div class="panel">
             <div class="panel__head">
-              <div>
-                <h3>Receita por marketplace</h3>
-                <p>Mês mais recente com lançamentos.</p>
-              </div>
+              <div><h3>Para onde vai o dinheiro</h3><p>Despesas por categoria no período.</p></div>
             </div>
-            <div id="financeMarketplaceChart"></div>
+            <div id="financeCategoryChart"></div>
           </div>
-        </div>
-
-        <div class="panel chart-card">
-          <div class="panel__head">
-            <div>
-              <h3>Despesas por categoria</h3>
-              <p>Para onde o dinheiro está indo no período selecionado abaixo.</p>
-            </div>
-          </div>
-          <div id="financeCategoryChart"></div>
         </div>
 
         <div class="panel">
           <div class="panel__head">
             <div>
               <h3>Lançamentos</h3>
-              <p>Receitas e despesas registradas.</p>
+              <p id="financeCountLabel">Receitas e despesas registradas no período.</p>
             </div>
             <div class="panel__toolbar">
-              <select class="select-chip" id="financeFilterMonth"></select>
-              <button class="reset-demo" id="exportCsvBtn">Exportar CSV</button>
-              <label class="reset-demo" style="cursor:pointer;">
-                Importar CSV
-                <input type="file" id="importCsvInput" accept=".csv" style="display:none;">
-              </label>
-              <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Novo lançamento</button>
+              <input type="search" class="search-input" id="financeSearch" placeholder="Buscar descrição, categoria…" aria-label="Buscar lançamentos">
+              <select class="select-chip" id="financeTypeFilter" aria-label="Filtrar por tipo">
+                <option value="todos">Receitas e despesas</option>
+                <option value="receita">Só receitas</option>
+                <option value="despesa">Só despesas</option>
+              </select>
+              <div class="menu-wrap">
+                <button class="btn btn--ghost btn--sm" id="financeMoreBtn" aria-haspopup="true" aria-expanded="false">⋯ Mais</button>
+                <div class="menu" id="financeMoreMenu" hidden>
+                  <button type="button" data-act="exportTx">⬇ Exportar lançamentos (CSV)</button>
+                  <button type="button" data-act="importTx">⬆ Importar lançamentos (CSV)</button>
+                  <button type="button" data-act="modelTx">📄 Baixar modelo de planilha</button>
+                </div>
+              </div>
+              <input type="file" id="importCsvInput" accept=".csv,text/csv" hidden>
+              <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Lançamento</button>
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards" id="transactionsTable">
               <thead>
                 <tr>
-                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Marketplace</th><th>Descrição</th><th class="num">Valor</th><th></th>
+                  <th class="sortable-th" data-sort="date">Data <span class="sort-arrow">▾</span></th>
+                  <th>Tipo</th>
+                  <th class="sortable-th" data-sort="category">Categoria <span class="sort-arrow">▾</span></th>
+                  <th>Canal</th>
+                  <th class="sortable-th" data-sort="description">Descrição <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="amount">Valor <span class="sort-arrow">▾</span></th>
+                  <th class="col-actions"><span class="visually-hidden">Ações</span></th>
                 </tr>
               </thead>
               <tbody id="transactionsTableBody"></tbody>
             </table>
           </div>
+          <div class="table-footer" id="transactionsFooter"></div>
         </div>
       </section>
 
-      <!-- ===================== MARKETPLACES ===================== -->
-      <section class="portal-section" data-section="marketplaces">
-        <div class="section-intro">
-          <p>Seus produtos em cada canal de venda, com margem líquida estimada já considerando taxa do marketplace, imposto e frete.</p>
-        </div>
+      <!-- ===================== PRODUTOS E MARGEM ===================== -->
+      <section class="portal-section" data-section="produtos" role="tabpanel" aria-label="Produtos e margem" hidden>
+        <div class="kpi-grid" id="productKpis"></div>
 
-        <div class="kpi-grid" id="marketplaceKpis"></div>
-
-        <div class="panel chart-card">
+        <div class="panel panel--accent" id="repricePanel" hidden>
           <div class="panel__head">
             <div>
-              <h3>Margem média por marketplace</h3>
-              <p>Ajuda a decidir onde vale mais a pena concentrar esforço.</p>
+              <h3>Produtos abaixo da sua margem alvo</h3>
+              <p id="repriceSub">Preço sugerido para atingir a margem que você definiu, já com comissão, imposto e frete.</p>
+            </div>
+            <div class="panel__toolbar">
+              <button class="btn btn--primary btn--sm" id="applyAllPricesBtn">Aplicar todos os preços sugeridos</button>
             </div>
           </div>
-          <div id="marketplaceMarginChart"></div>
+          <div class="table-scroll">
+            <table class="data-table data-table--cards">
+              <thead>
+                <tr><th>Produto</th><th>Canal</th><th class="num">Preço atual</th><th class="num">Margem</th><th class="num">Preço sugerido</th><th class="col-actions"><span class="visually-hidden">Ações</span></th></tr>
+              </thead>
+              <tbody id="repriceTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel__head">
+              <div><h3>Margem média por canal</h3><p>Onde vale mais a pena concentrar esforço.</p></div>
+            </div>
+            <div id="marketplaceMarginChart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel__head">
+              <div><h3>Curva ABC</h3><p>Os produtos da classe A respondem por 80% do seu faturamento — são os que merecem mais atenção.</p></div>
+            </div>
+            <div id="abcChart"></div>
+          </div>
         </div>
 
         <div class="panel">
           <div class="panel__head">
-            <div>
-              <h3>Produtos por marketplace</h3>
-              <p>Itens com margem negativa aparecem destacados — é dinheiro saindo do bolso a cada venda.</p>
-            </div>
+            <div><h3>Seus produtos</h3><p id="productCountLabel">Margem líquida já com comissão do canal, imposto e frete.</p></div>
             <div class="panel__toolbar">
-              <select class="select-chip" id="marketplaceFilter"></select>
-              <button class="btn btn--primary btn--sm" id="addProductBtn">+ Novo produto</button>
+              <input type="search" class="search-input" id="productSearch" placeholder="Buscar SKU ou nome…" aria-label="Buscar produtos">
+              <select class="select-chip" id="marketplaceFilter" aria-label="Filtrar por canal"></select>
+              <select class="select-chip" id="productMarginFilter" aria-label="Filtrar por margem">
+                <option value="todos">Todas as margens</option>
+                <option value="prejuizo">No prejuízo</option>
+                <option value="abaixo">Abaixo da meta</option>
+                <option value="saudavel">Na meta ou acima</option>
+              </select>
+              <button class="btn btn--ghost btn--sm" id="exportProductsBtn">⬇ CSV</button>
+              <button class="btn btn--primary btn--sm" id="addProductBtn">+ Produto</button>
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards" id="productsTable">
               <thead>
                 <tr>
-                  <th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Custo</th><th class="num">Preço</th><th class="num">Margem líquida</th><th class="num">Vendidos/mês</th><th>Status</th><th></th>
+                  <th class="sortable-th" data-sort="sku">SKU <span class="sort-arrow">▾</span></th>
+                  <th class="sortable-th" data-sort="name">Produto <span class="sort-arrow">▾</span></th>
+                  <th>Canal</th>
+                  <th class="num sortable-th" data-sort="cost">Custo <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="price">Preço <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="marginPct">Margem <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="profitMonth">Lucro/mês <span class="sort-arrow">▾</span></th>
+                  <th>Anúncio</th>
+                  <th class="col-actions"><span class="visually-hidden">Ações</span></th>
                 </tr>
               </thead>
               <tbody id="productsTableBody"></tbody>
             </table>
           </div>
+          <div class="table-footer" id="productsFooter"></div>
         </div>
       </section>
 
       <!-- ===================== PRECIFICAÇÃO ===================== -->
-      <section class="portal-section" data-section="precificacao">
-        <div class="section-intro">
-          <p>Descubra o preço ideal em cada marketplace considerando custo, frete, imposto e a taxa real de cada canal. Taxas levantadas nas páginas oficiais de cada vendedor sempre que possível — quando não deu para confirmar ao vivo, aparece um aviso ⚠ e o link da fonte em "Ajustar taxas dos marketplaces".</p>
-        </div>
-
+      <section class="portal-section" data-section="precificacao" role="tabpanel" aria-label="Precificação" hidden>
         <div class="grid-2">
           <div class="panel">
-            <div class="panel__head"><div><h3>Dados do produto</h3></div></div>
-            <form id="pricingForm" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="panel__head">
+              <div><h3>Dados do produto</h3><p>Preencha os custos ou carregue um produto já cadastrado.</p></div>
+            </div>
+
+            <div class="field" style="margin-bottom:16px;">
+              <label for="pLoadProduct">Carregar de um produto cadastrado</label>
+              <select id="pLoadProduct"></select>
+            </div>
+
+            <form id="pricingForm" class="stack-form">
               <div class="field-row">
                 <div class="field">
                   <label for="pCost">Custo do produto (R$)</label>
-                  <input type="number" id="pCost" min="0" step="0.01" value="50" required>
+                  <input type="number" id="pCost" inputmode="decimal" min="0" step="0.01" value="50" required>
                 </div>
                 <div class="field">
-                  <label for="pShipping">Frete (R$)</label>
-                  <input type="number" id="pShipping" min="0" step="0.01" value="12" required>
+                  <label for="pShipping">Frete que você paga (R$)</label>
+                  <input type="number" id="pShipping" inputmode="decimal" min="0" step="0.01" value="12" required>
                 </div>
               </div>
               <div class="field-row">
                 <div class="field">
                   <label for="pTax">Imposto (%)</label>
-                  <input type="number" id="pTax" min="0" step="0.1" value="6" required>
+                  <input type="number" id="pTax" inputmode="decimal" min="0" step="0.1" value="6" required>
                 </div>
                 <div class="field">
                   <label for="pMargin">Margem de lucro desejada (%)</label>
-                  <input type="number" id="pMargin" min="0" step="0.1" value="20" required>
+                  <input type="number" id="pMargin" inputmode="decimal" min="0" step="0.1" value="20" required>
                 </div>
               </div>
-              <p style="font-size:0.8rem; color:var(--text-muted);">Ou informe um preço de venda para ver a margem resultante em cada marketplace:</p>
               <div class="field">
-                <label for="pManualPrice">Preço de venda (opcional)</label>
-                <input type="number" id="pManualPrice" min="0" step="0.01" placeholder="Deixe em branco para calcular automaticamente">
+                <label for="pManualPrice">Ou informe um preço de venda (opcional)</label>
+                <input type="number" id="pManualPrice" inputmode="decimal" min="0" step="0.01" placeholder="Deixe em branco para calcular o preço ideal">
+                <span class="field-hint">Com um preço informado, a tabela mostra a margem que sobra em cada canal.</span>
               </div>
             </form>
 
-            <button type="button" class="table-view-toggle" id="toggleFeeEditor" style="margin-top:20px;">⚙ Ajustar taxas dos marketplaces</button>
-            <div class="fee-editor" id="feeEditor" style="display:none; margin-top:14px;"></div>
+            <button type="button" class="btn btn--ghost btn--sm btn--block" id="toggleFeeEditor" style="margin-top:18px;" aria-expanded="false">⚙ Ajustar as taxas dos canais</button>
+            <div class="fee-editor" id="feeEditor" hidden></div>
           </div>
 
           <div class="panel">
             <div class="panel__head">
               <div>
-                <h3>Comparação entre marketplaces e planos</h3>
-                <p>Inclui Clássico/Premium do Mercado Livre e FBM/FBA da Amazon. Clique em uma linha para ver o detalhamento completo do preço.</p>
+                <h3>Comparação entre canais e planos</h3>
+                <p>Inclui Clássico/Premium do Mercado Livre e FBM/FBA da Amazon. Toque em uma linha para ver o preço destrinchado.</p>
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table">
-                <thead><tr><th>Marketplace / plano</th><th class="num">Preço</th><th class="num">Lucro</th><th class="num">Margem</th><th></th></tr></thead>
+              <table class="data-table data-table--cards">
+                <thead><tr><th>Canal / plano</th><th class="num">Preço</th><th class="num">Lucro</th><th class="num">Margem</th><th class="col-actions"><span class="visually-hidden">Ações</span></th></tr></thead>
                 <tbody id="pricingComparisonBody"></tbody>
               </table>
             </div>
@@ -282,179 +423,309 @@
         <div class="panel">
           <div class="panel__head">
             <div>
-              <h3 id="pricingDetailTitle">Detalhamento — Mercado Livre Clássico</h3>
-              <p id="pricingDetailConfidence" style="margin-top:8px;"></p>
+              <h3 id="pricingDetailTitle">Detalhamento</h3>
+              <p id="pricingDetailConfidence"></p>
             </div>
           </div>
           <div id="pricingWaterfall"></div>
-          <div class="calc-result__breakdown" id="pricingBreakdown" style="margin-top:20px;"></div>
+          <div class="calc-result__breakdown" id="pricingBreakdown"></div>
         </div>
       </section>
 
       <!-- ===================== ESTOQUE ===================== -->
-      <section class="portal-section" data-section="estoque">
-        <div class="section-intro">
-          <p>Evite vender sem estoque e identifique produtos parados que estão empatando seu capital de giro.</p>
-        </div>
-
+      <section class="portal-section" data-section="estoque" role="tabpanel" aria-label="Estoque" hidden>
         <div class="kpi-grid" id="stockKpis"></div>
 
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel__head"><div><h3>Alertas de estoque</h3></div></div>
-            <div class="alert-list" id="stockAlerts"></div>
-          </div>
-          <div class="panel">
-            <div class="panel__head"><div><h3>Legenda de status</h3></div></div>
-            <div class="alert-list">
-              <div class="alert-item"><span class="badge badge--ok">OK</span><span>Estoque saudável para o ritmo de vendas atual.</span></div>
-              <div class="alert-item warning"><span class="badge badge--baixo">Baixo</span><span>Abaixo do estoque mínimo — planeje reposição.</span></div>
-              <div class="alert-item critical"><span class="badge badge--esgotado">Esgotado</span><span>Sem unidades disponíveis — anúncio pode estar perdendo posição.</span></div>
-              <div class="alert-item"><span class="badge badge--parado">Parado</span><span>Estoque alto e poucas vendas — capital parado.</span></div>
+        <div class="panel panel--accent" id="restockPanel" hidden>
+          <div class="panel__head">
+            <div>
+              <h3>Lista de reposição</h3>
+              <p id="restockSub">Quanto comprar de cada item para não faltar até a próxima entrega.</p>
+            </div>
+            <div class="panel__toolbar">
+              <button class="btn btn--ghost btn--sm" id="exportRestockBtn">⬇ Exportar lista</button>
             </div>
           </div>
+          <div class="table-scroll">
+            <table class="data-table data-table--cards">
+              <thead>
+                <tr><th>Produto</th><th class="num">Estoque</th><th class="num">Acaba em</th><th class="num">Comprar</th><th class="num">Custo da compra</th><th>Status</th></tr>
+              </thead>
+              <tbody id="restockTableBody"></tbody>
+            </table>
+          </div>
+          <div class="table-footer" id="restockFooter"></div>
         </div>
 
         <div class="panel">
           <div class="panel__head">
-            <div><h3>Estoque por produto</h3></div>
+            <div><h3>Estoque por produto</h3><p>“Acaba em” considera o ritmo de venda declarado no cadastro do produto.</p></div>
             <div class="panel__toolbar">
-              <select class="select-chip" id="stockFilter">
-                <option value="todos">Todos os status</option>
-                <option value="OK">OK</option>
-                <option value="Baixo">Baixo</option>
-                <option value="Esgotado">Esgotado</option>
-                <option value="Parado">Parado</option>
-              </select>
+              <input type="search" class="search-input" id="stockSearch" placeholder="Buscar SKU ou nome…" aria-label="Buscar no estoque">
+              <select class="select-chip" id="stockFilter" aria-label="Filtrar por status"></select>
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards" id="stockTable">
               <thead>
-                <tr><th>SKU</th><th>Produto</th><th class="num">Estoque</th><th class="num">Mínimo</th><th class="num">Vendidos/mês</th><th>Status</th></tr>
+                <tr>
+                  <th class="sortable-th" data-sort="sku">SKU <span class="sort-arrow">▾</span></th>
+                  <th class="sortable-th" data-sort="name">Produto <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="stock">Estoque <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="daysLeft">Acaba em <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="unitsSoldMonth">Vendas/mês <span class="sort-arrow">▾</span></th>
+                  <th class="num sortable-th" data-sort="capital">Capital parado <span class="sort-arrow">▾</span></th>
+                  <th>Status</th>
+                  <th class="col-actions"><span class="visually-hidden">Ações</span></th>
+                </tr>
               </thead>
               <tbody id="stockTableBody"></tbody>
             </table>
           </div>
+          <div class="table-footer" id="stockFooter"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head"><div><h3>Como ler os status</h3></div></div>
+          <div class="legend-grid" id="stockLegend"></div>
         </div>
       </section>
 
       <!-- ===================== FLUXO DE CAIXA ===================== -->
-      <section class="portal-section" data-section="fluxocaixa">
-        <div class="section-intro">
-          <p>Projeção do saldo em caixa para os próximos meses, com base no seu último mês fechado e nos lançamentos futuros já previstos.</p>
-        </div>
-
+      <section class="portal-section" data-section="caixa" role="tabpanel" aria-label="Fluxo de caixa" hidden>
         <div class="kpi-grid" id="cashflowKpis"></div>
-
-        <div class="panel chart-card">
-          <div class="panel__head">
-            <div>
-              <h3>Saldo projetado</h3>
-              <p>Saldo acumulado estimado para os próximos 3 meses.</p>
-            </div>
-          </div>
-          <div id="cashflowChart"></div>
-        </div>
 
         <div class="panel">
           <div class="panel__head">
             <div>
-              <h3>Lançamentos futuros previstos</h3>
-              <p>Entradas e saídas já conhecidas que ainda vão acontecer.</p>
+              <h3>Saldo projetado</h3>
+              <p>Parte do seu saldo atual, soma o resultado recorrente (mediana dos últimos meses fechados) e os lançamentos futuros.</p>
             </div>
+          </div>
+          <div id="cashflowChart"></div>
+          <div id="cashflowWarning"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <div><h3>Lançamentos futuros previstos</h3><p>Entradas e saídas que você já sabe que vão acontecer.</p></div>
             <div class="panel__toolbar">
-              <button class="btn btn--primary btn--sm" id="addPlannedBtn">+ Novo lançamento futuro</button>
+              <button class="btn btn--primary btn--sm" id="addPlannedBtn">+ Lançamento futuro</button>
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>Data</th><th>Descrição</th><th class="num">Valor</th><th></th></tr></thead>
+            <table class="data-table data-table--cards">
+              <thead><tr><th>Data</th><th>Descrição</th><th>Repetição</th><th class="num">Valor</th><th class="col-actions"><span class="visually-hidden">Ações</span></th></tr></thead>
               <tbody id="plannedTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head"><div><h3>Mês a mês</h3><p>Detalhe da projeção, com o que já está previsto em cada mês.</p></div></div>
+          <div class="table-scroll">
+            <table class="data-table data-table--cards">
+              <thead><tr><th>Mês</th><th class="num">Resultado recorrente</th><th class="num">Lançamentos previstos</th><th class="num">Saldo no fim do mês</th></tr></thead>
+              <tbody id="cashflowTableBody"></tbody>
             </table>
           </div>
         </div>
       </section>
 
       <!-- ===================== CONFIGURAÇÕES ===================== -->
-      <section class="portal-section" data-section="configuracoes">
-        <div class="section-intro">
-          <p>Esses dados alimentam os cálculos de margem em "Gestão de Marketplaces" e a projeção em "Fluxo de Caixa".</p>
+      <section class="portal-section" data-section="config" role="tabpanel" aria-label="Configurações" hidden>
+        <div class="notice notice--warning" id="migrationNotice" hidden>
+          <strong>Alguns recursos ainda não estão ativos neste banco.</strong>
+          <span>Metas, custos fixos, parâmetros de reposição e frete por produto precisam da migração <code>portal/supabase-schema-v7-portal-v2.sql</code>. Rode o script no SQL Editor do Supabase e recarregue esta página.</span>
         </div>
 
-        <div class="panel">
-          <div class="panel__head"><div><h3>Dados da loja</h3></div></div>
-          <form id="settingsForm" style="display:flex; flex-direction:column; gap:16px; max-width:560px;">
-            <div class="field">
-              <label for="setClientName">Nome da loja</label>
-              <input type="text" id="setClientName" required>
-            </div>
-            <div class="field-row">
+        <div class="settings-grid">
+          <div class="panel">
+            <div class="panel__head"><div><h3>Dados da loja</h3><p>Usados nos cálculos de margem e na projeção de caixa.</p></div></div>
+            <form id="settingsForm" class="stack-form">
               <div class="field">
-                <label for="setCashBalance">Saldo atual em caixa (R$)</label>
-                <input type="number" id="setCashBalance" step="0.01" required>
+                <label for="setClientName">Nome da loja</label>
+                <input type="text" id="setClientName" required>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="setCashBalance">Saldo atual em caixa (R$)</label>
+                  <input type="number" id="setCashBalance" inputmode="decimal" step="0.01" required>
+                </div>
+                <div class="field">
+                  <label for="setTaxPct">Imposto padrão (%)</label>
+                  <input type="number" id="setTaxPct" inputmode="decimal" step="0.1" min="0" required>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="setShipping">Frete médio padrão (R$)</label>
+                  <input type="number" id="setShipping" inputmode="decimal" step="0.01" min="0" required>
+                  <span class="field-hint">Vale para produtos sem frete próprio informado.</span>
+                </div>
+                <div class="field" data-requires="v7">
+                  <label for="setTargetMargin">Margem alvo (%)</label>
+                  <input type="number" id="setTargetMargin" inputmode="decimal" step="0.1" min="0">
+                  <span class="field-hint">Base da lista de reprecificação.</span>
+                </div>
+              </div>
+
+              <fieldset class="fieldset" data-requires="v7">
+                <legend>Metas mensais</legend>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="setRevenueGoal">Meta de faturamento (R$)</label>
+                    <input type="number" id="setRevenueGoal" inputmode="decimal" step="0.01" min="0">
+                  </div>
+                  <div class="field">
+                    <label for="setProfitGoal">Meta de lucro (R$)</label>
+                    <input type="number" id="setProfitGoal" inputmode="decimal" step="0.01" min="0">
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="fieldset" data-requires="v7">
+                <legend>Custos e reposição</legend>
+                <div class="field">
+                  <label for="setFixedCosts">Custos fixos por mês (R$)</label>
+                  <input type="number" id="setFixedCosts" inputmode="decimal" step="0.01" min="0">
+                  <span class="field-hint">Aluguel, salários, software, contabilidade. Base do ponto de equilíbrio.</span>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label for="setLeadTime">Prazo de reposição (dias)</label>
+                    <input type="number" id="setLeadTime" inputmode="numeric" step="1" min="0">
+                    <span class="field-hint">Do pedido ao fornecedor até a mercadoria disponível.</span>
+                  </div>
+                  <div class="field">
+                    <label for="setCoverDays">Dias de estoque desejados</label>
+                    <input type="number" id="setCoverDays" inputmode="numeric" step="1" min="1">
+                  </div>
+                </div>
+              </fieldset>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn--primary btn--sm">Salvar configurações</button>
+                <p class="form-success" id="settingsSuccess">Configurações salvas ✅</p>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head">
+              <div><h3>Canais de venda</h3><p>A comissão de cada canal entra direto no cálculo de margem dos seus produtos.</p></div>
+            </div>
+            <div id="channelList" class="channel-list"></div>
+            <form id="addChannelForm" class="channel-add">
+              <div class="field">
+                <label for="newChannelName">Novo canal</label>
+                <input type="text" id="newChannelName" placeholder="Ex: Magalu, Shein, Loja própria" required>
+              </div>
+              <div class="field field--narrow">
+                <label for="newChannelFee">Comissão (%)</label>
+                <input type="number" id="newChannelFee" inputmode="decimal" step="0.1" min="0" value="0" required>
+              </div>
+              <button type="submit" class="btn btn--ghost btn--sm">Adicionar</button>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><div><h3>Sua conta</h3></div></div>
+            <div class="account-row">
+              <span>E-mail</span><strong id="accountEmail">—</strong>
+            </div>
+            <div class="account-row">
+              <span>Situação</span><strong id="accountStatus">—</strong>
+            </div>
+            <form id="passwordForm" class="stack-form" style="margin-top:18px;">
+              <div class="field">
+                <label for="newPassword">Nova senha</label>
+                <input type="password" id="newPassword" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required>
               </div>
               <div class="field">
-                <label for="setTaxPct">Imposto padrão (%)</label>
-                <input type="number" id="setTaxPct" step="0.1" min="0" required>
+                <label for="newPasswordConfirm">Confirmar nova senha</label>
+                <input type="password" id="newPasswordConfirm" minlength="6" autocomplete="new-password" required>
               </div>
-            </div>
-            <div class="field">
-              <label for="setShipping">Frete médio padrão (R$)</label>
-              <input type="number" id="setShipping" step="0.01" min="0" required>
-            </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn--ghost btn--sm">Trocar senha</button>
+                <p class="form-success" id="passwordSuccess">Senha alterada ✅</p>
+              </div>
+            </form>
+          </div>
 
-            <div>
-              <label style="font-size:0.82rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:10px;">
-                Taxa de cada marketplace (usada na Gestão de Marketplaces)
-              </label>
-              <div class="field-row" id="settingsFeeFields"></div>
+          <div class="panel">
+            <div class="panel__head"><div><h3>Seus dados</h3><p>Backup, dados de exemplo e limpeza da conta.</p></div></div>
+            <div class="data-actions">
+              <button class="btn btn--ghost btn--sm" id="backupBtn">⬇ Baixar backup completo (CSV)</button>
+              <button class="btn btn--ghost btn--sm" id="resetDemoBtn">✨ Carregar dados de exemplo</button>
+              <button class="btn btn--ghost btn--sm btn--danger" id="clearDataBtn">🗑 Apagar todos os meus dados</button>
             </div>
-
-            <button type="submit" class="btn btn--primary btn--sm" style="align-self:flex-start;">Salvar configurações</button>
-            <p class="form-success" id="settingsSuccess">Configurações salvas com sucesso! ✅</p>
-          </form>
+            <p class="field-hint" style="margin-top:14px;">Seus dados ficam salvos na sua conta Yalca, protegidos por regras que impedem qualquer outro cliente de acessá-los.</p>
+          </div>
         </div>
       </section>
 
     </div>
   </div>
+
+  <nav class="portal-tabbar" id="portalTabbar" aria-label="Navegação rápida">
+    <button data-section="inicio" class="is-active"><svg class="nav-icon" aria-hidden="true"><use href="#ic-inicio"/></svg>Início</button>
+    <button data-section="financeiro"><svg class="nav-icon" aria-hidden="true"><use href="#ic-financeiro"/></svg>Financeiro</button>
+    <button data-section="produtos"><svg class="nav-icon" aria-hidden="true"><use href="#ic-produtos"/></svg>Produtos</button>
+    <button data-section="estoque"><svg class="nav-icon" aria-hidden="true"><use href="#ic-estoque"/></svg>Estoque</button>
+    <button id="tabbarMore"><svg class="nav-icon" aria-hidden="true"><use href="#ic-mais"/></svg>Mais</button>
+  </nav>
 </div>
 
-<!-- MODAL: novo/editar lançamento financeiro -->
-<div class="modal-backdrop" id="transactionModal">
+<!-- ============ MODAIS ============ -->
+<div class="modal-backdrop" id="quickAddModal" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle">
+  <div class="modal modal--sheet">
+    <div class="modal__head">
+      <h3 id="quickAddTitle">O que você quer cadastrar?</h3>
+      <button class="modal__close" data-close-modal="quickAddModal" aria-label="Fechar">×</button>
+    </div>
+    <div class="quick-add-list">
+      <button type="button" data-quick="transaction"><svg class="nav-icon" aria-hidden="true"><use href="#ic-financeiro"/></svg><div><strong>Lançamento financeiro</strong><span>Uma receita ou despesa que já aconteceu</span></div></button>
+      <button type="button" data-quick="product"><svg class="nav-icon" aria-hidden="true"><use href="#ic-produtos"/></svg><div><strong>Produto</strong><span>Um SKU com custo, preço e estoque</span></div></button>
+      <button type="button" data-quick="planned"><svg class="nav-icon" aria-hidden="true"><use href="#ic-caixa"/></svg><div><strong>Lançamento futuro</strong><span>Uma entrada ou saída já prevista</span></div></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="transactionModal" role="dialog" aria-modal="true" aria-labelledby="transactionModalTitle">
   <div class="modal">
     <div class="modal__head">
       <h3 id="transactionModalTitle">Novo lançamento</h3>
-      <button class="modal__close" data-close-modal="transactionModal">×</button>
+      <button class="modal__close" data-close-modal="transactionModal" aria-label="Fechar">×</button>
     </div>
     <form id="transactionForm">
       <input type="hidden" id="tId">
-      <div class="field">
-        <label for="tDate">Data</label>
-        <input type="date" id="tDate" required>
+      <div class="segmented" role="radiogroup" aria-label="Tipo de lançamento">
+        <label><input type="radio" name="tType" value="receita" checked><span>Receita</span></label>
+        <label><input type="radio" name="tType" value="despesa"><span>Despesa</span></label>
       </div>
       <div class="field-row">
         <div class="field">
-          <label for="tType">Tipo</label>
-          <select id="tType"><option value="receita">Receita</option><option value="despesa">Despesa</option></select>
+          <label for="tDate">Data</label>
+          <input type="date" id="tDate" required>
         </div>
         <div class="field">
-          <label for="tCategory">Categoria</label>
-          <input type="text" id="tCategory" placeholder="Ex: Vendas, Anúncios..." required>
+          <label for="tAmount">Valor (R$)</label>
+          <input type="number" id="tAmount" inputmode="decimal" min="0" step="0.01" required>
         </div>
       </div>
       <div class="field">
-        <label for="tMarketplace">Marketplace</label>
-        <select id="tMarketplace"><option value="-">Não se aplica</option></select>
+        <label for="tCategory">Categoria</label>
+        <input type="text" id="tCategory" list="categorySuggestions" placeholder="Ex: Vendas, Anúncios, Fornecedor…" required>
+        <datalist id="categorySuggestions"></datalist>
+      </div>
+      <div class="field">
+        <label for="tMarketplace">Canal</label>
+        <select id="tMarketplace"></select>
       </div>
       <div class="field">
         <label for="tDescription">Descrição</label>
         <input type="text" id="tDescription" required>
-      </div>
-      <div class="field">
-        <label for="tAmount">Valor (R$)</label>
-        <input type="number" id="tAmount" min="0" step="0.01" required>
       </div>
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost btn--sm" data-close-modal="transactionModal">Cancelar</button>
@@ -464,12 +735,11 @@
   </div>
 </div>
 
-<!-- MODAL: novo/editar produto -->
-<div class="modal-backdrop" id="productModal">
+<div class="modal-backdrop" id="productModal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
   <div class="modal">
     <div class="modal__head">
       <h3 id="productModalTitle">Novo produto</h3>
-      <button class="modal__close" data-close-modal="productModal">×</button>
+      <button class="modal__close" data-close-modal="productModal" aria-label="Fechar">×</button>
     </div>
     <form id="productForm">
       <input type="hidden" id="prodId">
@@ -478,27 +748,38 @@
         <div class="field"><label for="prodName">Nome do produto</label><input type="text" id="prodName" required></div>
       </div>
       <div class="field-row">
+        <div class="field"><label for="prodMarketplace">Canal</label><select id="prodMarketplace"></select></div>
+        <div class="field"><label for="prodCategory">Categoria</label><input type="text" id="prodCategory" placeholder="Ex: Moda, Eletrônicos"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodCost">Custo (R$)</label><input type="number" id="prodCost" inputmode="decimal" min="0" step="0.01" required></div>
+        <div class="field"><label for="prodPrice">Preço de venda (R$)</label><input type="number" id="prodPrice" inputmode="decimal" min="0" step="0.01" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodStock">Estoque atual</label><input type="number" id="prodStock" inputmode="numeric" min="0" step="1" required></div>
+        <div class="field"><label for="prodMinStock">Estoque mínimo</label><input type="number" id="prodMinStock" inputmode="numeric" min="0" step="1" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodSoldMonth">Vendidos por mês</label><input type="number" id="prodSoldMonth" inputmode="numeric" min="0" step="1" required></div>
         <div class="field">
-          <label for="prodMarketplace">Marketplace</label>
-          <select id="prodMarketplace"></select>
-        </div>
-        <div class="field"><label for="prodCategory">Categoria</label><input type="text" id="prodCategory" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodCost">Custo (R$)</label><input type="number" id="prodCost" min="0" step="0.01" required></div>
-        <div class="field"><label for="prodPrice">Preço de venda (R$)</label><input type="number" id="prodPrice" min="0" step="0.01" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodStock">Estoque atual</label><input type="number" id="prodStock" min="0" step="1" required></div>
-        <div class="field"><label for="prodMinStock">Estoque mínimo</label><input type="number" id="prodMinStock" min="0" step="1" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodSoldMonth">Vendidos no mês</label><input type="number" id="prodSoldMonth" min="0" step="1" required></div>
-        <div class="field">
-          <label for="prodStatus">Status do anúncio</label>
+          <label for="prodStatus">Situação do anúncio</label>
           <select id="prodStatus"><option value="Ativo">Ativo</option><option value="Pausado">Pausado</option></select>
         </div>
       </div>
+      <details class="advanced" data-requires="v7">
+        <summary>Custos específicos deste produto (opcional)</summary>
+        <div class="field-row" style="margin-top:12px;">
+          <div class="field">
+            <label for="prodShipping">Frete deste produto (R$)</label>
+            <input type="number" id="prodShipping" inputmode="decimal" min="0" step="0.01" placeholder="Usa o padrão da loja">
+          </div>
+          <div class="field">
+            <label for="prodFee">Comissão deste produto (%)</label>
+            <input type="number" id="prodFee" inputmode="decimal" min="0" step="0.1" placeholder="Usa a taxa do canal">
+          </div>
+        </div>
+      </details>
+      <div class="margin-preview" id="productMarginPreview"></div>
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost btn--sm" data-close-modal="productModal">Cancelar</button>
         <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
@@ -507,19 +788,26 @@
   </div>
 </div>
 
-<!-- MODAL: novo lançamento futuro (fluxo de caixa) -->
-<div class="modal-backdrop" id="plannedModal">
+<div class="modal-backdrop" id="plannedModal" role="dialog" aria-modal="true" aria-labelledby="plannedModalTitle">
   <div class="modal">
     <div class="modal__head">
-      <h3>Novo lançamento futuro</h3>
-      <button class="modal__close" data-close-modal="plannedModal">×</button>
+      <h3 id="plannedModalTitle">Novo lançamento futuro</h3>
+      <button class="modal__close" data-close-modal="plannedModal" aria-label="Fechar">×</button>
     </div>
     <form id="plannedForm">
-      <div class="field"><label for="plDate">Data</label><input type="date" id="plDate" required></div>
+      <div class="segmented" role="radiogroup" aria-label="Tipo de lançamento futuro">
+        <label><input type="radio" name="plType" value="entrada" checked><span>Entrada</span></label>
+        <label><input type="radio" name="plType" value="saida"><span>Saída</span></label>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="plDate">Data</label><input type="date" id="plDate" required></div>
+        <div class="field"><label for="plAmount">Valor (R$)</label><input type="number" id="plAmount" inputmode="decimal" min="0" step="0.01" required></div>
+      </div>
       <div class="field"><label for="plDescription">Descrição</label><input type="text" id="plDescription" required></div>
-      <div class="field">
-        <label for="plAmount">Valor (R$) — use negativo para saída</label>
-        <input type="number" id="plAmount" step="0.01" required>
+      <div class="field" data-requires="v7-planned">
+        <label for="plRepeat">Repetir pelos próximos (meses)</label>
+        <input type="number" id="plRepeat" inputmode="numeric" min="0" max="24" step="1" value="0">
+        <span class="field-hint">0 = acontece só uma vez. Use para assinaturas, parcelas e contas fixas.</span>
       </div>
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost btn--sm" data-close-modal="plannedModal">Cancelar</button>
@@ -529,11 +817,21 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js"></script>
-<script src="js/portal-data.min.js"></script>
-<script src="js/portal-auth.min.js"></script>
-<script src="js/charts.min.js"></script>
-<script src="js/portal-app.min.js"></script>
+<div class="modal-backdrop" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal modal--narrow">
+    <div class="modal__head">
+      <h3 id="confirmTitle">Confirmar</h3>
+      <button class="modal__close" data-close-modal="confirmModal" aria-label="Fechar">×</button>
+    </div>
+    <p id="confirmMessage" class="confirm-message"></p>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost btn--sm" data-close-modal="confirmModal">Cancelar</button>
+      <button type="button" class="btn btn--primary btn--sm" id="confirmOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
+
 </body>
 </html>

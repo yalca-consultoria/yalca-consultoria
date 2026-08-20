@@ -1,89 +1,126 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const loginView = document.getElementById('loginView');
-  const signupView = document.getElementById('signupView');
-  const loginForm = document.getElementById('loginForm');
-  const signupForm = document.getElementById('signupForm');
-  const errorEl = document.getElementById('loginError');
-  const signupErrorEl = document.getElementById('signupError');
-  const signupSuccessEl = document.getElementById('signupSuccess');
-  const configWarning = document.getElementById('configWarning');
+/* =========================================
+   Yalca Portal — tela de entrada
+   Três visões na mesma página: entrar, criar conta
+   e recuperar senha.
+   ========================================= */
 
-  document.getElementById('showSignup').addEventListener('click', (e) => {
-    e.preventDefault();
-    loginView.style.display = 'none';
-    signupView.style.display = 'block';
-  });
-  document.getElementById('showLogin').addEventListener('click', (e) => {
-    e.preventDefault();
-    signupView.style.display = 'none';
-    loginView.style.display = 'block';
-  });
+document.addEventListener('DOMContentLoaded', async () => {
+  const el = (id) => document.getElementById(id);
+  const views = { login: el('loginView'), signup: el('signupView'), reset: el('resetView') };
 
   if (!yalcaSupabaseConfigured) {
-    configWarning.classList.add('is-visible');
-    loginForm.querySelector('button[type="submit"]').disabled = true;
-    signupForm.querySelector('button[type="submit"]').disabled = true;
+    el('configWarning').classList.add('is-visible');
+    el('loginForm').querySelector('button[type="submit"]').disabled = true;
+  } else if (await yalcaIsLoggedIn()) {
+    window.location.replace('dashboard.html');
     return;
   }
 
-  if (await yalcaIsLoggedIn()) {
-    window.location.href = 'dashboard.html';
-    return;
+  function showView(name) {
+    Object.entries(views).forEach(([key, view]) => { view.hidden = key !== name; });
+    clearMessages();
+    const first = views[name].querySelector('input');
+    if (first) first.focus();
   }
 
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const submitBtn = loginForm.querySelector('button[type="submit"]');
-    const email = loginForm.email.value;
-    const password = loginForm.password.value;
-    errorEl.classList.remove('is-visible');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Entrando...';
-    const result = await yalcaLogin(email, password);
-    if (result.ok) {
-      window.location.href = 'dashboard.html';
-    } else {
-      errorEl.textContent = result.error;
-      errorEl.classList.add('is-visible');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Entrar';
-    }
+  function clearMessages() {
+    document.querySelectorAll('.login-error:not(#configWarning), .form-success').forEach(p => {
+      p.classList.remove('is-visible');
+      p.textContent = '';
+    });
+  }
+
+  function fail(id, message) {
+    const p = el(id);
+    p.textContent = message;
+    p.classList.add('is-visible');
+  }
+
+  function succeed(id, message) {
+    const p = el(id);
+    p.textContent = message;
+    p.classList.add('is-visible');
+  }
+
+  el('showSignup').addEventListener('click', () => showView('signup'));
+  el('showReset').addEventListener('click', () => showView('reset'));
+  document.querySelectorAll('[data-show]').forEach(btn =>
+    btn.addEventListener('click', () => showView(btn.dataset.show))
+  );
+
+  document.querySelectorAll('[data-toggle-password]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = el(btn.dataset.togglePassword);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      btn.textContent = showing ? '👁' : '🙈';
+    });
   });
 
-  signupForm.addEventListener('submit', async (e) => {
+  async function withBusy(form, label, fn) {
+    const btn = form.querySelector('button[type="submit"]');
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = label;
+    try { await fn(); }
+    finally { btn.disabled = false; btn.textContent = original; }
+  }
+
+  /* ---------- Entrar ---------- */
+  el('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const submitBtn = signupForm.querySelector('button[type="submit"]');
-    signupErrorEl.classList.remove('is-visible');
-    signupSuccessEl.classList.remove('is-visible');
+    clearMessages();
+    const email = el('email').value.trim();
+    const password = el('password').value;
+    if (!email || !password) return fail('loginError', 'Preencha e-mail e senha.');
 
-    const storeName = signupForm.storeName.value;
-    const email = signupForm.email.value;
-    const password = signupForm.password.value;
-    const passwordConfirm = signupForm.passwordConfirm.value;
+    await withBusy(e.target, 'Entrando…', async () => {
+      const result = await yalcaLogin(email, password);
+      if (!result.ok) return fail('loginError', result.error);
+      window.location.href = 'dashboard.html';
+    });
+  });
 
-    if (password !== passwordConfirm) {
-      signupErrorEl.textContent = 'As senhas não coincidem.';
-      signupErrorEl.classList.add('is-visible');
-      return;
-    }
+  /* ---------- Criar conta ---------- */
+  el('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearMessages();
+    const storeName = el('suStoreName').value.trim();
+    const email = el('suEmail').value.trim();
+    const password = el('suPassword').value;
+    const confirm = el('suPasswordConfirm').value;
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Criando conta...';
-    const result = await yalcaSignUp(email, password, storeName);
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Criar conta';
+    if (!storeName || !email || !password) return fail('signupError', 'Preencha todos os campos.');
+    if (password.length < 6) return fail('signupError', 'A senha precisa ter pelo menos 6 caracteres.');
+    if (password !== confirm) return fail('signupError', 'As senhas não são iguais.');
 
-    if (!result.ok) {
-      signupErrorEl.textContent = result.error;
-      signupErrorEl.classList.add('is-visible');
-      return;
-    }
+    await withBusy(e.target, 'Criando…', async () => {
+      const result = await yalcaSignUp(email, password, storeName);
+      if (!result.ok) return fail('signupError', result.error);
+      if (result.pendingEmailConfirmation) {
+        succeed('signupSuccess', 'Conta criada. Confirme o e-mail que enviamos e depois entre aqui — a Yalca libera seu acesso em seguida.');
+      } else {
+        succeed('signupSuccess', 'Conta criada. Estamos levando você para o painel…');
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+      }
+      e.target.reset();
+    });
+  });
 
-    signupForm.reset();
-    signupForm.style.display = 'none';
-    signupSuccessEl.classList.add('is-visible');
-    signupSuccessEl.textContent = result.pendingEmailConfirmation
-      ? 'Quase lá! Confirme seu e-mail pelo link que enviamos e depois aguarde a liberação de acesso.'
-      : 'Conta criada! Assim que a Yalca aprovar seu acesso, você poderá entrar por aqui.';
+  /* ---------- Recuperar senha ---------- */
+  el('resetForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearMessages();
+    const email = el('rsEmail').value.trim();
+    if (!email) return fail('resetError', 'Informe o e-mail da sua conta.');
+
+    await withBusy(e.target, 'Enviando…', async () => {
+      const result = await yalcaRequestPasswordReset(email);
+      // Não confirmamos se o e-mail existe: isso vazaria quem é cliente.
+      if (!result.ok) return fail('resetError', result.error);
+      succeed('resetSuccess', 'Se existir uma conta com esse e-mail, o link de recuperação já está a caminho. Confira também a caixa de spam.');
+      e.target.reset();
+    });
   });
 });

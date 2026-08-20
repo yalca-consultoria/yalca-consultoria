@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0b1120">
 <title>Entrar | Área do Cliente Yalca</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:,">
@@ -12,6 +13,11 @@
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
 <link rel="stylesheet" href="css/portal.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="js/supabase-config.min.js"></script>
+<script defer src="js/portal-data.min.js"></script>
+<script defer src="js/portal-auth.min.js"></script>
+<script defer src="js/login-app.min.js"></script>
 </head>
 <body class="portal-body">
 
@@ -19,9 +25,10 @@
   <div class="login-card">
     <a href="../index.html" class="logo">Yalca<span>.</span></a>
 
+    <!-- ENTRAR -->
     <div id="loginView">
       <h1>Área do Cliente</h1>
-      <p class="login-sub">Acesse suas ferramentas de gestão financeira e de marketplaces.</p>
+      <p class="login-sub">Acesse suas ferramentas de gestão financeira, margem e estoque.</p>
 
       <p class="login-error" id="configWarning">
         Configuração do banco de dados pendente. Preencha <code>portal/js/supabase-config.js</code> com a URL e a chave do seu projeto Supabase para ativar o login.
@@ -30,60 +37,82 @@
       <form class="login-form" id="loginForm" novalidate>
         <div>
           <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
         </div>
-        <div>
+        <div class="password-field">
           <label for="password">Senha</label>
           <input type="password" id="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" data-toggle-password="password" aria-label="Mostrar senha">👁</button>
         </div>
         <p class="login-error" id="loginError"></p>
+        <p class="form-success" id="loginSuccess"></p>
         <button type="submit" class="btn btn--primary btn--lg btn--block">Entrar</button>
+        <div class="login-links">
+          <button type="button" class="link-btn" id="showReset">Esqueci minha senha</button>
+          <button type="button" class="link-btn" id="showSignup">Criar conta</button>
+        </div>
       </form>
 
       <div class="demo-hint">
-        Ainda não tem conta? <a href="#" id="showSignup" style="color:var(--accent); font-weight:600;">Criar conta</a> — sua loja poderá usar as ferramentas assim que a Yalca aprovar o acesso.
+        <strong>Primeira vez aqui?</strong> Crie sua conta e a Yalca libera o acesso às ferramentas — normalmente no mesmo dia útil.
       </div>
     </div>
 
-    <div id="signupView" style="display:none;">
+    <!-- CRIAR CONTA -->
+    <div id="signupView" hidden>
       <h1>Criar conta</h1>
-      <p class="login-sub">Crie seu acesso. Depois de criado, a Yalca precisa aprovar antes de você poder entrar.</p>
+      <p class="login-sub">Depois de criada, a Yalca precisa aprovar o acesso antes de você usar as ferramentas.</p>
 
       <form class="login-form" id="signupForm" novalidate>
         <div>
           <label for="suStoreName">Nome da loja</label>
-          <input type="text" id="suStoreName" name="storeName" placeholder="Ex: Minha Loja Ltda" required>
+          <input type="text" id="suStoreName" name="storeName" placeholder="Ex: Minha Loja Ltda" autocomplete="organization" required>
         </div>
         <div>
           <label for="suEmail">E-mail</label>
-          <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
         </div>
-        <div>
+        <div class="password-field">
           <label for="suPassword">Senha</label>
           <input type="password" id="suPassword" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required>
+          <button type="button" class="password-toggle" data-toggle-password="suPassword" aria-label="Mostrar senha">👁</button>
         </div>
-        <div>
+        <div class="password-field">
           <label for="suPasswordConfirm">Confirmar senha</label>
           <input type="password" id="suPasswordConfirm" name="passwordConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required>
+          <button type="button" class="password-toggle" data-toggle-password="suPasswordConfirm" aria-label="Mostrar senha">👁</button>
         </div>
         <p class="login-error" id="signupError"></p>
-        <p class="form-success" id="signupSuccess" style="text-align:left;"></p>
+        <p class="form-success" id="signupSuccess"></p>
         <button type="submit" class="btn btn--primary btn--lg btn--block">Criar conta</button>
+        <div class="login-links">
+          <button type="button" class="link-btn" data-show="login">Já tenho conta</button>
+        </div>
       </form>
+    </div>
 
-      <div class="demo-hint">
-        Já tem conta? <a href="#" id="showLogin" style="color:var(--accent); font-weight:600;">Voltar para o login</a>
-      </div>
+    <!-- RECUPERAR SENHA -->
+    <div id="resetView" hidden>
+      <h1>Recuperar senha</h1>
+      <p class="login-sub">Informe o e-mail da sua conta. Enviamos um link para você definir uma nova senha.</p>
+
+      <form class="login-form" id="resetForm" novalidate>
+        <div>
+          <label for="rsEmail">E-mail</label>
+          <input type="email" id="rsEmail" name="email" placeholder="voce@email.com" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <p class="login-error" id="resetError"></p>
+        <p class="form-success" id="resetSuccess"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Enviar link</button>
+        <div class="login-links">
+          <button type="button" class="link-btn" data-show="login">Voltar para o login</button>
+        </div>
+      </form>
     </div>
 
     <a href="../index.html" class="login-back">← Voltar para o site</a>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js"></script>
-<script src="js/portal-data.min.js"></script>
-<script src="js/portal-auth.min.js"></script>
-<script src="js/login-app.min.js"></script>
 </body>
 </html>

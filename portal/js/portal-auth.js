@@ -10,7 +10,8 @@ async function yalcaSignUp(email, password, storeName) {
   }
   const { data, error } = await supabaseClient.auth.signUp({
     email: email.trim(),
-    password
+    password,
+    options: { data: { store_name: storeName || '' } }
   });
   if (error) {
     return { ok: false, error: yalcaAuthErrorMessage(error) };
@@ -73,6 +74,40 @@ async function yalcaRequireAuth() {
 
 /* ---------- Perfil de aprovação e administração ---------- */
 
+/* Quando o projeto exige confirmação de e-mail, o cadastro termina sem
+   sessão e o perfil não chega a ser criado. Na primeira entrada de
+   verdade criamos o perfil (status "pending", como manda a política de
+   RLS) em vez de barrar o cliente com "perfil não encontrado". */
+async function yalcaEnsureProfile() {
+  const existing = await yalcaGetOwnProfile();
+  if (existing) return existing;
+  const user = await yalcaCurrentUser();
+  if (!user) return null;
+  const { data, error } = await supabaseClient
+    .from('client_profiles')
+    .insert({ email: user.email, store_name: (user.user_metadata && user.user_metadata.store_name) || '' })
+    .select()
+    .single();
+  if (error) return null;
+  return data;
+}
+
+async function yalcaUpdatePassword(newPassword) {
+  if (!supabaseClient) return { ok: false, error: 'Configuração do Supabase pendente.' };
+  const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+  if (error) return { ok: false, error: yalcaAuthErrorMessage(error) };
+  return { ok: true };
+}
+
+async function yalcaRequestPasswordReset(email) {
+  if (!supabaseClient) return { ok: false, error: 'Configuração do Supabase pendente.' };
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.origin + window.location.pathname.replace(/login\.html$/, 'dashboard.html')
+  });
+  if (error) return { ok: false, error: yalcaAuthErrorMessage(error) };
+  return { ok: true };
+}
+
 async function yalcaGetOwnProfile() {
   const user = await yalcaCurrentUser();
   if (!user) return null;
@@ -103,5 +138,8 @@ function yalcaAuthErrorMessage(error) {
   if (msg.includes('Email not confirmed')) return 'Este e-mail ainda não foi confirmado. Verifique sua caixa de entrada.';
   if (msg.includes('User already registered')) return 'Já existe uma conta com este e-mail. Tente entrar em vez de criar uma nova conta.';
   if (msg.includes('Password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  if (msg.includes('New password should be different')) return 'A nova senha precisa ser diferente da atual.';
+  if (msg.includes('rate limit') || msg.includes('Too many')) return 'Muitas tentativas seguidas. Espere um minuto e tente de novo.';
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
   return msg || 'Não foi possível concluir. Tente novamente em instantes.';
 }
