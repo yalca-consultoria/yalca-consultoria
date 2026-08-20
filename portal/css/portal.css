@@ -18,6 +18,30 @@
 
   --sidebar-w: 264px;
   --topbar-h: 72px;
+
+  /* ---- escala de espaçamento (base 4px), só do portal ---- */
+  --p-space-1: 4px;
+  --p-space-2: 8px;
+  --p-space-3: 12px;
+  --p-space-4: 16px;
+  --p-space-5: 20px;
+  --p-space-6: 24px;
+  --p-space-8: 32px;
+  --p-space-10: 40px;
+
+  /* ---- escala tipográfica para densidade de dashboard ---- */
+  --p-text-xs: 0.72rem;
+  --p-text-sm: 0.8rem;
+  --p-text-base: 0.88rem;
+  --p-text-md: 0.95rem;
+  --p-text-lg: 1.15rem;
+  --p-text-xl: 1.5rem;
+  --p-text-2xl: 2.1rem;
+
+  /* ---- superfícies e realces, derivados dos tokens do site ---- */
+  --p-surface-3: #212d4d;
+  --p-primary-soft: rgba(109, 91, 246, 0.14);
+  --p-primary-border: rgba(109, 91, 246, 0.35);
 }
 
 html, body { height: 100%; }
@@ -128,9 +152,13 @@ body.portal-body {
 .demo-banner strong { color: var(--text); }
 
 /* ---------- Shell do dashboard ---------- */
+/* Nota: o topo usa 0 (não a altura do .demo-banner) de propósito — o
+   banner não é sticky, então rola para fora naturalmente; travar a
+   0/100vh evita o desalinhamento quando o texto do banner quebra em
+   2-3 linhas em telas estreitas (o valor fixo antigo assumia 1 linha). */
 .portal-shell {
   display: flex;
-  min-height: calc(100vh - 34px);
+  min-height: 100vh;
 }
 
 .portal-sidebar {
@@ -142,8 +170,8 @@ body.portal-body {
   flex-direction: column;
   padding: 24px 18px;
   position: sticky;
-  top: 34px;
-  height: calc(100vh - 34px);
+  top: 0;
+  height: 100vh;
 }
 .portal-sidebar__brand { padding: 0 8px 24px; }
 .portal-nav {
@@ -172,10 +200,29 @@ body.portal-body {
 .portal-nav__item:hover { color: var(--text); background: var(--surface); }
 .portal-nav__item.is-active {
   color: var(--text);
-  background: var(--surface);
-  border-color: var(--primary);
+  background: var(--p-primary-soft);
+  border-color: transparent;
+  position: relative;
 }
-.portal-nav__icon { font-size: 1.05rem; width: 20px; text-align: center; }
+.portal-nav__item.is-active::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gradient);
+}
+.portal-nav__icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+}
+.portal-nav__label { min-width: 0; }
 
 .portal-sidebar__footer {
   border-top: 1px solid var(--border);
@@ -209,12 +256,21 @@ body.portal-body {
   padding: 0 28px;
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 34px;
+  top: 0;
   background: rgba(11, 17, 32, 0.85);
   backdrop-filter: blur(10px);
   z-index: 20;
 }
-.portal-topbar h2 { font-size: 1.3rem; }
+.portal-topbar h2 { font-size: 1.3rem; line-height: 1.2; }
+.portal-topbar__eyebrow {
+  display: block;
+  font-size: var(--p-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
 .sidebar-toggle {
   display: none;
   background: none;
@@ -225,6 +281,23 @@ body.portal-body {
   min-height: 44px;
   cursor: pointer;
   font-size: 1.1rem;
+}
+
+/* ---------- Scrim do menu off-canvas (mobile) ---------- */
+.portal-sidebar-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 16, 0.6);
+  z-index: 55;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+@media (max-width: 900px) {
+  .portal-sidebar-scrim.is-open {
+    display: block;
+    opacity: 1;
+  }
 }
 
 .portal-content {
@@ -253,21 +326,30 @@ body.portal-body {
   overflow: hidden;
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
-.kpi-card::before {
+.kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); }
+.kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.kpi-card__value { font-family: var(--font-heading); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
+.kpi-card__delta.up { color: var(--good); }
+.kpi-card__delta.down { color: var(--critical); }
+.kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+
+/* KPI de destaque (1ª de cada grade) — só ela carrega o gradiente da marca.
+   Ocupa 2 colunas: a fonte maior (--p-text-2xl) não cabe na largura de uma
+   coluna comum sem cortar o valor. */
+.kpi-grid .kpi-card:first-child {
+  grid-column: span 2;
+  background: linear-gradient(160deg, var(--surface) 55%, rgba(109, 91, 246, 0.14));
+  border-color: var(--p-primary-border);
+}
+.kpi-grid .kpi-card:first-child::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
   background: var(--gradient);
-  opacity: 0.7;
 }
-.kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); }
-.kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.kpi-card__value { font-family: var(--font-heading); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
-.kpi-card__delta.up { color: var(--good); }
-.kpi-card__delta.down { color: var(--critical); }
-.kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+.kpi-grid .kpi-card:first-child .kpi-card__value { font-size: var(--p-text-2xl); }
 
 /* ---------- Painéis genéricos ---------- */
 .panel {
@@ -277,11 +359,18 @@ body.portal-body {
   border-radius: var(--radius);
   padding: 24px;
 }
-.panel__head h3 {
+/* Painel de destaque — o mais decisório de cada seção (ex: detalhe da
+   precificação, projeção do fluxo de caixa). Não é o padrão de todo
+   painel: usado com moderação para não virar ruído visual. */
+.panel--highlight {
+  border-color: var(--p-primary-border);
+  box-shadow: 0 0 0 1px var(--p-primary-border) inset;
+}
+.panel--highlight .panel__head h3 {
   position: relative;
   padding-left: 12px;
 }
-.panel__head h3::before {
+.panel--highlight .panel__head h3::before {
   content: "";
   position: absolute;
   left: 0; top: 2px; bottom: 2px;
@@ -299,10 +388,34 @@ body.portal-body {
 }
 .panel__head h3 { font-size: 1.05rem; }
 .panel__head p { font-size: 0.85rem; margin-top: 4px; }
-.panel__toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.panel__toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex: 1; }
+.panel__toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-left: auto; }
 
 .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
 .grid-2--reverse { grid-template-columns: 1fr 1.3fr; }
+
+/* Painéis de referência colapsáveis (ex: legenda de status) — ficam a um
+   clique de distância em vez de competir por espaço com o conteúdo ativo. */
+.panel > details summary {
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panel > details summary::-webkit-details-marker { display: none; }
+.panel > details summary::after {
+  content: "▾";
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+.panel > details[open] summary::after { transform: rotate(180deg); }
+.panel > details .alert-list { margin-top: 16px; }
 
 /* ---------- Formulários dentro de painéis ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }
@@ -384,6 +497,14 @@ body.portal-body {
   font-size: 0.68rem;
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
+  overflow: hidden;
+}
+.marketplace-cell__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+  background: #ffffff;
 }
 .marketplace-cell__text {
   display: flex;
@@ -451,8 +572,8 @@ body.portal-body {
   font-size: 0.88rem;
 }
 .alert-item__icon { font-size: 1.1rem; line-height: 1; }
-.alert-item.critical { border-color: rgba(208,59,59,0.4); }
-.alert-item.warning { border-color: rgba(250,178,25,0.35); }
+.alert-item.critical { border-color: rgba(208,59,59,0.4); background: rgba(208,59,59,0.08); }
+.alert-item.warning { border-color: rgba(250,178,25,0.35); background: rgba(250,178,25,0.07); }
 .alert-item strong { display: block; color: var(--text); margin-bottom: 2px; }
 .alert-item span { color: var(--text-muted); font-size: 0.82rem; }
 .alert-empty { color: var(--text-muted); font-size: 0.88rem; padding: 8px 0; }
@@ -583,6 +704,7 @@ body.portal-body {
   margin-top: 4px;
 }
 .margin-gauge__fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.margin-gauge--sm { height: 4px; width: 64px; margin: 4px 0 0 auto; }
 
 /* ---------- Empty state / reset ---------- */
 .reset-demo {
@@ -595,6 +717,20 @@ body.portal-body {
   cursor: pointer;
 }
 .reset-demo:hover { color: var(--text); border-color: var(--primary-2); }
+
+/* Ações de ferramenta (exportar/importar) — visualmente distintas do
+   "restaurar dados de exemplo", que é uma ação destrutiva/de reset. */
+.btn-tool {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.btn-tool:hover { color: var(--text); border-color: var(--primary-2); }
 
 /* ---------- Modal simples ---------- */
 .modal-backdrop {
@@ -651,14 +787,13 @@ body.portal-body {
 @media (max-width: 900px) {
   .portal-sidebar {
     position: fixed;
-    top: 34px;
+    top: 0;
     left: 0;
     bottom: 0;
-    height: calc(100vh - 34px);
+    height: 100vh;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     z-index: 60;
-    box-shadow: 0 0 0 100vmax rgba(0,0,0,0);
   }
   .portal-sidebar.is-open {
     transform: translateX(0);
@@ -672,7 +807,57 @@ body.portal-body {
 @media (max-width: 640px) {
   .portal-content { padding: 16px; gap: 20px; }
   .panel { padding: 18px; }
-  .kpi-card__value { font-size: 1.4rem; }
-  .data-table { font-size: 0.82rem; }
   .demo-banner { font-size: 0.72rem; padding: 6px 10px; }
+
+  /* KPIs: 2 colunas em vez de empilhar tudo — chega no gráfico mais rápido. */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: var(--p-space-3); }
+  .kpi-grid .kpi-card:first-child { grid-column: 1 / -1; }
+  .kpi-card { padding: var(--p-space-4); }
+  .kpi-card__value { font-size: var(--p-text-xl); }
+  .kpi-grid .kpi-card:first-child .kpi-card__value { font-size: var(--p-text-xl); }
+
+  .data-table { font-size: 0.82rem; }
+
+  /* Tabelas de maior uso: viram lista de cards (rótulo à esquerda, valor à
+     direita) em vez de rolar horizontalmente — a ordem das colunas é fixa
+     no HTML/JS, então os rótulos abaixo são posicionais, não por atributo. */
+  .data-table--cards { min-width: 0; }
+  .data-table--cards thead { display: none; }
+  .data-table--cards tbody tr {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--p-space-3);
+    padding: var(--p-space-3) var(--p-space-4);
+  }
+  .data-table--cards tbody tr:last-child { margin-bottom: 0; }
+  .data-table--cards tbody tr:hover { background: none; }
+  .data-table--cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--p-space-3);
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--border);
+    white-space: normal;
+    text-align: right;
+  }
+  .data-table--cards td:last-child { border-bottom: none; }
+  .data-table--cards td.row-actions { justify-content: flex-end; border-bottom: none; padding-top: var(--p-space-2); }
+  .data-table--cards td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-size: var(--p-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    flex-shrink: 0;
+  }
+  .data-table--cards td.row-actions::before { content: ""; }
+
+  /* Tabelas menores mantêm rolagem horizontal, com uma sombra na borda
+     direita indicando que há mais conteúdo fora da tela. */
+  .table-scroll:has(.data-table:not(.data-table--cards)) {
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  }
 }

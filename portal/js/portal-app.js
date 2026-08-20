@@ -86,19 +86,64 @@ function initSidebarNav() {
   const sections = document.querySelectorAll('.portal-section');
   const title = document.getElementById('sectionTitle');
   const sidebar = document.getElementById('portalSidebar');
+  const scrim = document.getElementById('portalSidebarScrim');
+  const toggle = document.getElementById('sidebarToggle');
+  const main = document.querySelector('.portal-main');
+
+  function isMobileDrawer() {
+    return window.matchMedia('(max-width: 900px)').matches;
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('is-open');
+    scrim.classList.add('is-open');
+    toggle.setAttribute('aria-expanded', 'true');
+    if (isMobileDrawer()) main.setAttribute('aria-hidden', 'true');
+    items[0].focus();
+  }
+
+  function closeSidebar({ returnFocus = false } = {}) {
+    sidebar.classList.remove('is-open');
+    scrim.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    main.removeAttribute('aria-hidden');
+    if (returnFocus) toggle.focus();
+  }
 
   items.forEach(item => {
     item.addEventListener('click', () => {
       const target = item.dataset.section;
       items.forEach(i => i.classList.toggle('is-active', i === item));
       sections.forEach(s => s.classList.toggle('is-active', s.dataset.section === target));
-      title.textContent = item.textContent;
-      sidebar.classList.remove('is-open');
+      title.textContent = item.querySelector('.portal-nav__label').textContent;
+      if (isMobileDrawer()) closeSidebar();
     });
   });
 
-  document.getElementById('sidebarToggle').addEventListener('click', () => {
-    sidebar.classList.toggle('is-open');
+  toggle.addEventListener('click', () => {
+    if (sidebar.classList.contains('is-open')) closeSidebar({ returnFocus: true });
+    else openSidebar();
+  });
+
+  scrim.addEventListener('click', () => closeSidebar({ returnFocus: true }));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !sidebar.classList.contains('is-open') || !isMobileDrawer()) return;
+    closeSidebar({ returnFocus: true });
+  });
+
+  // Foco preso dentro do menu enquanto ele estiver aberto no mobile.
+  sidebar.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !isMobileDrawer() || !sidebar.classList.contains('is-open')) return;
+    const focusable = sidebar.querySelectorAll('button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault(); first.focus();
+    }
   });
 }
 
@@ -374,12 +419,12 @@ function renderTransactionsTable(transactions) {
   }
   tbody.innerHTML = sorted.map(t => `
     <tr>
-      <td>${yalcaFormatDate(t.date)}</td>
-      <td>${t.type === 'receita' ? '<span class="badge badge--receita">Receita</span>' : '<span class="badge badge--despesa">Despesa</span>'}</td>
-      <td>${yalcaEscapeHtml(t.category)}</td>
-      <td>${yalcaEscapeHtml(t.marketplace)}</td>
-      <td>${yalcaEscapeHtml(t.description)}</td>
-      <td class="num ${t.type === 'receita' ? 'text-good' : 'text-critical'}">${t.type === 'receita' ? '+' : '-'} ${yalcaFormatCurrency(t.amount)}</td>
+      <td data-label="Data">${yalcaFormatDate(t.date)}</td>
+      <td data-label="Tipo">${t.type === 'receita' ? '<span class="badge badge--receita">Receita</span>' : '<span class="badge badge--despesa">Despesa</span>'}</td>
+      <td data-label="Categoria">${yalcaEscapeHtml(t.category)}</td>
+      <td data-label="Marketplace">${yalcaEscapeHtml(t.marketplace)}</td>
+      <td data-label="Descrição">${yalcaEscapeHtml(t.description)}</td>
+      <td class="num ${t.type === 'receita' ? 'text-good' : 'text-critical'}" data-label="Valor">${t.type === 'receita' ? '+' : '-'} ${yalcaFormatCurrency(t.amount)}</td>
       <td class="row-actions">
         <button class="icon-btn" title="Editar" data-action="editTransaction" data-id="${t.id}">✎</button>
         <button class="icon-btn" title="Excluir" data-action="deleteTransactionRow" data-id="${t.id}">🗑</button>
@@ -548,16 +593,21 @@ function renderMarketplaces() {
   tbody.innerHTML = products.map(p => {
     const { marginPct } = yalcaProductMargin(p, DATA.settings);
     const marginClass = marginPct < 0 ? 'text-critical' : (marginPct < 15 ? '' : 'text-good');
+    const gaugeColor = marginPct < 0 ? 'var(--critical)' : (marginPct < 15 ? 'var(--warning)' : 'var(--good)');
+    const gaugeWidth = Math.max(0, Math.min(100, marginPct));
     return `
     <tr>
-      <td>${yalcaEscapeHtml(p.sku)}</td>
-      <td>${yalcaEscapeHtml(p.name)}</td>
-      <td><div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div></td>
-      <td class="num">${yalcaFormatCurrency(p.cost)}</td>
-      <td class="num">${yalcaFormatCurrency(p.price)}</td>
-      <td class="num ${marginClass}">${marginPct.toFixed(1)}%</td>
-      <td class="num">${p.unitsSoldMonth}</td>
-      <td>${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}</td>
+      <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
+      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
+      <td data-label="Marketplace"><div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div></td>
+      <td class="num" data-label="Custo">${yalcaFormatCurrency(p.cost)}</td>
+      <td class="num" data-label="Preço">${yalcaFormatCurrency(p.price)}</td>
+      <td class="num ${marginClass}" data-label="Margem líquida">
+        ${marginPct.toFixed(1)}%
+        <div class="margin-gauge margin-gauge--sm"><div class="margin-gauge__fill" style="width:${gaugeWidth}%; background:${gaugeColor};"></div></div>
+      </td>
+      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
+      <td data-label="Status">${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}</td>
       <td class="row-actions">
         <button class="icon-btn" title="Editar" data-action="editProduct" data-id="${p.id}">✎</button>
         <button class="icon-btn" title="Excluir" data-action="deleteProductRow" data-id="${p.id}">🗑</button>
@@ -733,19 +783,25 @@ const PRICING_VARIANTS_DEFAULT = [
   }
 ];
 
-/* Identidade visual simples (sem usar logos com direitos autorais de terceiros)
-   — um selo colorido com as iniciais de cada marketplace. */
+/* Selo por canal: logo real (imagem já usada no site principal) quando temos
+   um asset legítimo e sourced; iniciais coloridas como fallback automático
+   para qualquer canal sem logo (ex: Temu, Droga Raia — este último nem é um
+   marketplace de comissão padrão, é um acordo comercial customizado, então
+   nunca faria sentido "inventar" um logo genérico pra ele). */
 const CHANNEL_VISUALS = {
-  'Mercado Livre': { initials: 'ML', bg: '#FFE600', color: '#1c1c1c' },
-  'Amazon': { initials: 'AZ', bg: '#131921', color: '#FF9900' },
-  'Shopee': { initials: 'SP', bg: '#EE4D2D', color: '#ffffff' },
-  'TikTok': { initials: 'TT', bg: '#010101', color: '#25F4EE' },
+  'Mercado Livre': { initials: 'ML', bg: '#FFE600', color: '#1c1c1c', logo: 'mercadolivre.svg' },
+  'Amazon': { initials: 'AZ', bg: '#131921', color: '#FF9900', logo: 'amazon.svg' },
+  'Shopee': { initials: 'SP', bg: '#EE4D2D', color: '#ffffff', logo: 'shopee.svg' },
+  'TikTok': { initials: 'TT', bg: '#010101', color: '#25F4EE', logo: 'tiktok.svg' },
   'Temu': { initials: 'TM', bg: '#FB6514', color: '#ffffff' },
   'Droga Raia': { initials: 'DR', bg: '#00A650', color: '#ffffff' }
 };
 
 function renderChannelBadge(channel) {
   const v = CHANNEL_VISUALS[channel] || { initials: channel.slice(0, 2).toUpperCase(), bg: 'var(--surface-2)', color: 'var(--text)' };
+  if (v.logo) {
+    return `<span class="marketplace-cell__logo" title="${yalcaEscapeHtml(channel)}"><img src="../img/marketplaces/${v.logo}" alt="${yalcaEscapeHtml(channel)}" loading="lazy"></span>`;
+  }
   return `<span class="marketplace-cell__logo" style="background:${v.bg}; color:${v.color};" title="${yalcaEscapeHtml(channel)}">${v.initials}</span>`;
 }
 
@@ -1028,12 +1084,12 @@ function renderEstoque() {
   const badgeClass = { OK: 'ok', Baixo: 'baixo', Esgotado: 'esgotado', Parado: 'parado' };
   tbody.innerHTML = filtered.map(p => `
     <tr>
-      <td>${yalcaEscapeHtml(p.sku)}</td>
-      <td>${yalcaEscapeHtml(p.name)}</td>
-      <td class="num">${p.stock}</td>
-      <td class="num">${p.minStock}</td>
-      <td class="num">${p.unitsSoldMonth}</td>
-      <td><span class="badge badge--${badgeClass[p.status_calc]}">${p.status_calc}</span></td>
+      <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
+      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
+      <td class="num" data-label="Estoque">${p.stock}</td>
+      <td class="num" data-label="Mínimo">${p.minStock}</td>
+      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
+      <td data-label="Status"><span class="badge badge--${badgeClass[p.status_calc]}">${p.status_calc}</span></td>
     </tr>`).join('');
 }
 

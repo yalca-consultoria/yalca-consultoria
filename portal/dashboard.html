@@ -41,6 +41,8 @@
 
 <div class="portal-shell" id="portalShell" style="display:none;">
 
+  <div class="portal-sidebar-scrim" id="portalSidebarScrim"></div>
+
   <!-- SIDEBAR -->
   <aside class="portal-sidebar" id="portalSidebar">
     <div class="portal-sidebar__brand">
@@ -48,13 +50,34 @@
     </div>
 
     <nav class="portal-nav" id="portalNav">
-      <button class="portal-nav__item is-active" data-section="overview">Visão Geral</button>
-      <button class="portal-nav__item" data-section="financeiro">Financeiro</button>
-      <button class="portal-nav__item" data-section="marketplaces">Gestão de Marketplaces</button>
-      <button class="portal-nav__item" data-section="precificacao">Calculadora de Preço</button>
-      <button class="portal-nav__item" data-section="estoque">Controle de Estoque</button>
-      <button class="portal-nav__item" data-section="fluxocaixa">Fluxo de Caixa</button>
-      <button class="portal-nav__item" data-section="configuracoes">Configurações</button>
+      <button class="portal-nav__item is-active" data-section="overview">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/></svg>
+        <span class="portal-nav__label">Visão Geral</span>
+      </button>
+      <button class="portal-nav__item" data-section="financeiro">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.5-1.5-2-3-2s-3 .8-3 2c0 3 6 1.5 6 4.5 0 1.5-1.5 2-3 2s-3-.5-3-2"/></svg>
+        <span class="portal-nav__label">Financeiro</span>
+      </button>
+      <button class="portal-nav__item" data-section="marketplaces">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M4 9v10h16V9"/></svg>
+        <span class="portal-nav__label">Gestão de Marketplaces</span>
+      </button>
+      <button class="portal-nav__item" data-section="precificacao">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
+        <span class="portal-nav__label">Calculadora de Preço</span>
+      </button>
+      <button class="portal-nav__item" data-section="estoque">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        <span class="portal-nav__label">Controle de Estoque</span>
+      </button>
+      <button class="portal-nav__item" data-section="fluxocaixa">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+        <span class="portal-nav__label">Fluxo de Caixa</span>
+      </button>
+      <button class="portal-nav__item" data-section="configuracoes">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="portal-nav__label">Configurações</span>
+      </button>
     </nav>
 
     <div class="portal-sidebar__footer">
@@ -74,8 +97,11 @@
   <div class="portal-main">
     <header class="portal-topbar">
       <div style="display:flex; align-items:center; gap:14px;">
-        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu">☰</button>
-        <h2 id="sectionTitle">Visão Geral</h2>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
+        <div>
+          <span class="portal-topbar__eyebrow">Painel do Cliente</span>
+          <h2 id="sectionTitle">Visão Geral</h2>
+        </div>
       </div>
     </header>
 
@@ -159,16 +185,18 @@
             </div>
             <div class="panel__toolbar">
               <select class="select-chip" id="financeFilterMonth"></select>
-              <button class="reset-demo" id="exportCsvBtn">Exportar CSV</button>
-              <label class="reset-demo" style="cursor:pointer;">
-                Importar CSV
-                <input type="file" id="importCsvInput" accept=".csv" style="display:none;">
-              </label>
-              <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Novo lançamento</button>
+              <div class="panel__toolbar-actions">
+                <button class="btn-tool" id="exportCsvBtn">Exportar CSV</button>
+                <label class="btn-tool" style="cursor:pointer;">
+                  Importar CSV
+                  <input type="file" id="importCsvInput" accept=".csv" style="display:none;">
+                </label>
+                <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Novo lançamento</button>
+              </div>
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards">
               <thead>
                 <tr>
                   <th>Data</th><th>Tipo</th><th>Categoria</th><th>Marketplace</th><th>Descrição</th><th class="num">Valor</th><th></th>
@@ -210,7 +238,7 @@
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards">
               <thead>
                 <tr>
                   <th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Custo</th><th class="num">Preço</th><th class="num">Margem líquida</th><th class="num">Vendidos/mês</th><th>Status</th><th></th>
@@ -279,7 +307,7 @@
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel panel--highlight">
           <div class="panel__head">
             <div>
               <h3 id="pricingDetailTitle">Detalhamento — Mercado Livre Clássico</h3>
@@ -305,13 +333,15 @@
             <div class="alert-list" id="stockAlerts"></div>
           </div>
           <div class="panel">
-            <div class="panel__head"><div><h3>Legenda de status</h3></div></div>
-            <div class="alert-list">
-              <div class="alert-item"><span class="badge badge--ok">OK</span><span>Estoque saudável para o ritmo de vendas atual.</span></div>
-              <div class="alert-item warning"><span class="badge badge--baixo">Baixo</span><span>Abaixo do estoque mínimo — planeje reposição.</span></div>
-              <div class="alert-item critical"><span class="badge badge--esgotado">Esgotado</span><span>Sem unidades disponíveis — anúncio pode estar perdendo posição.</span></div>
-              <div class="alert-item"><span class="badge badge--parado">Parado</span><span>Estoque alto e poucas vendas — capital parado.</span></div>
-            </div>
+            <details>
+              <summary>Legenda de status</summary>
+              <div class="alert-list">
+                <div class="alert-item"><span class="badge badge--ok">OK</span><span>Estoque saudável para o ritmo de vendas atual.</span></div>
+                <div class="alert-item warning"><span class="badge badge--baixo">Baixo</span><span>Abaixo do estoque mínimo — planeje reposição.</span></div>
+                <div class="alert-item critical"><span class="badge badge--esgotado">Esgotado</span><span>Sem unidades disponíveis — anúncio pode estar perdendo posição.</span></div>
+                <div class="alert-item"><span class="badge badge--parado">Parado</span><span>Estoque alto e poucas vendas — capital parado.</span></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -329,7 +359,7 @@
             </div>
           </div>
           <div class="table-scroll">
-            <table class="data-table">
+            <table class="data-table data-table--cards">
               <thead>
                 <tr><th>SKU</th><th>Produto</th><th class="num">Estoque</th><th class="num">Mínimo</th><th class="num">Vendidos/mês</th><th>Status</th></tr>
               </thead>
@@ -347,7 +377,7 @@
 
         <div class="kpi-grid" id="cashflowKpis"></div>
 
-        <div class="panel chart-card">
+        <div class="panel chart-card panel--highlight">
           <div class="panel__head">
             <div>
               <h3>Saldo projetado</h3>

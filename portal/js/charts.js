@@ -61,13 +61,23 @@ function yalcaShowTooltip(wrap, tip, x, y, html) {
 }
 function yalcaHideTooltip(tip) { tip.classList.remove('is-visible'); }
 
+/* No celular o SVG (viewBox fixo de 640px) renderiza texto pequeno
+   demais para ler com conforto — a tabela (mesmo toggle, já acessível)
+   começa como a visão padrão; o gráfico vira opt-in. */
+function yalcaIsMobileChart() {
+  return window.matchMedia('(max-width: 640px)').matches;
+}
+function yalcaChartSteps() {
+  return yalcaIsMobileChart() ? 3 : 5;
+}
+
 /**
  * Gráfico de linhas multi-série.
  * container: elemento onde o gráfico será montado
  * opts: { series: [{name, color, data:[{label, value}]}], formatValue }
  */
 function yalcaRenderLineChart(container, opts) {
-  const { series, formatValue = (v) => v } = opts;
+  const { series, formatValue = (v) => v, steps = yalcaChartSteps() } = opts;
   const W = 640, H = 260;
   const padL = 46, padR = 16, padT = 16, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -81,15 +91,16 @@ function yalcaRenderLineChart(container, opts) {
   const yScale = (v) => padT + plotH - (v / niceMax) * plotH;
   const xScale = (i) => padL + i * xStep;
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+  const gridFractions = Array.from({ length: steps + 1 }, (_, i) => i / steps);
+  const gridLines = gridFractions.map(f => {
     const y = padT + plotH - f * plotH;
     const val = f * niceMax;
     return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="${YALCA_COLORS.grid}" stroke-width="1" />
-      <text x="${padL - 8}" y="${y + 4}" font-size="10" text-anchor="end">${formatValue(val)}</text>`;
+      <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
   }).join('');
 
   const xLabels = labels.map((label, i) =>
-    `<text x="${xScale(i)}" y="${H - 10}" font-size="10" text-anchor="middle">${yalcaEscapeHtml(label)}</text>`
+    `<text x="${xScale(i)}" y="${H - 10}" font-size="13" text-anchor="middle">${yalcaEscapeHtml(label)}</text>`
   ).join('');
 
   const seriesSvg = series.map(s => {
@@ -112,10 +123,11 @@ function yalcaRenderLineChart(container, opts) {
     <table class="data-table"><thead><tr><th>Período</th>${series.map(s => `<th class="num">${yalcaEscapeHtml(s.name)}</th>`).join('')}</tr></thead>
     <tbody>${tableRows}</tbody></table></div>`;
 
+  const startAsTable = yalcaIsMobileChart();
   container.innerHTML = `
     <div class="chart-card">
       ${legend}
-      <button type="button" class="table-view-toggle">Ver como tabela</button>
+      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
       ${tableHtml}
       <div class="chart-wrap">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de linha">
@@ -145,6 +157,7 @@ function yalcaRenderLineChart(container, opts) {
 
   const toggleBtn = container.querySelector('.table-view-toggle');
   const tableView = container.querySelector('.chart-table-view');
+  if (startAsTable) tableView.classList.add('is-visible');
   toggleBtn.addEventListener('click', () => {
     const showing = tableView.classList.toggle('is-visible');
     toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
@@ -156,7 +169,7 @@ function yalcaRenderLineChart(container, opts) {
  * opts: { data: [{label, value, color}], formatValue }
  */
 function yalcaRenderBarChart(container, opts) {
-  const { data, formatValue = (v) => v } = opts;
+  const { data, formatValue = (v) => v, steps = yalcaChartSteps() } = opts;
   const W = 640, H = 260;
   const padL = 46, padR = 16, padT = 16, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -167,11 +180,12 @@ function yalcaRenderBarChart(container, opts) {
   const barW = (plotW - barGap * (data.length - 1)) / data.length;
   const yScale = (v) => (v / niceMax) * plotH;
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+  const gridFractions = Array.from({ length: steps + 1 }, (_, i) => i / steps);
+  const gridLines = gridFractions.map(f => {
     const y = padT + plotH - f * plotH;
     const val = f * niceMax;
     return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="${YALCA_COLORS.grid}" stroke-width="1" />
-      <text x="${padL - 8}" y="${y + 4}" font-size="10" text-anchor="end">${formatValue(val)}</text>`;
+      <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
   }).join('');
 
   const bars = data.map((d, i) => {
@@ -179,7 +193,7 @@ function yalcaRenderBarChart(container, opts) {
     const h = yScale(d.value);
     const y = padT + plotH - h;
     return `<rect class="hit" data-i="${i}" x="${x}" y="${y}" width="${barW}" height="${Math.max(h, 2)}" rx="4" fill="${d.color}" style="cursor:pointer" />
-      <text x="${x + barW / 2}" y="${H - 10}" font-size="10" text-anchor="middle">${yalcaEscapeHtml(d.label)}</text>`;
+      <text x="${x + barW / 2}" y="${H - 10}" font-size="13" text-anchor="middle">${yalcaEscapeHtml(d.label)}</text>`;
   }).join('');
 
   const tableRows = data.map(d => `<tr><td>${yalcaEscapeHtml(d.label)}</td><td class="num">${formatValue(d.value)}</td></tr>`).join('');
@@ -187,9 +201,10 @@ function yalcaRenderBarChart(container, opts) {
     <table class="data-table"><thead><tr><th>Categoria</th><th class="num">Valor</th></tr></thead>
     <tbody>${tableRows}</tbody></table></div>`;
 
+  const startAsTable = yalcaIsMobileChart();
   container.innerHTML = `
     <div class="chart-card">
-      <button type="button" class="table-view-toggle">Ver como tabela</button>
+      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
       ${tableHtml}
       <div class="chart-wrap">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de barras">
@@ -217,6 +232,7 @@ function yalcaRenderBarChart(container, opts) {
 
   const toggleBtn = container.querySelector('.table-view-toggle');
   const tableView = container.querySelector('.chart-table-view');
+  if (startAsTable) tableView.classList.add('is-visible');
   toggleBtn.addEventListener('click', () => {
     const showing = tableView.classList.toggle('is-visible');
     toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
