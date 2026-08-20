@@ -1,0 +1,14 @@
+{
+  "name": "yalca-keepa-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API Node pura pro Keepa (produto + reputação de vendedor) — substitui as Edge Functions Deno self-hosted.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "refresh-cache": "node cron/refresh-keepa-cache.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

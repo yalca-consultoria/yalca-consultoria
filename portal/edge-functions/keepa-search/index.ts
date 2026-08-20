@@ -674,6 +674,7 @@ export default {
     let parsed: ReturnType<typeof parseKeepaProduct>
     let tokensLeft: number | null = null
     let tokensConsumed: number | null = null
+    let lowBudget = false
     try {
       let rawProduct: any
       if (KEEPA_MOCK) {
@@ -685,11 +686,24 @@ export default {
         const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&asin=${asin}&stats=180&buybox=1&offers=20&rating=1`
         const res = await fetch(url)
         const json = await res.json()
-        if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`)
-        if (!json.products || !json.products[0]) throw new Error("Produto não encontrado no Keepa para esse ASIN.")
-        rawProduct = json.products[0]
+        // Captura tokensLeft/tokensConsumed ANTES de checar erro/produto vazio —
+        // se não capturar aqui, um "produto não encontrado" causado na verdade
+        // por saldo insuficiente fica sem nenhum rastro do saldo real no log,
+        // e o keepa_token_budget nunca é atualizado (fica desatualizado até a
+        // próxima chamada bem-sucedida). Bug real: saldo negativo (plano Pro
+        // consumidor, reposição de ~1 token/min) fez a Keepa devolver "products"
+        // vazio pra um ASIN válido, e a mensagem de erro dizia "não encontrado"
+        // sem nenhuma pista de que o problema era saldo, não o ASIN.
         tokensLeft = typeof json.tokensLeft === "number" ? json.tokensLeft : null
         tokensConsumed = typeof json.tokensConsumed === "number" ? json.tokensConsumed : null
+        if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`)
+        if (!json.products || !json.products[0]) {
+          lowBudget = tokensLeft !== null && tokensLeft <= 0
+          throw new Error(lowBudget
+            ? `Produto não encontrado no Keepa para esse ASIN (saldo de tokens baixo no momento: ${tokensLeft}).`
+            : "Produto não encontrado no Keepa para esse ASIN.")
+        }
+        rawProduct = json.products[0]
       }
       parsed = parseKeepaProduct(rawProduct)
     } catch (err) {
@@ -699,7 +713,19 @@ export default {
         success: false,
         error_message: String(err instanceof Error ? err.message : err),
       })
-      return jsonResponse(502, { ok: false, reason: "keepa_error", message: "Não foi possível consultar a Amazon agora. Tente novamente em instantes." })
+      // Mesmo numa falha, atualiza o saldo conhecido — sem isso o valor fica
+      // parado desde a última chamada bem-sucedida, escondendo justamente o
+      // cenário (saldo baixo) que mais precisa aparecer aqui.
+      if (tokensLeft !== null) {
+        await supabaseAdmin.from("keepa_token_budget").update({ last_known_tokens_left: tokensLeft, last_checked_at: new Date().toISOString() }).eq("id", 1)
+      }
+      return jsonResponse(502, {
+        ok: false,
+        reason: lowBudget ? "keepa_low_budget" : "keepa_error",
+        message: lowBudget
+          ? "A cota de consultas está baixa no momento (reposição é lenta). Tente novamente em alguns minutos."
+          : "Não foi possível consultar a Amazon agora. Tente novamente em instantes.",
+      })
     }
 
     const nowIso = new Date().toISOString()

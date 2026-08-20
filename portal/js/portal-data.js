@@ -157,17 +157,34 @@ async function yalcaFetchKeepaAlerts(asins, limit) {
   if (!asins || asins.length === 0) return [];
   return yalcaCheck(await supabaseClient.from('keepa_asin_alerts').select('*').in('asin', asins).order('created_at', { ascending: false }).limit(limit || 10)) || [];
 }
+// API própria em Node (keepa-api.yalca.com.br), não mais Edge Function do
+// Supabase — motivo: o edge-runtime self-hosted causou vários problemas
+// reais (auth manual porque @supabase/server não funcionava nesse deploy,
+// respostas OPTIONS quebradas, e o SDK supabase-js descartando a mensagem
+// de erro customizada pra qualquer status não-2xx). Um fetch() direto não
+// tem nenhuma dessas pegadinhas: o corpo JSON vem completo em qualquer
+// status, então nem precisa de tratamento especial de erro aqui.
+const KEEPA_API_URL = 'https://keepa-api.yalca.com.br';
+
+async function yalcaKeepaApiCall(path, body) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Sessão inválida. Faça login novamente.');
+  const res = await fetch(`${KEEPA_API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
+  return json;
+}
 async function yalcaKeepaSearch(asin) {
-  const { data, error } = await supabaseClient.functions.invoke('keepa-search', { body: { asin: asin.toUpperCase() } });
-  if (error) throw new Error(error.message || 'Não foi possível consultar o Keepa agora.');
-  return data;
+  return yalcaKeepaApiCall('/keepa-search', { asin: asin.toUpperCase() });
 }
 async function yalcaKeepaSellerLookup(sellerIds) {
-  const { data, error } = await supabaseClient.functions.invoke('keepa-seller-lookup', { body: { sellerIds } });
-  if (error) throw new Error(error.message || 'Não foi possível consultar a reputação dos vendedores agora.');
-  return data;
+  return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });
 }
-
 /* ---------- Dados de exemplo ---------- */
 
 async function yalcaSeedDemoData() {
