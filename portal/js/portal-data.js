@@ -134,6 +134,35 @@ async function yalcaDeletePlannedEntry(id) {
   return yalcaCheck(await supabaseClient.from('planned_entries').delete().eq('id', id));
 }
 
+/* ---------- Compras & Concorrência (Keepa) ---------- */
+
+async function yalcaFetchTrackedAsins() {
+  return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').select('*').eq('active', true).order('created_at')) || [];
+}
+async function yalcaAddTrackedAsin({ asin, label, ownSellerName }) {
+  return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').insert({
+    asin: asin.toUpperCase(),
+    label: label || '',
+    own_seller_name: ownSellerName || ''
+  }).select().single());
+}
+async function yalcaDeleteTrackedAsin(id) {
+  return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').delete().eq('id', id));
+}
+async function yalcaFetchKeepaCache(asins) {
+  if (!asins || asins.length === 0) return [];
+  return yalcaCheck(await supabaseClient.from('keepa_asin_cache').select('*').in('asin', asins)) || [];
+}
+async function yalcaFetchKeepaAlerts(asins, limit) {
+  if (!asins || asins.length === 0) return [];
+  return yalcaCheck(await supabaseClient.from('keepa_asin_alerts').select('*').in('asin', asins).order('created_at', { ascending: false }).limit(limit || 10)) || [];
+}
+async function yalcaKeepaSearch(asin) {
+  const { data, error } = await supabaseClient.functions.invoke('keepa-search', { body: { asin: asin.toUpperCase() } });
+  if (error) throw new Error(error.message || 'Não foi possível consultar o Keepa agora.');
+  return data;
+}
+
 /* ---------- Dados de exemplo ---------- */
 
 async function yalcaSeedDemoData() {

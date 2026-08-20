@@ -52,13 +52,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   populateMarketplaceSelects();
   bindGlobalActions();
   initPricingCalculator();
+  initKeepaSection();
 
   await reloadAndRenderAll();
 });
 
 async function reloadAndRenderAll() {
   try {
-    DATA = await yalcaFetchAll(YALCA_PROFILE);
+    const [data] = await Promise.all([
+      yalcaFetchAll(YALCA_PROFILE),
+      reloadKeepaData().catch(err => { console.error('Keepa:', err); }) // não trava o resto do painel se essa parte falhar
+    ]);
+    DATA = data;
     renderAll();
   } catch (err) {
     console.error(err);
@@ -76,6 +81,8 @@ function renderAll() {
   recalcPricing();
   renderResetButtonLabel();
   renderSettingsForm();
+  renderKeepaTracked();
+  renderKeepaAlerts();
 }
 
 /* ============================================================

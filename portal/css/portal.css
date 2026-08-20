@@ -462,6 +462,29 @@ body.portal-body {
   cursor: pointer;
 }
 
+/* ---------- Abas (Compras & Concorrência) ---------- */
+.keepa-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+}
+.keepa-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+.keepa-tab:hover { color: var(--text); }
+.keepa-tab.is-active { color: var(--text); border-bottom-color: var(--primary-2); }
+.keepa-tabpanel { display: none; flex-direction: column; gap: 24px; }
+.keepa-tabpanel.is-active { display: flex; }
+
 /* ---------- Tabelas ---------- */
 .table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
 .data-table {
