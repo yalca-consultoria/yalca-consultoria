@@ -325,10 +325,25 @@ body.portal-body {
   padding: 20px 22px;
   overflow: hidden;
   transition: transform 0.2s ease, border-color 0.2s ease;
+  /* Vira um container de consulta: a fonte do valor abaixo se ajusta pela
+     largura REAL do card (cqi), não pela largura da tela. Isso funciona
+     em qualquer grade/coluna, incluindo quando o card de destaque ocupa
+     2 colunas no desktop mas só 1 linha inteira no mobile. */
+  container-type: inline-size;
 }
 .kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); }
 .kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.kpi-card__value { font-family: var(--font-heading); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.kpi-card__value {
+  font-family: var(--font-heading);
+  font-size: clamp(0.88rem, 10cqi, 1.7rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  /* Rede de segurança: só entra em ação se mesmo no menor tamanho da
+     fonte (acima) um valor realmente extremo ainda não couber numa
+     linha só — nesse caso quebra, mas sempre priorizando o espaço
+     "R$ / número" antes de partir os dígitos ao meio. */
+  overflow-wrap: break-word;
+}
 .kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
 .kpi-card__delta.up { color: var(--good); }
 .kpi-card__delta.down { color: var(--critical); }
@@ -349,7 +364,7 @@ body.portal-body {
   height: 3px;
   background: var(--gradient);
 }
-.kpi-grid .kpi-card:first-child .kpi-card__value { font-size: var(--p-text-2xl); }
+.kpi-grid .kpi-card:first-child .kpi-card__value { font-size: clamp(1rem, 9cqi, var(--p-text-2xl)); }
 
 /* ---------- Painéis genéricos ---------- */
 .panel {
@@ -809,12 +824,13 @@ body.portal-body {
   .panel { padding: 18px; }
   .demo-banner { font-size: 0.72rem; padding: 6px 10px; }
 
-  /* KPIs: 2 colunas em vez de empilhar tudo — chega no gráfico mais rápido. */
+  /* KPIs: 2 colunas em vez de empilhar tudo — chega no gráfico mais rápido.
+     O tamanho da fonte do valor não precisa de override aqui: o
+     container-type:inline-size no .kpi-card já faz o clamp(...cqi...)
+     reagir sozinho à largura de cada coluna, em qualquer tela. */
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: var(--p-space-3); }
   .kpi-grid .kpi-card:first-child { grid-column: 1 / -1; }
   .kpi-card { padding: var(--p-space-4); }
-  .kpi-card__value { font-size: var(--p-text-xl); }
-  .kpi-grid .kpi-card:first-child .kpi-card__value { font-size: var(--p-text-xl); }
 
   .data-table { font-size: 0.82rem; }
 
