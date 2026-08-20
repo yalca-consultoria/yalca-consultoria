@@ -6,6 +6,13 @@
 //
 // Roda em: https://api.yalca.com.br/functions/v1/keepa-search
 //
+// v8: expande o parser pra aproveitar campos que já vêm na mesma
+// resposta (vendas estimadas/mês, taxas reais, ofertas de cada
+// vendedor, rotatividade de buybox, ranking por categoria) — zero
+// custo extra de token, só não estava sendo lido antes. Reputação de
+// vendedor (nome/avaliação) é uma função separada (keepa-seller-lookup)
+// porque isso sim custa token à parte.
+//
 // IMPORTANTE sobre autenticação: neste deploy self-hosted,
 // FUNCTIONS_VERIFY_JWT=false (confirmado em docker/.env), então o
 // roteador principal (main/index.ts) NÃO valida o JWT do chamador
@@ -59,17 +66,38 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 // ---------------------------------------------------------
-// Conversão de campos do Keepa (confirmados na documentação/exemplos
-// oficiais, não suposição): domain=12 é com.br; preços em centavos
-// (-1 = sem dado); csv[0]=AMAZON, csv[1]=NEW, csv[2]=USED,
-// csv[3]=SALES (BSR), csv[16]=RATING, csv[17]=COUNT_REVIEWS, cada
-// entrada no formato [keepaTime, valor, ...]; keepaTime -> unix ms
-// é (keepaTime + 21564000) * 60000.
+// Conversão de campos do Keepa (confirmados no código-fonte oficial
+// do backend do Keepa no GitHub, não suposição):
+// - domain=12 é com.br; preços em centavos (-1 = sem dado)
+// - csv[0]=AMAZON, csv[1]=NEW, csv[2]=USED, csv[3]=SALES (BSR),
+//   csv[16]=RATING, csv[17]=COUNT_REVIEWS, cada entrada no formato
+//   [keepaTime, valor, ...]; keepaTime -> unix ms é
+//   (keepaTime + 21564000) * 60000
+// - monthlySold: unidades compradas nos últimos 30 dias (dado da
+//   Amazon, não estimativa — a maioria dos ASINs não tem, null é
+//   o caso comum)
+// - referralFeePercentage: comissão real (%), sem conversão de centavos
+// - fbaFees.pickAndPackFee(Tax)/.storageFee(Tax): taxas reais de FBA,
+//   em centavos
+// - offers[]: cada oferta tem sellerId, offerCSV ([tempo,preço,frete,...]
+//   mais recente por último), condition (código 0-10, tabela abaixo),
+//   isFBA/isAmazon/isPrime/isWarehouseDeal/isMAP/isPreorder/shipsFromChina,
+//   stockCSV ([tempo,estoque,...]), minOrderQty, coupon (positivo=valor
+//   fixo em centavos, negativo=percentual), lastSeen. NÃO tem nome nem
+//   avaliação do vendedor — só o ID (isso é keepa-seller-lookup)
+// - buyBoxSellerIdHistory: [tempo,sellerId,tempo,sellerId,...] — usado
+//   pra calcular rotatividade da buybox
+// - salesRanks: mapa categoryId -> histórico de rank; salesRankReference
+//   é a categoria principal
 // ---------------------------------------------------------
 const KEEPA_EPOCH_OFFSET_MIN = 21564000
 
 function keepaTimeToIso(keepaTime: number): string {
   return new Date((keepaTime + KEEPA_EPOCH_OFFSET_MIN) * 60000).toISOString()
+}
+
+function nowKeepaTime(): number {
+  return Math.floor(Date.now() / 60000) - KEEPA_EPOCH_OFFSET_MIN
 }
 
 function centsToReais(cents: number | null | undefined): number | null {
@@ -105,6 +133,105 @@ const AVAILABILITY_LABELS: Record<number, string> = {
   4: "atrasado",
 }
 
+// Tabela de condição confirmada no enum OfferCondition do backend oficial do Keepa.
+const CONDITION_LABELS: Record<number, string> = {
+  0: "Desconhecida",
+  1: "Novo",
+  2: "Usado - Como novo",
+  3: "Usado - Muito bom",
+  4: "Usado - Bom",
+  5: "Usado - Aceitável",
+  6: "Recondicionado",
+  7: "Coleção - Como novo",
+  8: "Coleção - Muito bom",
+  9: "Coleção - Bom",
+  10: "Coleção - Aceitável",
+}
+
+function parseOffers(offers: any[] | undefined): any[] {
+  if (!Array.isArray(offers)) return []
+  const parsed = offers.map((o) => {
+    const csv = Array.isArray(o.offerCSV) ? o.offerCSV : []
+    const last3 = csv.length >= 3 ? csv.slice(-3) : null
+    const price = last3 ? centsToReais(last3[1]) : null
+    const shipping = last3 ? centsToReais(last3[2]) : null
+    const stockCsv = Array.isArray(o.stockCSV) ? o.stockCSV : []
+    const stock = stockCsv.length >= 2 ? stockCsv[stockCsv.length - 1] : null
+
+    let coupon: { type: "amount" | "percent"; value: number } | null = null
+    if (typeof o.coupon === "number" && o.coupon !== 0) {
+      coupon = o.coupon > 0
+        ? { type: "amount", value: centsToReais(o.coupon) ?? 0 }
+        : { type: "percent", value: Math.abs(o.coupon) }
+    }
+
+    return {
+      sellerId: o.sellerId ?? null,
+      price,
+      shipping,
+      condition: CONDITION_LABELS[o.condition] ?? `Condição #${o.condition}`,
+      isFBA: !!o.isFBA,
+      isAmazon: !!o.isAmazon,
+      isPrime: !!o.isPrime,
+      isWarehouseDeal: !!o.isWarehouseDeal,
+      stock: typeof stock === "number" ? stock : null,
+      minOrderQty: typeof o.minOrderQty === "number" ? o.minOrderQty : null,
+      coupon,
+      lastSeen: typeof o.lastSeen === "number" ? keepaTimeToIso(o.lastSeen) : null,
+    }
+  })
+  parsed.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
+  return parsed
+}
+
+// buyBoxSellerIdHistory pode chegar como string separada por vírgula ou já
+// como array achatado — tratamos os dois casos defensivamente, já que essa
+// forma específica não foi confirmada ao vivo (será no primeiro teste real).
+function computeBuyboxRotation(history: unknown, windowDays: number): number | null {
+  let flat: unknown[] = []
+  if (typeof history === "string" && history.length > 0) flat = history.split(",")
+  else if (Array.isArray(history)) flat = history
+  else return null
+  if (flat.length < 4) return 0
+
+  const cutoff = nowKeepaTime() - windowDays * 1440
+  let prevSeller: string | null = null
+  let transitions = 0
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const time = Number(flat[i])
+    const seller = String(flat[i + 1])
+    if (Number.isNaN(time) || time < cutoff) continue
+    if (prevSeller !== null && seller !== prevSeller) transitions++
+    prevSeller = seller
+  }
+  return transitions
+}
+
+// Nome da categoria: só a categoria PRIMÁRIA tem nome garantido hoje (o
+// parser já resolve p.categoryTree pra ela). Pras secundárias, tentamos
+// bater o catId em categoryTree; se não bater, fica só "Categoria #<id>"
+// — não confirmado se catId sempre existe em categoryTree, best-effort.
+function parseCategoryRanks(salesRanks: any, salesRankReference: any, categoryTree: any[] | undefined, primaryCategoryName: string | null): any[] {
+  if (!salesRanks || typeof salesRanks !== "object") return []
+  const treeById = new Map<string, string>()
+  if (Array.isArray(categoryTree)) {
+    for (const c of categoryTree) {
+      if (c && c.catId !== undefined && c.catId !== null && c.name) treeById.set(String(c.catId), c.name)
+    }
+  }
+  const rows: { categoryId: string; categoryName: string | null; rank: number; isPrimary: boolean }[] = []
+  for (const [categoryId, history] of Object.entries(salesRanks)) {
+    if (!Array.isArray(history) || history.length < 2) continue
+    const rank = history[history.length - 1] as number
+    if (rank === -1 || rank === undefined) continue
+    const isPrimary = String(salesRankReference) === categoryId
+    const categoryName = treeById.get(categoryId) ?? (isPrimary ? primaryCategoryName : null) ?? `Categoria #${categoryId}`
+    rows.push({ categoryId, categoryName, rank, isPrimary })
+  }
+  rows.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))
+  return rows
+}
+
 function parseKeepaProduct(p: any) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true)
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true)
@@ -121,6 +248,15 @@ function parseKeepaProduct(p: any) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-90)
 
+  const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null
+
+  const fbaFees = p.fbaFees ? {
+    pickAndPack: centsToReais(p.fbaFees.pickAndPackFee),
+    pickAndPackTax: centsToReais(p.fbaFees.pickAndPackFeeTax),
+    storage: centsToReais(p.fbaFees.storageFee),
+    storageTax: centsToReais(p.fbaFees.storageFeeTax),
+  } : null
+
   return {
     title: p.title ?? null,
     imageUrl: Array.isArray(p.imagesCSV) && p.imagesCSV.length > 0
@@ -128,7 +264,7 @@ function parseKeepaProduct(p: any) {
       : null,
     currentPrice,
     bsr: lastValue(bsrHistory),
-    category: Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null,
+    category,
     rating: lastValue(ratingHistory) !== null ? (lastValue(ratingHistory) as number) / 10 : null, // Keepa guarda nota x10
     reviewCount: lastValue(reviewCountHistory),
     buybox: p.buyBoxSellerId ? {
@@ -139,11 +275,18 @@ function parseKeepaProduct(p: any) {
     offersCount: typeof p.offersCount === "number" ? p.offersCount : (Array.isArray(p.offers) ? p.offers.length : null),
     availabilityStatus: AVAILABILITY_LABELS[p.availabilityAmazon] ?? null,
     priceHistory,
+    // --- campos novos v8, tudo já vem na mesma resposta ---
+    monthlySold: typeof p.monthlySold === "number" ? p.monthlySold : null,
+    referralFeePct: typeof p.referralFeePercentage === "number" ? p.referralFeePercentage : null,
+    fbaFees,
+    offers: parseOffers(p.offers),
+    buyboxRotation90d: computeBuyboxRotation(p.buyBoxSellerIdHistory, 90),
+    categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
   }
 }
 
 function mockKeepaResponse(asin: string) {
-  const now = Math.floor(Date.now() / 60000) - KEEPA_EPOCH_OFFSET_MIN
+  const now = nowKeepaTime()
   return {
     asin,
     title: `Produto de teste (mock) ${asin}`,
@@ -152,8 +295,39 @@ function mockKeepaResponse(asin: string) {
     buyBoxPrice: 12990, // R$ 129,90
     offersCount: 4,
     availabilityAmazon: 0,
-    categoryTree: [{ name: "Categoria Mock" }],
+    categoryTree: [{ catId: 100, name: "Categoria Mock" }],
     imagesCSV: "",
+    monthlySold: 340,
+    referralFeePercentage: 15.0,
+    fbaFees: { pickAndPackFee: 605, pickAndPackFeeTax: 0, storageFee: 40, storageFeeTax: 0 },
+    salesRankReference: 100,
+    salesRanks: {
+      "100": [now - 60 * 24 * 5, 15000, now - 60 * 24 * 2, 12000],
+      "200": [now - 60 * 24 * 5, 300, now - 60 * 24 * 2, 250], // categoria secundária sem nome em categoryTree — exercita o fallback "Categoria #200"
+    },
+    buyBoxSellerIdHistory: [
+      now - 60 * 24 * 10, "A1MOCKSELLER",
+      now - 60 * 24 * 6, "A2OUTROSELLER",
+      now - 60 * 24 * 2, "A1MOCKSELLER",
+    ],
+    offers: [
+      {
+        sellerId: "A1MOCKSELLER", condition: 1, isFBA: true, isAmazon: false, isPrime: true,
+        offerCSV: [now - 60 * 24 * 2, 12990, 0], stockCSV: [now - 60 * 24 * 2, 117], lastSeen: now, coupon: 0,
+      },
+      {
+        sellerId: "A2OUTROSELLER", condition: 1, isFBA: true, isAmazon: false, isPrime: true,
+        offerCSV: [now - 60 * 24 * 1, 13500, 0], stockCSV: [now - 60 * 24 * 1, 44], lastSeen: now, coupon: -10, // 10% de cupom, exercita o branch percent
+      },
+      {
+        sellerId: "A3TERCEIRO", condition: 2, isFBA: false, isAmazon: false, isPrime: false,
+        offerCSV: [now, 11800, 1200], stockCSV: [now, 8], lastSeen: now, coupon: 500, // R$5 de cupom fixo, exercita o branch amount
+      },
+      {
+        sellerId: "AMAZON", condition: 1, isFBA: true, isAmazon: true, isPrime: true,
+        offerCSV: [now, 13990, 0], stockCSV: [now, 999], lastSeen: now, coupon: 0,
+      },
+    ],
     csv: [
       null, // AMAZON
       [now - 60 * 24 * 5, 13990, now - 60 * 24 * 2, 12990], // NEW
@@ -166,7 +340,7 @@ function mockKeepaResponse(asin: string) {
   }
 }
 
-function formatResult(cache: any, extra: { ageMinutesCheap?: number; ageMinutesBuybox?: number } = {}) {
+function formatResult(cache: any) {
   return {
     asin: cache.asin,
     title: cache.title,
@@ -184,12 +358,62 @@ function formatResult(cache: any, extra: { ageMinutesCheap?: number; ageMinutesB
     offersCount: cache.offers_count,
     availabilityStatus: cache.availability_status,
     priceHistory: cache.price_history ?? [],
+    monthlySold: cache.monthly_sold ?? null,
+    referralFeePct: cache.referral_fee_pct ?? null,
+    fbaFees: (cache.fba_pick_pack_fee ?? cache.fba_storage_fee) != null ? {
+      pickAndPack: cache.fba_pick_pack_fee ?? null,
+      pickAndPackTax: cache.fba_pick_pack_fee_tax ?? null,
+      storage: cache.fba_storage_fee ?? null,
+      storageTax: cache.fba_storage_fee_tax ?? null,
+    } : null,
+    fbaFeeTotal: [cache.fba_pick_pack_fee, cache.fba_pick_pack_fee_tax, cache.fba_storage_fee, cache.fba_storage_fee_tax]
+      .filter((v) => typeof v === "number")
+      .reduce((sum: number | null, v: number) => (sum ?? 0) + v, null as number | null),
+    offers: cache.offers ?? [],
+    buyboxRotation90d: cache.buybox_rotation_90d ?? null,
+    categoryRanks: cache.category_ranks ?? [],
     cheapDataAgeMinutes: cache.cheap_data_updated_at
       ? Math.round((Date.now() - new Date(cache.cheap_data_updated_at).getTime()) / 60000)
       : null,
     buyboxDataAgeMinutes: cache.buybox_data_updated_at
       ? Math.round((Date.now() - new Date(cache.buybox_data_updated_at).getTime()) / 60000)
       : null,
+  }
+}
+
+// Monta a linha completa pro upsert em keepa_asin_cache a partir do
+// resultado já parseado — usada tanto pra gravar quanto (via formatResult,
+// que lê as mesmas chaves) pra montar a resposta, então um campo novo só
+// precisa ser adicionado AQUI, nunca em dois lugares.
+function buildCacheRow(asin: string, parsed: ReturnType<typeof parseKeepaProduct>, nowIso: string) {
+  return {
+    asin,
+    title: parsed.title,
+    image_url: parsed.imageUrl,
+    current_price: parsed.currentPrice,
+    bsr: parsed.bsr,
+    category: parsed.category,
+    rating: parsed.rating,
+    review_count: parsed.reviewCount,
+    buybox_seller: parsed.buybox?.seller ?? null,
+    buybox_is_amazon: parsed.buybox?.isAmazon ?? null,
+    buybox_price: parsed.buybox?.price ?? null,
+    offers_count: parsed.offersCount,
+    availability_status: parsed.availabilityStatus,
+    price_history: parsed.priceHistory,
+    monthly_sold: parsed.monthlySold,
+    referral_fee_pct: parsed.referralFeePct,
+    fba_pick_pack_fee: parsed.fbaFees?.pickAndPack ?? null,
+    fba_pick_pack_fee_tax: parsed.fbaFees?.pickAndPackTax ?? null,
+    fba_storage_fee: parsed.fbaFees?.storage ?? null,
+    fba_storage_fee_tax: parsed.fbaFees?.storageTax ?? null,
+    offers: parsed.offers,
+    buybox_rotation_90d: parsed.buyboxRotation90d,
+    category_ranks: parsed.categoryRanks,
+    cheap_data_updated_at: nowIso,
+    buybox_data_updated_at: nowIso,
+    last_synced_by: "search",
+    last_error: null,
   }
 }
 
@@ -296,26 +520,8 @@ export default {
     }
 
     const nowIso = new Date().toISOString()
-    await supabaseAdmin.from("keepa_asin_cache").upsert({
-      asin,
-      title: parsed.title,
-      image_url: parsed.imageUrl,
-      current_price: parsed.currentPrice,
-      bsr: parsed.bsr,
-      category: parsed.category,
-      rating: parsed.rating,
-      review_count: parsed.reviewCount,
-      buybox_seller: parsed.buybox?.seller ?? null,
-      buybox_is_amazon: parsed.buybox?.isAmazon ?? null,
-      buybox_price: parsed.buybox?.price ?? null,
-      offers_count: parsed.offersCount,
-      availability_status: parsed.availabilityStatus,
-      price_history: parsed.priceHistory,
-      cheap_data_updated_at: nowIso,
-      buybox_data_updated_at: nowIso,
-      last_synced_by: "search",
-      last_error: null,
-    })
+    const cacheRow = buildCacheRow(asin, parsed, nowIso)
+    await supabaseAdmin.from("keepa_asin_cache").upsert(cacheRow)
 
     const consumedForBudget = tokensConsumed ?? ESTIMATED_SEARCH_COST
     await supabaseAdmin.from("keepa_token_budget").update({
@@ -336,27 +542,6 @@ export default {
 
     await supabaseAdmin.from("keepa_search_log").insert({ user_id: userId, asin, resulted_in_live_call: true })
 
-    return jsonResponse(200, {
-      ok: true,
-      source: "live",
-      ...formatResult({
-        asin,
-        title: parsed.title,
-        image_url: parsed.imageUrl,
-        current_price: parsed.currentPrice,
-        bsr: parsed.bsr,
-        category: parsed.category,
-        rating: parsed.rating,
-        review_count: parsed.reviewCount,
-        buybox_seller: parsed.buybox?.seller ?? null,
-        buybox_is_amazon: parsed.buybox?.isAmazon ?? null,
-        buybox_price: parsed.buybox?.price ?? null,
-        offers_count: parsed.offersCount,
-        availability_status: parsed.availabilityStatus,
-        price_history: parsed.priceHistory,
-        cheap_data_updated_at: nowIso,
-        buybox_data_updated_at: nowIso,
-      }),
-    })
+    return jsonResponse(200, { ok: true, source: "live", ...formatResult(cacheRow) })
   },
 }
