@@ -7,6 +7,11 @@
 
 let KEEPA_DATA = { tracked: [], cache: {}, alerts: [] };
 let LAST_KEEPA_SEARCH_RESULT = null;
+// Reputação de vendedor já buscada nesta sessão — mantida entre pesquisas
+// (um vendedor já visto fica "de graça" o resto da sessão). O cache de
+// verdade é no servidor (keepa_seller_cache); isso aqui só evita uma
+// chamada redundante se o cliente pesquisar o mesmo produto duas vezes.
+let KEEPA_SELLER_REPUTATION = {};
 
 /* ---------- Abas ---------- */
 function initKeepaTabs() {
@@ -33,6 +38,8 @@ function initKeepaSection() {
   document.getElementById('keepaSearchForm').addEventListener('submit', handleKeepaSearchSubmit);
 
   document.getElementById('keepaUseInPricingBtn').addEventListener('click', useKeepaResultInPricingCalculator);
+
+  document.getElementById('keepaLoadSellerRepBtn').addEventListener('click', handleLoadSellerReputation);
 }
 
 /* ---------- Carregamento ---------- */
@@ -199,17 +206,24 @@ function renderKeepaSearchResult(result) {
   document.getElementById('keepaResultConfidence').textContent =
     `${sourceLabel} · atualizado ${result.cheapDataAgeMinutes != null ? yalcaKeepaMinutesLabel(result.cheapDataAgeMinutes) : 'agora'}`;
 
+  const rotationHint = result.buyboxRotation90d != null
+    ? (result.buyboxRotation90d === 0 ? 'buybox estável nos últimos 90 dias' : `trocou de dono ${result.buyboxRotation90d}x nos últimos 90 dias`)
+    : null;
   const buyboxKpi = result.buybox
-    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: result.buybox.isAmazon ? 'é a própria Amazon' : null, delta: null }
+    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: result.buybox.isAmazon ? 'é a própria Amazon' : rotationHint, delta: null }
     : { label: 'Buybox', value: '—', hint: 'ninguém está vendendo agora', delta: null };
 
-  renderKpiGrid('keepaResultKpis', [
+  const kpis = [
     { label: 'Preço da buybox', value: result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : (result.currentPrice != null ? yalcaFormatCurrency(result.currentPrice) : '—'), delta: null },
     buyboxKpi,
     { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende' },
     { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null },
-    { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: result.availabilityStatus || null }
-  ]);
+    { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: result.availabilityStatus || null },
+    { label: 'Vendas estimadas/mês', value: result.monthlySold != null ? result.monthlySold.toLocaleString('pt-BR') : '—', delta: null, hint: result.monthlySold != null ? 'dado direto da Amazon' : 'maioria dos produtos não tem esse dado' },
+    { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto' },
+    { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem' },
+  ];
+  renderKpiGrid('keepaResultKpis', kpis);
 
   const chartContainer = document.getElementById('keepaPriceHistoryChart');
   if (result.priceHistory && result.priceHistory.length > 1) {
@@ -219,6 +233,93 @@ function renderKeepaSearchResult(result) {
     });
   } else {
     chartContainer.innerHTML = '<p class="alert-empty">Sem histórico de preço suficiente pra mostrar o gráfico ainda.</p>';
+  }
+
+  renderKeepaCategoryRanks(result.categoryRanks || []);
+  renderKeepaOffersTable(result.offers || []);
+
+  // produto novo na tela: os vendedores dele provavelmente ainda não têm
+  // reputação carregada nesta sessão — devolve o botão pro estado inicial.
+  const repBtn = document.getElementById('keepaLoadSellerRepBtn');
+  repBtn.disabled = false;
+  repBtn.textContent = 'Ver reputação dos vendedores';
+  document.getElementById('keepaOffersStatus').textContent = '';
+}
+
+function renderKeepaCategoryRanks(ranks) {
+  const panel = document.getElementById('keepaCategoryRanksPanel');
+  const list = document.getElementById('keepaCategoryRanksList');
+  if (!ranks || ranks.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  list.innerHTML = ranks.map(r => `
+    <div class="alert-item">
+      <span class="alert-item__icon">${r.isPrimary ? '🏆' : '📊'}</span>
+      <div><strong>#${r.rank.toLocaleString('pt-BR')} em ${yalcaEscapeHtml(r.categoryName)}</strong>${r.isPrimary ? '<span>categoria principal</span>' : ''}</div>
+    </div>`).join('');
+}
+
+function renderKeepaOffersTable(offers) {
+  const panel = document.getElementById('keepaOffersPanel');
+  const tbody = document.getElementById('keepaOffersBody');
+  if (!offers || offers.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  tbody.innerHTML = offers.map(o => {
+    const rep = o.sellerId ? KEEPA_SELLER_REPUTATION[o.sellerId] : null;
+    const sellerLabel = o.isAmazon ? 'Amazon' : yalcaEscapeHtml(o.sellerId || '—');
+    const repLabel = rep
+      ? `${rep.sellerName ? yalcaEscapeHtml(rep.sellerName) : '—'}${rep.currentRating != null ? ` · ${rep.currentRating.toFixed(0)}% (${rep.currentRatingCount ?? 0})` : ''}`
+      : (o.isAmazon ? '—' : '<span class="kpi-card__hint">não carregada</span>');
+    const tipoLabel = [o.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>', o.isPrime ? 'Prime' : ''].filter(Boolean).join(' ');
+    const priceLabel = o.price != null ? yalcaFormatCurrency(o.price) + (o.shipping ? ` + ${yalcaFormatCurrency(o.shipping)} frete` : '') : '—';
+    const couponLabel = o.coupon ? `<br><span class="text-good" style="font-size:0.78rem;">cupom: ${o.coupon.type === 'percent' ? o.coupon.value + '%' : yalcaFormatCurrency(o.coupon.value)}</span>` : '';
+    return `
+    <tr>
+      <td data-label="Vendedor">${sellerLabel}</td>
+      <td data-label="Preço" class="num">${priceLabel}${couponLabel}</td>
+      <td data-label="Condição">${yalcaEscapeHtml(o.condition || '—')}</td>
+      <td data-label="Tipo">${tipoLabel}</td>
+      <td data-label="Estoque" class="num">${o.stock != null ? o.stock : '—'}</td>
+      <td data-label="Reputação">${repLabel}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function handleLoadSellerReputation() {
+  const offers = LAST_KEEPA_SEARCH_RESULT?.offers || [];
+  const statusEl = document.getElementById('keepaOffersStatus');
+  const btn = document.getElementById('keepaLoadSellerRepBtn');
+
+  const sellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
+  if (sellerIds.length === 0) {
+    statusEl.textContent = 'Nenhum vendedor pra consultar.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Buscando...';
+  statusEl.textContent = '';
+  try {
+    const result = await yalcaKeepaSellerLookup(sellerIds);
+    if (!result.ok) {
+      statusEl.textContent = result.message || 'Não foi possível buscar a reputação agora.';
+      btn.disabled = false;
+      btn.textContent = 'Ver reputação dos vendedores';
+      return;
+    }
+    Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
+    renderKeepaOffersTable(offers);
+    btn.textContent = 'Reputação carregada ✓';
+    btn.disabled = true;
+  } catch (err) {
+    statusEl.textContent = 'Não foi possível buscar agora: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Ver reputação dos vendedores';
   }
 }
 

@@ -162,6 +162,11 @@ async function yalcaKeepaSearch(asin) {
   if (error) throw new Error(error.message || 'Não foi possível consultar o Keepa agora.');
   return data;
 }
+async function yalcaKeepaSellerLookup(sellerIds) {
+  const { data, error } = await supabaseClient.functions.invoke('keepa-seller-lookup', { body: { sellerIds } });
+  if (error) throw new Error(error.message || 'Não foi possível consultar a reputação dos vendedores agora.');
+  return data;
+}
 
 /* ---------- Dados de exemplo ---------- */
 
