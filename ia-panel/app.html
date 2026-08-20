@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Assistente IA</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.min.css">
+<link rel="stylesheet" href="css/portal.min.css">
+</head>
+<body class="portal-body">
+
+<!-- Tela: acesso pendente/bloqueado -->
+<div class="login-screen" id="pendingScreen" style="display:none;">
+  <div class="login-card" style="text-align:center;">
+    <a href="https://www.yalca.com.br/" class="logo">Yalca<span>.</span></a>
+    <h1 style="margin-top:18px;" id="pendingTitle">Acesso pendente</h1>
+    <p class="login-sub" id="pendingText">Sua conta ainda não foi aprovada. Tente novamente mais tarde.</p>
+    <button type="button" class="btn btn--ghost btn--sm" id="pendingLogoutBtn">Sair</button>
+  </div>
+</div>
+
+<div class="portal-main" id="appShell" style="display:none; margin:0 auto; max-width:900px;">
+  <header class="portal-topbar" style="position:static;">
+    <h2>Assistente IA</h2>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button type="button" class="btn btn--ghost btn--sm" id="toggleAdminBtn" style="display:none;">Gerenciar usuários</button>
+      <button type="button" class="btn btn--ghost btn--sm" id="logoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <div class="portal-content">
+    <div class="panel" id="chatPanel">
+      <div class="panel__head">
+        <div>
+          <h3>Conversa</h3>
+          <p>Respostas em ~10 segundos, aparecendo aos poucos.</p>
+        </div>
+      </div>
+      <div class="ia-chat-list" id="chatList"></div>
+      <form class="ia-chat-form" id="chatForm">
+        <textarea id="chatInput" placeholder="Pergunte alguma coisa..." required></textarea>
+        <button type="submit" class="btn btn--primary btn--sm">Enviar</button>
+      </form>
+      <p id="chatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
+    </div>
+
+    <div class="panel" id="adminPanel" style="display:none;">
+      <div class="panel__head">
+        <div>
+          <h3>Usuários</h3>
+          <p>Aprove ou bloqueie quem pode acessar o assistente.</p>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table data-table--cards">
+          <thead><tr><th>E-mail</th><th>Status</th><th>Cadastro</th><th></th></tr></thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.min.js"></script>
+<script src="js/ia-auth.min.js"></script>
+<script src="js/ia-panel-app.min.js"></script>
+</body>
+</html>

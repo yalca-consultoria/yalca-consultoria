@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Entrar | Assistente IA</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.min.css">
+<link rel="stylesheet" href="css/portal.min.css">
+</head>
+<body class="portal-body">
+
+<div class="login-screen">
+  <div class="login-card">
+    <a href="https://www.yalca.com.br/" class="logo">Yalca<span>.</span></a>
+
+    <div id="loginView">
+      <h1>Assistente IA</h1>
+      <p class="login-sub">Acesso pessoal — precisa de aprovação antes de entrar.</p>
+
+      <form class="login-form" id="loginForm" novalidate>
+        <div>
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+        </div>
+        <p class="login-error" id="loginError"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Entrar</button>
+      </form>
+
+      <div class="demo-hint">
+        Ainda não tem conta? <a href="#" id="showSignup" style="color:var(--accent); font-weight:600;">Criar conta</a> — o acesso precisa ser aprovado antes de você poder entrar.
+      </div>
+    </div>
+
+    <div id="signupView" style="display:none;">
+      <h1>Criar conta</h1>
+      <p class="login-sub">Depois de criada, a conta precisa ser aprovada antes de você poder entrar.</p>
+
+      <form class="login-form" id="signupForm" novalidate>
+        <div>
+          <label for="suEmail">E-mail</label>
+          <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="suPassword">Senha</label>
+          <input type="password" id="suPassword" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required>
+        </div>
+        <div>
+          <label for="suPasswordConfirm">Confirmar senha</label>
+          <input type="password" id="suPasswordConfirm" name="passwordConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required>
+        </div>
+        <p class="login-error" id="signupError"></p>
+        <p class="form-success" id="signupSuccess" style="text-align:left;"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Criar conta</button>
+      </form>
+
+      <div class="demo-hint">
+        Já tem conta? <a href="#" id="showLogin" style="color:var(--accent); font-weight:600;">Voltar para o login</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.min.js"></script>
+<script src="js/ia-auth.min.js"></script>
+<script src="js/ia-login-app.min.js"></script>
+</body>
+</html>

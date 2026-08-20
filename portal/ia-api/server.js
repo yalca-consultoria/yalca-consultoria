@@ -5,11 +5,17 @@
 // systemd (OOMScoreAdjust=1000 + MemoryMax) pra nunca derrubar o Supabase
 // que roda na mesma VPS — ver lib/ollama-client.js pra fila de concorrência.
 //
-// Três rotas, três públicos:
-//   POST /assistant   — só admin (você): chat livre.
-//   POST /diagnostico — cliente aprovado: análise gerada a partir dos
-//                       dados JÁ cadastrados no portal (sem formulário novo).
-//   POST /suporte      — cliente aprovado: chat de dúvidas.
+// Quatro rotas:
+//   POST /assistant   — só admin do portal Yalca: chat livre.
+//   POST /diagnostico — cliente do portal aprovado: análise a partir dos
+//                       dados JÁ cadastrados (sem formulário novo).
+//   POST /suporte      — cliente do portal aprovado: chat de dúvidas.
+//   POST /chat         — painel pessoal (ia.yalca.com.br), usuário
+//                       aprovado em ia_profiles: chat livre. Tabela de
+//                       aprovação PRÓPRIA (ia_profiles/ia_admins),
+//                       separada de client_profiles/admins do portal —
+//                       um cliente do portal não ganha acesso automático
+//                       aqui, e vice-versa.
 //
 // Deploy: site Node.js no CloudPanel (ia-api.yalca.com.br, usuário iaapi,
 // porta 3002), mesmo padrão do keepa-api/.
@@ -40,7 +46,20 @@ const PORT = Number(env.PORT || 3002);
 const SUPABASE_URL = env.SUPABASE_URL || 'https://api.yalca.com.br';
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = env.SUPABASE_ANON_KEY;
-const ALLOWED_ORIGIN = env.PORTAL_ORIGIN || 'https://www.yalca.com.br';
+// Duas origens diferentes chamam essa API: o portal da Yalca (/assistant,
+// /diagnostico, /suporte) e o painel pessoal (/chat) — cada uma só pode
+// receber SEU PRÓPRIO Access-Control-Allow-Origin de volta, nunca as duas
+// juntas, então reflete a origem da requisição atual se ela bater com uma
+// das permitidas (res.req dá acesso à requisição original a partir da
+// resposta, evitando ter que passar req por toda função que monta headers).
+const ALLOWED_ORIGINS = [
+  env.PORTAL_ORIGIN || 'https://www.yalca.com.br',
+  env.IA_PANEL_ORIGIN || 'https://ia.yalca.com.br',
+];
+function corsOriginFor(res) {
+  const origin = res.req?.headers?.origin;
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
 
 const MAX_MESSAGE_LEN = 4000;
 const MAX_HISTORY = 12; // mensagens (não pares) — limita o tamanho do contexto mandado pro modelo
@@ -56,7 +75,7 @@ const authClient = makeAuthClient({ supabaseUrl: SUPABASE_URL, anonKey: ANON_KEY
 function sendJson(res, status, body) {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': corsOriginFor(res),
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
@@ -74,7 +93,7 @@ function sendJson(res, status, body) {
 function startTextStream(res) {
   res.writeHead(200, {
     'Content-Type': 'text/plain; charset=utf-8',
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Origin': corsOriginFor(res),
     'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
@@ -135,6 +154,20 @@ async function requireApprovedClient(userId, res) {
   ]);
   if (profile?.status !== 'approved' && !adminRow) {
     sendJson(res, 200, { ok: false, reason: 'not_approved', message: 'Seu acesso ainda não foi aprovado pela Yalca.' });
+    return false;
+  }
+  return true;
+}
+
+// Painel pessoal (ia.yalca.com.br) — tabelas de aprovação próprias
+// (ia_profiles/ia_admins), independentes do portal da Yalca.
+async function requireApprovedIaUser(userId, res) {
+  const [profile, adminRow] = await Promise.all([
+    db.restGetOne('ia_profiles', `user_id=eq.${userId}&select=status`),
+    db.restGetOne('ia_admins', `user_id=eq.${userId}&select=user_id`),
+  ]);
+  if (profile?.status !== 'approved' && !adminRow) {
+    sendJson(res, 200, { ok: false, reason: 'not_approved', message: 'Seu acesso ainda não foi aprovado.' });
     return false;
   }
   return true;
@@ -203,6 +236,23 @@ async function handleSuporte(req, res) {
   if (!ok) console.error('erro no suporte (stream já iniciado):', error);
 }
 
+async function handlePanelChat(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireApprovedIaUser(user.id, res))) return;
+
+  let body;
+  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
+  if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
+  const history = sanitizeHistory(body.history);
+
+  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
+  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
+    'Você é um assistente de IA de uso pessoal. Responda em português do Brasil, de forma direta e útil.');
+  if (!ok) console.error('erro no chat do painel (stream já iniciado):', error);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') { sendJson(res, 204, null); return; }
@@ -210,6 +260,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/assistant') { await handleAssistant(req, res); return; }
     if (req.method === 'POST' && url === '/diagnostico') { await handleDiagnostico(req, res); return; }
     if (req.method === 'POST' && url === '/suporte') { await handleSuporte(req, res); return; }
+    if (req.method === 'POST' && url === '/chat') { await handlePanelChat(req, res); return; }
     if (req.method === 'GET' && url === '/health') { sendJson(res, 200, { ok: true }); return; }
     sendJson(res, 404, { ok: false, reason: 'not_found', message: 'Rota não encontrada.' });
   } catch (err) {
