@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Painel de Controle | Yalca</title>
 <meta name="robots" content="noindex, nofollow">
@@ -40,6 +40,21 @@
 
   <div class="portal-content">
     <div class="kpi-grid" id="adminKpis"></div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <div>
+          <h3>Assistente Yalca</h3>
+          <p>IA rodando localmente na VPS — só você tem acesso a essa área. Respostas levam até 1 minuto.</p>
+        </div>
+      </div>
+      <div class="ia-chat-list" id="assistantChatList"></div>
+      <form class="ia-chat-form" id="assistantChatForm">
+        <textarea id="assistantChatInput" placeholder="Pergunte alguma coisa..." required></textarea>
+        <button type="submit" class="btn btn--primary btn--sm">Enviar</button>
+      </form>
+      <p id="assistantChatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
+    </div>
 
     <div class="panel chart-card">
       <div class="panel__head">
@@ -161,6 +176,7 @@
 <script src="js/portal-data.min.js"></script>
 <script src="js/portal-auth.min.js"></script>
 <script src="js/charts.min.js"></script>
+<script src="js/ia.min.js"></script>
 <script src="js/admin-app.min.js"></script>
 </body>
 </html>

@@ -185,6 +185,35 @@ async function yalcaKeepaSearch(asin) {
 async function yalcaKeepaSellerLookup(sellerIds) {
   return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });
 }
+
+// IA (assistente/diagnóstico/suporte) — mesmo padrão do keepa-api, API Node
+// própria rodando o Ollama local. Respostas demoram 20-70s (CPU, sem GPU),
+// então quem chama isso precisa mostrar um estado de "gerando..." visível.
+const IA_API_URL = 'https://ia-api.yalca.com.br';
+
+async function yalcaIaApiCall(path, body) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Sessão inválida. Faça login novamente.');
+  const res = await fetch(`${IA_API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
+  return json;
+}
+async function yalcaIaAssistant(message, history) {
+  return yalcaIaApiCall('/assistant', { message, history });
+}
+async function yalcaIaDiagnostico() {
+  return yalcaIaApiCall('/diagnostico', {});
+}
+async function yalcaIaSuporte(message, history) {
+  return yalcaIaApiCall('/suporte', { message, history });
+}
+
 /* ---------- Dados de exemplo ---------- */
 
 async function yalcaSeedDemoData() {

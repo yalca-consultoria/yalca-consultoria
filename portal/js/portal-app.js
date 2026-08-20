@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindGlobalActions();
   initPricingCalculator();
   initKeepaSection();
+  initIaSection();
 
   await reloadAndRenderAll();
 });

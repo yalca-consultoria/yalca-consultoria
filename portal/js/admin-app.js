@@ -37,6 +37,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = 'login.html';
   });
 
+  initIaChat({
+    listId: 'assistantChatList', formId: 'assistantChatForm', inputId: 'assistantChatInput', statusId: 'assistantChatStatus',
+    apiFn: yalcaIaAssistant,
+    emptyText: 'Pergunte qualquer coisa — sobre a Yalca, sua marca FBA, ou peça pra gerar/revisar um texto.',
+  });
+
   document.getElementById('statusFilter').addEventListener('change', renderClientsTable);
   document.getElementById('clientSearch').addEventListener('input', renderClientsTable);
   document.getElementById('periodFilter').addEventListener('change', (e) => {

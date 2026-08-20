@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Painel do Cliente | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
@@ -77,6 +77,10 @@
       <button class="portal-nav__item" data-section="fluxocaixa">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
         <span class="portal-nav__label">Fluxo de Caixa</span>
+      </button>
+      <button class="portal-nav__item" data-section="assistente">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
+        <span class="portal-nav__label">Assistente IA</span>
       </button>
       <button class="portal-nav__item" data-section="configuracoes">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -535,6 +539,49 @@
         </div>
       </section>
 
+      <!-- ===================== ASSISTENTE IA ===================== -->
+      <section class="portal-section" data-section="assistente">
+        <div class="section-intro">
+          <p>Diagnóstico da sua loja e tira-dúvidas gerados por IA rodando nos nossos servidores — sem custo adicional pra você.</p>
+        </div>
+
+        <div class="ia-tabs" role="tablist">
+          <button type="button" class="ia-tab is-active" data-ia-tab="diagnostico" role="tab">Diagnóstico</button>
+          <button type="button" class="ia-tab" data-ia-tab="suporte" role="tab">Suporte</button>
+        </div>
+
+        <div class="ia-tabpanel is-active" data-ia-panel="diagnostico">
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Diagnóstico automático da sua loja</h3>
+                <p>Gera uma análise com base nos lançamentos financeiros e produtos que você já tem cadastrados aqui — não precisa preencher nada.</p>
+              </div>
+            </div>
+            <button type="button" class="btn btn--primary btn--sm" id="iaDiagnosticoBtn">Gerar diagnóstico</button>
+            <p id="iaDiagnosticoStatus" style="margin-top:8px; font-size:0.85rem;"></p>
+            <div class="ia-diagnostico-result" id="iaDiagnosticoResult" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div class="ia-tabpanel" data-ia-panel="suporte">
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Tire suas dúvidas</h3>
+                <p>Pergunte sobre as ferramentas do portal, gestão financeira ou marketplaces.</p>
+              </div>
+            </div>
+            <div class="ia-chat-list" id="suporteChatList"></div>
+            <form class="ia-chat-form" id="suporteChatForm">
+              <textarea id="suporteChatInput" placeholder="Digite sua dúvida..." required></textarea>
+              <button type="submit" class="btn btn--primary btn--sm">Enviar</button>
+            </form>
+            <p id="suporteChatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================== CONFIGURAÇÕES ===================== -->
       <section class="portal-section" data-section="configuracoes">
         <div class="section-intro">
@@ -694,6 +741,7 @@
 <script src="js/portal-auth.min.js"></script>
 <script src="js/charts.min.js"></script>
 <script src="js/keepa.min.js"></script>
+<script src="js/ia.min.js"></script>
 <script src="js/portal-app.min.js"></script>
 </body>
 </html>
