@@ -53,16 +53,16 @@ const ASIN_RE = /^[A-Z0-9]{10}$/
 const ESTIMATED_SEARCH_COST = 15
 
 function jsonResponse(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-      "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Vary": "Origin",
-    },
-  })
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  }
+  // status 204 (No Content) proíbe body — usado pelo preflight OPTIONS
+  if (status === 204) return new Response(null, { status, headers })
+  return new Response(JSON.stringify(body), { status, headers })
 }
 
 // ---------------------------------------------------------
@@ -322,6 +322,10 @@ function mockKeepaResponse(asin: string) {
       {
         sellerId: "A3TERCEIRO", condition: 2, isFBA: false, isAmazon: false, isPrime: false,
         offerCSV: [now, 11800, 1200], stockCSV: [now, 8], lastSeen: now, coupon: 500, // R$5 de cupom fixo, exercita o branch amount
+      },
+      {
+        sellerId: "A4QUARTOVENDEDOR", condition: 1, isFBA: true, isAmazon: false, isPrime: true,
+        offerCSV: [now, 14500, 0], stockCSV: [now, 30], lastSeen: now, coupon: 0, // 4º vendedor: exercita o botão "ver os outros" (auto-load carrega só 3)
       },
       {
         sellerId: "AMAZON", condition: 1, isFBA: true, isAmazon: true, isPrime: true,

@@ -12,6 +12,13 @@ let LAST_KEEPA_SEARCH_RESULT = null;
 // verdade é no servidor (keepa_seller_cache); isso aqui só evita uma
 // chamada redundante se o cliente pesquisar o mesmo produto duas vezes.
 let KEEPA_SELLER_REPUTATION = {};
+// Quantos vendedores carregar automaticamente ao abrir o resultado (sem
+// precisar de clique) — os N mais baratos, que são os que mais importam
+// pra decisão. É a diferença entre a tela parecer "pronta" (com nome de
+// verdade) ou "quebrada" (com ID técnico tipo A1B2C3D4E5) no primeiro olhar.
+// Custo real: até N tokens extras por pesquisa nova (zero se os vendedores
+// já estiverem no cache compartilhado de alguma busca anterior).
+const KEEPA_AUTO_LOAD_SELLER_COUNT = 3;
 
 /* ---------- Abas ---------- */
 function initKeepaTabs() {
@@ -237,13 +244,48 @@ function renderKeepaSearchResult(result) {
 
   renderKeepaCategoryRanks(result.categoryRanks || []);
   renderKeepaOffersTable(result.offers || []);
+  autoLoadTopSellerReputation(result.offers || []);
+}
 
-  // produto novo na tela: os vendedores dele provavelmente ainda não têm
-  // reputação carregada nesta sessão — devolve o botão pro estado inicial.
-  const repBtn = document.getElementById('keepaLoadSellerRepBtn');
-  repBtn.disabled = false;
-  repBtn.textContent = 'Ver reputação dos vendedores';
-  document.getElementById('keepaOffersStatus').textContent = '';
+// Chamado sozinho a cada pesquisa nova — carrega a reputação dos
+// KEEPA_AUTO_LOAD_SELLER_COUNT vendedores mais baratos sem esperar clique
+// nenhum. Vendedores além desse número (se houver) ficam pro botão manual.
+async function autoLoadTopSellerReputation(offers) {
+  const statusEl = document.getElementById('keepaOffersStatus');
+  const btn = document.getElementById('keepaLoadSellerRepBtn');
+  const allSellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
+
+  if (allSellerIds.length === 0) {
+    btn.style.display = 'none';
+    statusEl.textContent = '';
+    return;
+  }
+  btn.style.display = '';
+
+  const toAutoLoad = allSellerIds.filter(id => !KEEPA_SELLER_REPUTATION[id]).slice(0, KEEPA_AUTO_LOAD_SELLER_COUNT);
+  if (toAutoLoad.length > 0) {
+    statusEl.textContent = 'Carregando reputação dos vendedores...';
+    await loadSellerReputation(toAutoLoad, offers);
+  }
+
+  updateSellerRepButtonState(allSellerIds);
+}
+
+// Ajusta o botão conforme quanto ainda falta carregar: some se já tem
+// reputação de todo mundo, ou mostra quantos vendedores ainda faltam.
+function updateSellerRepButtonState(allSellerIds) {
+  const btn = document.getElementById('keepaLoadSellerRepBtn');
+  const statusEl = document.getElementById('keepaOffersStatus');
+  const missing = allSellerIds.filter(id => !KEEPA_SELLER_REPUTATION[id]);
+  if (missing.length === 0) {
+    btn.style.display = 'none';
+    statusEl.textContent = '';
+  } else {
+    btn.style.display = '';
+    btn.disabled = false;
+    btn.textContent = `Ver reputação dos outros ${missing.length} vendedor${missing.length > 1 ? 'es' : ''}`;
+    statusEl.textContent = '';
+  }
 }
 
 function renderKeepaCategoryRanks(ranks) {
@@ -290,37 +332,40 @@ function renderKeepaOffersTable(offers) {
   }).join('');
 }
 
-async function handleLoadSellerReputation() {
-  const offers = LAST_KEEPA_SEARCH_RESULT?.offers || [];
+// Função central: busca a reputação de uma lista específica de vendedores,
+// mescla no mapa da sessão e re-renderiza a tabela. Usada tanto pelo
+// carregamento automático dos top-N quanto pelo clique manual "ver os
+// demais" — a diferença entre os dois é só QUAIS ids são passados.
+async function loadSellerReputation(sellerIds, offers) {
+  if (sellerIds.length === 0) return true;
   const statusEl = document.getElementById('keepaOffersStatus');
-  const btn = document.getElementById('keepaLoadSellerRepBtn');
-
-  const sellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
-  if (sellerIds.length === 0) {
-    statusEl.textContent = 'Nenhum vendedor pra consultar.';
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'Buscando...';
-  statusEl.textContent = '';
   try {
     const result = await yalcaKeepaSellerLookup(sellerIds);
     if (!result.ok) {
       statusEl.textContent = result.message || 'Não foi possível buscar a reputação agora.';
-      btn.disabled = false;
-      btn.textContent = 'Ver reputação dos vendedores';
-      return;
+      return false;
     }
     Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
     renderKeepaOffersTable(offers);
-    btn.textContent = 'Reputação carregada ✓';
-    btn.disabled = true;
+    return true;
   } catch (err) {
     statusEl.textContent = 'Não foi possível buscar agora: ' + err.message;
-    btn.disabled = false;
-    btn.textContent = 'Ver reputação dos vendedores';
+    return false;
   }
+}
+
+async function handleLoadSellerReputation() {
+  const offers = LAST_KEEPA_SEARCH_RESULT?.offers || [];
+  const btn = document.getElementById('keepaLoadSellerRepBtn');
+  const allSellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
+  const missing = allSellerIds.filter(id => !KEEPA_SELLER_REPUTATION[id]);
+  if (missing.length === 0) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Buscando...';
+  const ok = await loadSellerReputation(missing, offers);
+  if (!ok) { btn.disabled = false; btn.textContent = `Ver reputação dos outros ${missing.length} vendedor${missing.length > 1 ? 'es' : ''}`; return; }
+  updateSellerRepButtonState(allSellerIds);
 }
 
 function yalcaKeepaMinutesLabel(minutes) {

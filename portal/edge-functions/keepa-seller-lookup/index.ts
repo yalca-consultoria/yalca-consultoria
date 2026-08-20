@@ -36,16 +36,16 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 const MAX_SELLER_IDS_PER_REQUEST = 50 // margem de segurança sob o limite de 100/lote documentado pelo Keepa
 
 function jsonResponse(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-      "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Vary": "Origin",
-    },
-  })
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  }
+  // status 204 (No Content) proíbe body — usado pelo preflight OPTIONS
+  if (status === 204) return new Response(null, { status, headers })
+  return new Response(JSON.stringify(body), { status, headers })
 }
 
 // Formato do envelope da resposta de /seller não foi confirmado ao vivo
