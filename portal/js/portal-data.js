@@ -191,6 +191,40 @@ async function yalcaKeepaSellerLookup(sellerIds) {
 // então quem chama isso precisa mostrar um estado de "gerando..." visível.
 const IA_API_URL = 'https://ia-api.yalca.com.br';
 
+// A resposta da IA vem em streaming (texto puro, aos pedaços) — mas as
+// checagens PRÉVIAS (sessão inválida, não aprovado, fila cheia) continuam
+// vindo como um JSON normal de uma vez, porque acontecem antes da geração
+// começar. Content-Type é o jeito de diferenciar os dois casos.
+async function yalcaIaApiStream(path, body, onChunk) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Sessão inválida. Faça login novamente.');
+  const res = await fetch(`${IA_API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const json = await res.json().catch(() => null);
+    if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
+    return json;
+  }
+  if (!res.body) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const piece = decoder.decode(value, { stream: true });
+    full += piece;
+    onChunk(piece);
+  }
+  if (!full) throw new Error('Não foi possível gerar a resposta agora. Tente novamente.');
+  return { ok: true, reply: full };
+}
+
 async function yalcaIaApiCall(path, body) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -204,14 +238,14 @@ async function yalcaIaApiCall(path, body) {
   if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
   return json;
 }
-async function yalcaIaAssistant(message, history) {
-  return yalcaIaApiCall('/assistant', { message, history });
+async function yalcaIaAssistant(message, history, onChunk) {
+  return yalcaIaApiStream('/assistant', { message, history }, onChunk);
 }
-async function yalcaIaDiagnostico() {
-  return yalcaIaApiCall('/diagnostico', {});
+async function yalcaIaDiagnostico(onChunk) {
+  return yalcaIaApiStream('/diagnostico', {}, onChunk);
 }
-async function yalcaIaSuporte(message, history) {
-  return yalcaIaApiCall('/suporte', { message, history });
+async function yalcaIaSuporte(message, history, onChunk) {
+  return yalcaIaApiStream('/suporte', { message, history }, onChunk);
 }
 
 /* ---------- Dados de exemplo ---------- */

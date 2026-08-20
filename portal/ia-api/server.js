@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { makeRestClient } = require('./lib/rest-client');
 const { makeAuthClient } = require('./lib/auth');
-const { chat } = require('./lib/ollama-client');
+const { chatStream, isBusy } = require('./lib/ollama-client');
 const { buildDiagnosticPrompt } = require('./lib/diagnostic-builder');
 
 function loadEnv(envPath) {
@@ -64,6 +64,41 @@ function sendJson(res, status, body) {
   res.writeHead(status, headers);
   if (status === 204) { res.end(); return; }
   res.end(JSON.stringify(body));
+}
+
+// Começa uma resposta em texto puro, indo direto (chunked, sem
+// Content-Length) — é isso que deixa o front-end ler pedaço por pedaço em
+// vez de esperar o corpo inteiro. Erros de PRÉ-checagem (auth, aprovação,
+// fila cheia) acontecem ANTES disso e continuam mandando JSON normal —
+// só a geração em si vira texto puro.
+function startTextStream(res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+    'Cache-Control': 'no-cache',
+  });
+}
+
+// Roda a geração e transmite os pedaços; devolve a mensagem de erro (pra
+// logar) se algo falhar DEPOIS que o stream já começou — nesse caso não dá
+// mais pra mandar um JSON de erro (os headers já foram enviados), então só
+// encerra a conexão; o front-end trata isso como "parou no meio".
+async function streamChatResponse(res, messages, systemPrompt) {
+  startTextStream(res);
+  try {
+    const full = await chatStream(messages, {
+      systemPrompt,
+      onChunk: (piece) => res.write(piece),
+    });
+    res.end();
+    return { ok: true, full };
+  } catch (err) {
+    res.end();
+    return { ok: false, error: err };
+  }
 }
 
 function readJsonBody(req) {
@@ -126,16 +161,10 @@ async function handleAssistant(req, res) {
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
-  try {
-    const reply = await chat([...history, { role: 'user', content: message }], {
-      systemPrompt: 'Você é um assistente pessoal do Yanderson, que administra a Yalca Consultoria (consultoria de e-commerce) e sua própria marca de suplementos na Amazon (FBA). Responda em português do Brasil, de forma direta e prática.',
-    });
-    sendJson(res, 200, { ok: true, reply });
-  } catch (err) {
-    if (err.code === 'ai_busy') { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
-    console.error('erro no assistant:', err);
-    sendJson(res, 502, { ok: false, reason: 'ai_error', message: 'Não foi possível gerar a resposta agora. Tente novamente.' });
-  }
+  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
+  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
+    'Você é um assistente pessoal do Yanderson, que administra a Yalca Consultoria (consultoria de e-commerce) e sua própria marca de suplementos na Amazon (FBA). Responda em português do Brasil, de forma direta e prática.');
+  if (!ok) console.error('erro no assistant (stream já iniciado):', error);
 }
 
 async function handleDiagnostico(req, res) {
@@ -143,24 +172,18 @@ async function handleDiagnostico(req, res) {
   if (!user) return;
   if (!(await requireApprovedClient(user.id, res))) return;
 
-  try {
-    const summary = await buildDiagnosticPrompt(db, user.id);
-    if (!summary) {
-      sendJson(res, 200, { ok: false, reason: 'no_data', message: 'Ainda não há dados suficientes cadastrados (lançamentos financeiros ou produtos) pra gerar um diagnóstico.' });
-      return;
-    }
-    const reply = await chat([{
-      role: 'user',
-      content: `Aqui estão os dados reais da loja de um cliente de e-commerce nos últimos 6 meses:\n\n${summary}\n\nEscreva um diagnóstico curto (4-6 parágrafos) em português do Brasil: pontos fortes, pontos de atenção, e 2-3 recomendações práticas e específicas com base nesses números. Não invente dados que não foram informados.`,
-    }], {
-      systemPrompt: 'Você é um consultor de e-commerce da Yalca Consultoria, analisando os dados reais de um cliente. Seja direto, específico e baseado só nos números fornecidos — nunca invente números.',
-    });
-    sendJson(res, 200, { ok: true, reply });
-  } catch (err) {
-    if (err.code === 'ai_busy') { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
-    console.error('erro no diagnostico:', err);
-    sendJson(res, 502, { ok: false, reason: 'ai_error', message: 'Não foi possível gerar o diagnóstico agora. Tente novamente.' });
+  const summary = await buildDiagnosticPrompt(db, user.id);
+  if (!summary) {
+    sendJson(res, 200, { ok: false, reason: 'no_data', message: 'Ainda não há dados suficientes cadastrados (lançamentos financeiros ou produtos) pra gerar um diagnóstico.' });
+    return;
   }
+  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
+
+  const { ok, error } = await streamChatResponse(res, [{
+    role: 'user',
+    content: `Aqui estão os dados reais da loja de um cliente de e-commerce nos últimos 6 meses:\n\n${summary}\n\nEscreva um diagnóstico curto (4-6 parágrafos) em português do Brasil: pontos fortes, pontos de atenção, e 2-3 recomendações práticas e específicas com base nesses números. Não invente dados que não foram informados.`,
+  }], 'Você é um consultor de e-commerce da Yalca Consultoria, analisando os dados reais de um cliente. Seja direto, específico e baseado só nos números fornecidos — nunca invente números.');
+  if (!ok) console.error('erro no diagnostico (stream já iniciado):', error);
 }
 
 async function handleSuporte(req, res) {
@@ -174,16 +197,10 @@ async function handleSuporte(req, res) {
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
-  try {
-    const reply = await chat([...history, { role: 'user', content: message }], {
-      systemPrompt: 'Você é o assistente de suporte do portal da Yalca Consultoria, uma consultoria de e-commerce. Ajude o cliente com dúvidas sobre gestão financeira, marketplaces e as ferramentas do portal (calculadora de preço, controle de estoque, fluxo de caixa). Responda em português do Brasil, de forma clara e objetiva. Se a dúvida for algo que só a equipe da Yalca pode resolver (ex: problema de conta, cobrança), oriente o cliente a entrar em contato com a Yalca diretamente.',
-    });
-    sendJson(res, 200, { ok: true, reply });
-  } catch (err) {
-    if (err.code === 'ai_busy') { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
-    console.error('erro no suporte:', err);
-    sendJson(res, 502, { ok: false, reason: 'ai_error', message: 'Não foi possível gerar a resposta agora. Tente novamente.' });
-  }
+  if (isBusy()) { sendJson(res, 200, { ok: false, reason: 'ai_busy', message: 'O assistente está processando outra solicitação. Tente novamente em instantes.' }); return; }
+  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }],
+    'Você é o assistente de suporte do portal da Yalca Consultoria, uma consultoria de e-commerce. Ajude o cliente com dúvidas sobre gestão financeira, marketplaces e as ferramentas do portal (calculadora de preço, controle de estoque, fluxo de caixa). Responda em português do Brasil, de forma clara e objetiva. Se a dúvida for algo que só a equipe da Yalca pode resolver (ex: problema de conta, cobrança), oriente o cliente a entrar em contato com a Yalca diretamente.');
+  if (!ok) console.error('erro no suporte (stream já iniciado):', error);
 }
 
 const server = http.createServer(async (req, res) => {

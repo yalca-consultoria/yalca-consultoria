@@ -65,20 +65,37 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Gerando...';
-    statusEl.textContent = 'A IA está pensando — isso pode levar até 1 minuto (roda localmente, sem GPU).';
+    statusEl.textContent = 'A IA está respondendo...';
     statusEl.style.color = 'var(--text-muted)';
 
+    // A bolha do assistente já entra na tela vazia e vai sendo preenchida
+    // conforme os pedaços chegam — é isso que faz a resposta "aparecer
+    // aos poucos" em vez de só surgir pronta no final.
+    const bubbleRow = document.createElement('div');
+    bubbleRow.className = 'ia-msg ia-msg--assistant';
+    const bubble = document.createElement('div');
+    bubble.className = 'ia-msg__bubble';
+    bubbleRow.appendChild(bubble);
+    let started = false;
+    let full = '';
+
     try {
-      const result = await apiFn(message, history);
+      const result = await apiFn(message, history, (piece) => {
+        if (!started) { list.appendChild(bubbleRow); started = true; }
+        full += piece;
+        bubble.innerHTML = yalcaEscapeHtml(full).replace(/\n/g, '<br>');
+        list.scrollTop = list.scrollHeight;
+      });
       if (!result.ok) {
+        if (started) bubbleRow.remove();
         statusEl.textContent = result.message || 'Não foi possível gerar a resposta agora.';
         statusEl.style.color = 'var(--warning)';
         return;
       }
-      renderMessage('assistant', result.reply);
       history.push({ role: 'user', content: message }, { role: 'assistant', content: result.reply });
       statusEl.textContent = '';
     } catch (err) {
+      if (started) bubbleRow.remove();
       statusEl.textContent = 'Não foi possível consultar agora: ' + err.message;
       statusEl.style.color = 'var(--critical)';
     } finally {
@@ -101,19 +118,24 @@ function initIaDiagnostico({ btnId, resultId, statusId }) {
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = 'Gerando diagnóstico...';
-    statusEl.textContent = 'Analisando seus dados — isso pode levar até 1 minuto.';
+    statusEl.textContent = 'Analisando seus dados...';
     statusEl.style.color = 'var(--text-muted)';
     resultEl.style.display = 'none';
+    resultEl.innerHTML = '';
+    let full = '';
 
     try {
-      const result = await yalcaIaDiagnostico();
+      const result = await yalcaIaDiagnostico((piece) => {
+        resultEl.style.display = '';
+        full += piece;
+        resultEl.innerHTML = yalcaEscapeHtml(full).replace(/\n/g, '<br>');
+      });
       if (!result.ok) {
+        resultEl.style.display = 'none';
         statusEl.textContent = result.message || 'Não foi possível gerar o diagnóstico agora.';
         statusEl.style.color = 'var(--warning)';
         return;
       }
-      resultEl.innerHTML = yalcaEscapeHtml(result.reply).replace(/\n/g, '<br>');
-      resultEl.style.display = '';
       statusEl.textContent = '';
     } catch (err) {
       statusEl.textContent = 'Não foi possível gerar agora: ' + err.message;
