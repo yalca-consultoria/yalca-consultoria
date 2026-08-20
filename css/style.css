@@ -479,13 +479,8 @@ p { color: var(--text-muted); }
 
 /* =========== ABOUT =========== */
 .about { padding: 100px 0; background: var(--bg-alt); }
-.about__inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 48px;
-}
-.about__content { max-width: 720px; text-align: center; }
+.about__inner { display: block; }
+.about__content { max-width: 720px; text-align: center; margin: 0 auto 48px; }
 .about__content p { margin: 18px 0 0; font-size: 1.02rem; }
 .about__points {
   display: grid;
