@@ -87,10 +87,16 @@ async function restUpdate(table, query, patch) {
 // keepa-search (portal/edge-functions/keepa-search/index.ts),
 // mantida em sincronia manualmente já que são runtimes diferentes
 // (Node aqui, Deno lá) sem um jeito simples de compartilhar módulo.
+// v8 acrescentou: monthlySold, referralFeePercentage, fbaFees,
+// offers[], buyBoxSellerIdHistory (rotatividade), salesRanks — se
+// mexer num, mexer no outro também.
 // ---------------------------------------------------------
 const KEEPA_EPOCH_OFFSET_MIN = 21564000;
 function keepaTimeToIso(keepaTime) {
   return new Date((keepaTime + KEEPA_EPOCH_OFFSET_MIN) * 60000).toISOString();
+}
+function nowKeepaTime() {
+  return Math.floor(Date.now() / 60000) - KEEPA_EPOCH_OFFSET_MIN;
 }
 function centsToReais(cents) {
   if (cents === null || cents === undefined || cents < 0) return null;
@@ -109,6 +115,77 @@ function extractCsvSeries(csv, typeIndex, isPrice) {
 }
 function lastValue(points) { return points.length > 0 ? points[points.length - 1].value : null; }
 const AVAILABILITY_LABELS = { '-1': 'sem oferta', 0: 'em estoque', 1: 'pré-venda', 2: 'desconhecido', 3: 'sob encomenda', 4: 'atrasado' };
+const CONDITION_LABELS = {
+  0: 'Desconhecida', 1: 'Novo', 2: 'Usado - Como novo', 3: 'Usado - Muito bom', 4: 'Usado - Bom',
+  5: 'Usado - Aceitável', 6: 'Recondicionado', 7: 'Coleção - Como novo', 8: 'Coleção - Muito bom',
+  9: 'Coleção - Bom', 10: 'Coleção - Aceitável',
+};
+
+function parseOffers(offers) {
+  if (!Array.isArray(offers)) return [];
+  const parsed = offers.map((o) => {
+    const csv = Array.isArray(o.offerCSV) ? o.offerCSV : [];
+    const last3 = csv.length >= 3 ? csv.slice(-3) : null;
+    const price = last3 ? centsToReais(last3[1]) : null;
+    const shipping = last3 ? centsToReais(last3[2]) : null;
+    const stockCsv = Array.isArray(o.stockCSV) ? o.stockCSV : [];
+    const stock = stockCsv.length >= 2 ? stockCsv[stockCsv.length - 1] : null;
+    let coupon = null;
+    if (typeof o.coupon === 'number' && o.coupon !== 0) {
+      coupon = o.coupon > 0 ? { type: 'amount', value: centsToReais(o.coupon) ?? 0 } : { type: 'percent', value: Math.abs(o.coupon) };
+    }
+    return {
+      sellerId: o.sellerId ?? null, price, shipping,
+      condition: CONDITION_LABELS[o.condition] ?? `Condição #${o.condition}`,
+      isFBA: !!o.isFBA, isAmazon: !!o.isAmazon, isPrime: !!o.isPrime, isWarehouseDeal: !!o.isWarehouseDeal,
+      stock: typeof stock === 'number' ? stock : null,
+      minOrderQty: typeof o.minOrderQty === 'number' ? o.minOrderQty : null,
+      coupon, lastSeen: typeof o.lastSeen === 'number' ? keepaTimeToIso(o.lastSeen) : null,
+    };
+  });
+  parsed.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  return parsed;
+}
+
+function computeBuyboxRotation(history, windowDays) {
+  let flat = [];
+  if (typeof history === 'string' && history.length > 0) flat = history.split(',');
+  else if (Array.isArray(history)) flat = history;
+  else return null;
+  if (flat.length < 4) return 0;
+  const cutoff = nowKeepaTime() - windowDays * 1440;
+  let prevSeller = null;
+  let transitions = 0;
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const time = Number(flat[i]);
+    const seller = String(flat[i + 1]);
+    if (Number.isNaN(time) || time < cutoff) continue;
+    if (prevSeller !== null && seller !== prevSeller) transitions++;
+    prevSeller = seller;
+  }
+  return transitions;
+}
+
+function parseCategoryRanks(salesRanks, salesRankReference, categoryTree, primaryCategoryName) {
+  if (!salesRanks || typeof salesRanks !== 'object') return [];
+  const treeById = new Map();
+  if (Array.isArray(categoryTree)) {
+    for (const c of categoryTree) {
+      if (c && c.catId !== undefined && c.catId !== null && c.name) treeById.set(String(c.catId), c.name);
+    }
+  }
+  const rows = [];
+  for (const [categoryId, history] of Object.entries(salesRanks)) {
+    if (!Array.isArray(history) || history.length < 2) continue;
+    const rank = history[history.length - 1];
+    if (rank === -1 || rank === undefined) continue;
+    const isPrimary = String(salesRankReference) === categoryId;
+    const categoryName = treeById.get(categoryId) ?? (isPrimary ? primaryCategoryName : null) ?? `Categoria #${categoryId}`;
+    rows.push({ categoryId, categoryName, rank, isPrimary });
+  }
+  rows.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+  return rows;
+}
 
 function parseKeepaProduct(p) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true);
@@ -119,10 +196,18 @@ function parseKeepaProduct(p) {
   const buyboxPrice = centsToReais(p.buyBoxPrice);
   const currentPrice = buyboxPrice ?? lastValue(priceHistoryNew) ?? lastValue(priceHistoryAmazon);
   const priceHistory = [...priceHistoryAmazon, ...priceHistoryNew].sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+  const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
+  const fbaFees = p.fbaFees ? {
+    pickAndPack: centsToReais(p.fbaFees.pickAndPackFee),
+    pickAndPackTax: centsToReais(p.fbaFees.pickAndPackFeeTax),
+    storage: centsToReais(p.fbaFees.storageFee),
+    storageTax: centsToReais(p.fbaFees.storageFeeTax),
+  } : null;
   return {
     title: p.title ?? null,
     currentPrice,
     bsr: lastValue(bsrHistory),
+    category,
     rating: lastValue(ratingHistory) !== null ? lastValue(ratingHistory) / 10 : null,
     reviewCount: lastValue(reviewCountHistory),
     buyboxSeller: p.buyBoxSellerId ?? null,
@@ -131,11 +216,17 @@ function parseKeepaProduct(p) {
     offersCount: typeof p.offersCount === 'number' ? p.offersCount : (Array.isArray(p.offers) ? p.offers.length : null),
     availabilityStatus: AVAILABILITY_LABELS[String(p.availabilityAmazon)] ?? null,
     priceHistory,
+    monthlySold: typeof p.monthlySold === 'number' ? p.monthlySold : null,
+    referralFeePct: typeof p.referralFeePercentage === 'number' ? p.referralFeePercentage : null,
+    fbaFees,
+    offers: parseOffers(p.offers),
+    buyboxRotation90d: computeBuyboxRotation(p.buyBoxSellerIdHistory, 90),
+    categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
   };
 }
 
 function mockKeepaResponse(asin) {
-  const now = Math.floor(Date.now() / 60000) - KEEPA_EPOCH_OFFSET_MIN;
+  const now = nowKeepaTime();
   // Alterna o vendedor da buybox pra sempre gerar um alerta de teste
   const seller = Math.random() > 0.5 ? 'A1MOCKSELLER' : 'A2OUTROSELLER';
   return {
@@ -146,6 +237,17 @@ function mockKeepaResponse(asin) {
     buyBoxPrice: 10000 + Math.floor(Math.random() * 5000),
     offersCount: 3,
     availabilityAmazon: 0,
+    categoryTree: [{ catId: 100, name: 'Categoria Mock' }],
+    monthlySold: 200,
+    referralFeePercentage: 15.0,
+    fbaFees: { pickAndPackFee: 605, pickAndPackFeeTax: 0, storageFee: 40, storageFeeTax: 0 },
+    salesRankReference: 100,
+    salesRanks: { '100': [now - 60 * 24 * 2, 18000] },
+    buyBoxSellerIdHistory: [now - 60 * 24 * 10, 'A1MOCKSELLER', now - 60 * 24 * 5, 'A2OUTROSELLER', now, seller],
+    offers: [
+      { sellerId: 'A1MOCKSELLER', condition: 1, isFBA: true, isAmazon: false, isPrime: true, offerCSV: [now, 10500, 0], stockCSV: [now, 50], lastSeen: now, coupon: 0 },
+      { sellerId: 'A2OUTROSELLER', condition: 1, isFBA: false, isAmazon: false, isPrime: false, offerCSV: [now, 11200, 15], stockCSV: [now, 12], lastSeen: now, coupon: 0 },
+    ],
     csv: [
       null,
       [now - 60 * 24 * 2, 11500, now, 12500],
@@ -286,6 +388,7 @@ async function main() {
         title: parsed.title,
         current_price: parsed.currentPrice,
         bsr: parsed.bsr,
+        category: parsed.category,
         rating: parsed.rating,
         review_count: parsed.reviewCount,
         buybox_seller: parsed.buyboxSeller,
@@ -294,6 +397,15 @@ async function main() {
         offers_count: parsed.offersCount,
         availability_status: parsed.availabilityStatus,
         price_history: parsed.priceHistory,
+        monthly_sold: parsed.monthlySold,
+        referral_fee_pct: parsed.referralFeePct,
+        fba_pick_pack_fee: parsed.fbaFees?.pickAndPack ?? null,
+        fba_pick_pack_fee_tax: parsed.fbaFees?.pickAndPackTax ?? null,
+        fba_storage_fee: parsed.fbaFees?.storage ?? null,
+        fba_storage_fee_tax: parsed.fbaFees?.storageTax ?? null,
+        offers: parsed.offers,
+        buybox_rotation_90d: parsed.buyboxRotation90d,
+        category_ranks: parsed.categoryRanks,
         cheap_data_updated_at: nowIso,
         buybox_data_updated_at: item.priority === 0 ? nowIso : (oldRow?.buybox_data_updated_at ?? nowIso),
         last_synced_by: 'cron',
