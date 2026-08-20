@@ -67,11 +67,12 @@ function dbToSettings(row) {
 /* ---------- Carregamento ---------- */
 
 async function yalcaFetchAll(profile) {
+  const uid = profile && profile.user_id;
   const [productsRes, transactionsRes, plannedRes, settingsRes] = await Promise.all([
-    supabaseClient.from('products').select('*').order('created_at'),
-    supabaseClient.from('transactions').select('*').order('date'),
-    supabaseClient.from('planned_entries').select('*').order('date'),
-    supabaseClient.from('client_settings').select('*').maybeSingle()
+    supabaseClient.from('products').select('*').eq('user_id', uid).order('created_at'),
+    supabaseClient.from('transactions').select('*').eq('user_id', uid).order('date'),
+    supabaseClient.from('planned_entries').select('*').eq('user_id', uid).order('date'),
+    supabaseClient.from('client_settings').select('*').eq('user_id', uid).maybeSingle()
   ]);
 
   const products = yalcaCheck(productsRes) || [];
