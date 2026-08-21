@@ -1063,6 +1063,26 @@ body.portal-body {
 .margin-gauge__fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
 .margin-gauge--sm { height: 4px; width: 64px; margin: 4px 0 0 auto; }
 
+/* ---------- Detalhes do produto (Pesquisar Produto, estilo aba "Data" do Keepa) ---------- */
+.keepa-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 32px;
+}
+@media (max-width: 720px) { .keepa-detail-grid { grid-template-columns: 1fr; } }
+.keepa-detail-col { display: flex; flex-direction: column; }
+.keepa-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.86rem;
+}
+.keepa-detail-row:last-child { border-bottom: none; }
+.keepa-detail-row span:first-child { color: var(--text-muted); flex-shrink: 0; }
+.keepa-detail-row span:last-child { color: var(--text); text-align: right; font-weight: 600; }
+
 /* ---------- Empty state / reset ---------- */
 .reset-demo {
   font-size: 0.78rem;

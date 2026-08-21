@@ -188,6 +188,9 @@ function parseKeepaProduct(p) {
     buybox: priceHistoryBuyBox.slice(-90),
   };
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
+  // Trilha completa (ex: "Saúde e Bem-Estar > Vitaminas e Suplementos"),
+  // não só a última categoria — é como o Keepa mostra a árvore inteira.
+  const categoryBreadcrumb = Array.isArray(p.categoryTree) ? p.categoryTree.map(c => c?.name).filter(Boolean) : [];
   const fbaFees = p.fbaFees ? {
     pickAndPack: centsToReais(p.fbaFees.pickAndPackFee),
     pickAndPackTax: centsToReais(p.fbaFees.pickAndPackFeeTax),
@@ -243,6 +246,8 @@ function parseKeepaProduct(p) {
     // existe de "seu preço de venda planejado está alto/baixo demais".
     competitivePriceThreshold: centsToReais(p.competitivePriceThreshold),
     suggestedLowerPrice: centsToReais(p.suggestedLowerPrice),
+    categoryBreadcrumb,
+    ean: Array.isArray(p.eanList) && p.eanList.length > 0 ? p.eanList[0] : null,
   };
 }
 

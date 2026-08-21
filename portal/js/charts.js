@@ -97,10 +97,32 @@ function yalcaChartSteps() {
 /**
  * Gráfico de linhas multi-série.
  * container: elemento onde o gráfico será montado
- * opts: { series: [{name, color, data:[{label, value}]}], formatValue }
+ * opts: { series: [{name, color, data:[{label, value}] OU [{date, value}]}], formatValue }
+ *
+ * Dois modos, escolhidos automaticamente pela forma dos dados:
+ * - "label" (categórico): pontos igualmente espaçados no eixo X — usado
+ *   pros gráficos de meses/dias-do-período (Visão Geral, Financeiro, Fluxo
+ *   de Caixa), onde os buckets já são uniformes por construção.
+ * - "date" (linha do tempo real, estilo Keepa): a posição X é proporcional
+ *   ao TEMPO REAL entre os pontos, não ao índice — necessário pro
+ *   histórico de preço/BSR, onde o Keepa só grava um ponto quando o valor
+ *   MUDA (os intervalos entre pontos são bem desiguais; espaçar por índice
+ *   distorce o gráfico, comprimindo períodos de muita variação e esticando
+ *   períodos parados). Também desenha em "degrau" (o valor anterior se
+ *   mantém até o próximo ponto, não interpola uma reta entre os dois) e
+ *   preenche a área sob a primeira série — mesma linguagem visual do
+ *   gráfico real do Keepa.
  */
 function yalcaRenderLineChart(container, opts) {
   const { series, formatValue = (v) => v, steps = yalcaChartSteps() } = opts;
+  const isTimeMode = series.every(s => s.data.every(d => d.date !== undefined));
+  return isTimeMode
+    ? yalcaRenderTimeLineChart(container, { series, formatValue, steps })
+    : yalcaRenderCategoricalLineChart(container, { series, formatValue, steps });
+}
+
+function yalcaRenderCategoricalLineChart(container, opts) {
+  const { series, formatValue, steps } = opts;
   const W = 640, H = 260;
   const padR = 16, padT = 16, padB = 34;
 
@@ -193,6 +215,150 @@ function yalcaRenderLineChart(container, opts) {
       const px = (Number(hit.getAttribute('cx')) / W) * rect.width;
       const py = (Number(hit.getAttribute('cy')) / H) * rect.height;
       yalcaShowTooltip(wrap, tip, px, py, `<strong>${yalcaEscapeHtml(labels[i])}</strong><br>${yalcaEscapeHtml(sName)}: ${formatValue(s.data[i].value)}`);
+    });
+    hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
+  });
+
+  const toggleBtn = container.querySelector('.table-view-toggle');
+  const tableView = container.querySelector('.chart-table-view');
+  if (startAsTable) tableView.classList.add('is-visible');
+  toggleBtn.addEventListener('click', () => {
+    const showing = tableView.classList.toggle('is-visible');
+    toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
+  });
+}
+
+// Formato compacto (dd/mm/aa) pro eixo de um gráfico de linha do tempo —
+// "20/04/2025" não cabe nem decimado num histórico de 90+ pontos.
+function yalcaFormatAxisDate(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${dd}/${mm}/${yy}`;
+}
+
+function yalcaRenderTimeLineChart(container, opts) {
+  const { series, formatValue, steps } = opts;
+  const W = 640, H = 260;
+  const padR = 16, padT = 16, padB = 34;
+
+  const allPoints = series.flatMap(s => s.data.map(d => ({ ...d, t: new Date(d.date).getTime() })));
+  const allValues = allPoints.map(d => d.value);
+  const maxVal = Math.max(...allValues, 1);
+  const niceMax = Math.ceil(maxVal / 5) * 5 || 1;
+  const padL = yalcaAxisLeftPad(niceMax, steps, formatValue);
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const tMin = Math.min(...allPoints.map(d => d.t));
+  const tMax = Math.max(...allPoints.map(d => d.t));
+  const tSpan = tMax - tMin || 1;
+  const yScale = (v) => padT + plotH - (v / niceMax) * plotH;
+  // Posição proporcional ao TEMPO real, não ao índice do ponto — é isso que
+  // corrige o gráfico ficar "torto" quando os pontos não são igualmente
+  // espaçados no tempo (o Keepa só grava quando o preço muda).
+  const xScale = (t) => padL + ((t - tMin) / tSpan) * plotW;
+
+  const gridFractions = Array.from({ length: steps + 1 }, (_, i) => i / steps);
+  const gridLines = gridFractions.map(f => {
+    const y = padT + plotH - f * plotH;
+    const val = f * niceMax;
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="${YALCA_COLORS.grid}" stroke-width="1" />
+      <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
+  }).join('');
+
+  // Ticks do eixo X em posições de tempo UNIFORMES (não em cada ponto de
+  // dado, que estariam desigualmente espaçados) — o número de ticks que
+  // cabe sem colidir depende da largura de um rótulo "dd/mm/aa" (~8 chars).
+  const tickLabelWidth = 8 * 6.2 + 10;
+  const tickCount = Math.max(2, Math.min(8, Math.floor(plotW / tickLabelWidth)));
+  const xTicks = Array.from({ length: tickCount + 1 }, (_, i) => {
+    const t = tMin + (tSpan * i) / tickCount;
+    return `<text x="${xScale(t)}" y="${H - 10}" font-size="13" text-anchor="middle">${yalcaEscapeHtml(yalcaFormatAxisDate(new Date(t)))}</text>`;
+  }).join('');
+
+  // Caminho em DEGRAU (step-after): o valor anterior se mantém até o
+  // próximo ponto ser registrado, em vez de interpolar uma reta entre os
+  // dois — é assim que preço/ranking realmente se comportam (ficam
+  // parados até mudar), e é a mesma linguagem visual do gráfico do Keepa.
+  function stepPath(points) {
+    const sorted = [...points].sort((a, b) => a.t - b.t);
+    if (sorted.length === 0) return { line: '', area: '' };
+    let line = `M ${xScale(sorted[0].t).toFixed(1)} ${yScale(sorted[0].value).toFixed(1)}`;
+    for (let i = 1; i < sorted.length; i++) {
+      const x = xScale(sorted[i].t).toFixed(1);
+      const yPrev = yScale(sorted[i - 1].value).toFixed(1);
+      const yNow = yScale(sorted[i].value).toFixed(1);
+      line += ` L ${x} ${yPrev} L ${x} ${yNow}`;
+    }
+    const lastX = xScale(sorted[sorted.length - 1].t).toFixed(1);
+    const baseline = (padT + plotH).toFixed(1);
+    const area = `${line} L ${lastX} ${baseline} L ${xScale(sorted[0].t).toFixed(1)} ${baseline} Z`;
+    return { line, area, sorted };
+  }
+
+  const seriesSvg = series.map((s, sIdx) => {
+    const { line, area, sorted } = stepPath(s.data.map(d => ({ ...d, t: new Date(d.date).getTime() })));
+    // Só a primeira série ganha preenchimento — igual ao Keepa, que só
+    // sombreia sob a linha "de referência" (buybox/menor preço) pra não
+    // virar um emaranhado de áreas sobrepostas com 2-3 séries.
+    const fillPath = sIdx === 0 ? `<path d="${area}" fill="${s.color}" fill-opacity="0.12" stroke="none" />` : '';
+    const dots = sorted.map((d, i) =>
+      `<circle data-i="${i}" data-s="${yalcaEscapeHtml(s.name)}" class="hit" cx="${xScale(d.t).toFixed(1)}" cy="${yScale(d.value).toFixed(1)}" r="9" fill="transparent" style="cursor:pointer" />`
+    ).join('');
+    return `${fillPath}<path d="${line}" fill="none" stroke="${s.color}" stroke-width="1.6" stroke-linejoin="round" />${dots}`;
+  }).join('');
+
+  const legend = series.length > 1 ? `<div class="chart-legend">${series.map(s =>
+    `<span class="chart-legend__item"><span class="chart-legend__swatch" style="background:${s.color}"></span>${yalcaEscapeHtml(s.name)}</span>`
+  ).join('')}</div>` : '';
+
+  // Tabela: uma linha por data única entre todas as séries (podem ter
+  // datas diferentes entre si, já que cada uma só grava quando MUDA).
+  const allDatesSorted = [...new Set(allPoints.map(d => d.date))].sort();
+  const valueAtOrBefore = (s, dateStr) => {
+    const upTo = s.data.filter(d => d.date <= dateStr);
+    return upTo.length > 0 ? upTo[upTo.length - 1].value : null;
+  };
+  const tableRows = allDatesSorted.map(dateStr =>
+    `<tr><td>${yalcaEscapeHtml(yalcaFormatAxisDate(new Date(dateStr)))}</td>${series.map(s => {
+      const v = valueAtOrBefore(s, dateStr);
+      return `<td class="num">${v !== null ? formatValue(v) : '—'}</td>`;
+    }).join('')}</tr>`
+  ).join('');
+  const tableHtml = `<div class="table-scroll chart-table-view">
+    <table class="data-table"><thead><tr><th>Data</th>${series.map(s => `<th class="num">${yalcaEscapeHtml(s.name)}</th>`).join('')}</tr></thead>
+    <tbody>${tableRows}</tbody></table></div>`;
+
+  const startAsTable = yalcaIsMobileChart();
+  container.innerHTML = `
+    <div class="chart-card">
+      ${legend}
+      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
+      ${tableHtml}
+      <div class="chart-wrap">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de linha do tempo">
+          ${gridLines}
+          ${seriesSvg}
+          ${xTicks}
+        </svg>
+      </div>
+    </div>`;
+
+  const wrap = container.querySelector('.chart-wrap');
+  const tip = yalcaMakeTooltip(wrap);
+  const svg = container.querySelector('svg');
+
+  svg.querySelectorAll('.hit').forEach(hit => {
+    hit.addEventListener('mouseenter', () => {
+      const sName = hit.dataset.s;
+      const s = series.find(x => x.name === sName);
+      const sorted = [...s.data].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const i = Number(hit.dataset.i);
+      const d = sorted[i];
+      const rect = svg.getBoundingClientRect();
+      const px = (Number(hit.getAttribute('cx')) / W) * rect.width;
+      const py = (Number(hit.getAttribute('cy')) / H) * rect.height;
+      yalcaShowTooltip(wrap, tip, px, py, `<strong>${yalcaEscapeHtml(yalcaFormatAxisDate(new Date(d.date)))}</strong><br>${yalcaEscapeHtml(s.name)}: ${formatValue(d.value)}`);
     });
     hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
   });

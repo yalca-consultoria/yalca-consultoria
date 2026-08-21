@@ -337,10 +337,13 @@ function renderKeepaSearchResult(result) {
   // buybox) em vez de uma linha genérica única.
   const priceChartContainer = document.getElementById('keepaPriceHistoryChart');
   const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
+  // Buybox primeiro: é a referência mais importante pra decisão (o preço
+  // que o comprador realmente paga), e é a série que o gráfico preenche
+  // por baixo — mesmo destaque visual que o Keepa dá a ela.
   const priceSeries = [];
-  if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
-  if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
-  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ date: p.date, value: p.value })) });
+  if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ date: p.date, value: p.value })) });
+  if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ date: p.date, value: p.value })) });
   if (priceSeries.length > 0) {
     yalcaRenderLineChart(priceChartContainer, { series: priceSeries, formatValue: (v) => yalcaFormatCurrency(v) });
   } else {
@@ -356,7 +359,7 @@ function renderKeepaSearchResult(result) {
   if (result.bsrHistory && result.bsrHistory.length > 1) {
     rankWrap.style.display = '';
     yalcaRenderLineChart(rankChartContainer, {
-      series: [{ name: 'Ranking (BSR)', color: YALCA_COLORS.series3, data: result.bsrHistory.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) }],
+      series: [{ name: 'Ranking (BSR)', color: YALCA_COLORS.series3, data: result.bsrHistory.map(p => ({ date: p.date, value: p.value })) }],
       formatValue: (v) => `#${Math.round(v).toLocaleString('pt-BR')}`
     });
   } else {
@@ -366,7 +369,57 @@ function renderKeepaSearchResult(result) {
   renderKeepaBuyboxStatsTable(stats.buyBoxStats || []);
   renderKeepaCategoryRanks(result.categoryRanks || []);
   renderKeepaOffersTable(result.offers || []);
+  renderKeepaDetailPanel(result);
   autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
+}
+
+// Painel "Detalhes do produto" — reúne num único lugar, em formato
+// chave/valor de duas colunas, tudo que já buscamos mas ficava espalhado
+// entre KPIs/badges/tabelas — mesma ideia da aba "Data" do Keepa, que
+// concentra todos os detalhes cadastrais e de preço num só lugar.
+function renderKeepaDetailPanel(result) {
+  const el = document.getElementById('keepaResultDetails');
+  const stats = result.stats || {};
+
+  const cheapestByFulfillment = (isFBA) => {
+    const match = (result.offers || []).find(o => !o.isAmazon && o.isFBA === isFBA && o.price != null);
+    return match ? `${yalcaEscapeHtml(match.sellerId)} — ${yalcaFormatCurrency(match.price)}` : '—';
+  };
+
+  const row = (label, value) => value != null && value !== ''
+    ? `<div class="keepa-detail-row"><span>${yalcaEscapeHtml(label)}</span><span>${value}</span></div>`
+    : '';
+
+  const leftRows = [
+    row('Categoria', result.categoryBreadcrumb?.length ? yalcaEscapeHtml(result.categoryBreadcrumb.join(' › ')) : null),
+    row('Marca', result.brand),
+    row('ASIN', result.asin),
+    row('EAN', result.ean),
+    row('Avaliação', result.rating != null ? `${result.rating.toFixed(1)} ★ (${result.reviewCount ?? 0} avaliações)` : null),
+    row('Comprado no último mês', result.monthlySold != null ? `${result.monthlySold.toLocaleString('pt-BR')}+` : null),
+    row('Listado desde', result.listedSince ? yalcaFormatDate(result.listedSince.slice(0, 10)) : null),
+    row('Dimensões do pacote', result.packageDimensionsCm ? `${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm` : null),
+    row('Peso do pacote', result.packageWeightKg != null ? `${result.packageWeightKg}kg` : null),
+    row('Variações', result.variationsCount ? `${result.variationsCount} (cor/tamanho)` : null),
+    row('Taxa de devolução', result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : null),
+  ].filter(Boolean).join('');
+
+  const rightRows = [
+    row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'ninguém vendendo'),
+    row('Buy Box — preço', result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : null),
+    row('Buy Box — média 90d', stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : null),
+    row('Buy Box — menor já registrado', stats.lowestEver?.price != null ? `${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}` : null),
+    row('Buy Box — maior já registrado', stats.highestEver?.price != null ? `${yalcaFormatCurrency(stats.highestEver.price)} em ${yalcaFormatDate(stats.highestEver.date.slice(0, 10))}` : null),
+    row('Vendedor mais barato FBA', cheapestByFulfillment(true)),
+    row('Vendedor mais barato FBM', cheapestByFulfillment(false)),
+    row('Contagem total de ofertas', result.offersCount != null ? String(result.offersCount) : null),
+    row('Ofertas FBA / FBM', (stats.offerCountFBA != null || stats.offerCountFBM != null) ? `${stats.offerCountFBA ?? 0} / ${stats.offerCountFBM ?? 0}` : null),
+    row('Fora de estoque (90d)', stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : null),
+  ].filter(Boolean).join('');
+
+  el.innerHTML = `
+    <div class="keepa-detail-col">${leftRows}</div>
+    <div class="keepa-detail-col">${rightRows}</div>`;
 }
 
 function renderKeepaBuyboxStatsTable(buyBoxStats) {

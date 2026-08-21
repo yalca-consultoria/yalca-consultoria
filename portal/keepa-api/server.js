@@ -180,6 +180,8 @@ function formatResult(cache) {
     variationsCount: cache.variations_count ?? null,
     competitivePriceThreshold: cache.competitive_price_threshold ?? null,
     suggestedLowerPrice: cache.suggested_lower_price ?? null,
+    categoryBreadcrumb: cache.category_breadcrumb ?? [],
+    ean: cache.ean ?? null,
     cheapDataAgeMinutes: cache.cheap_data_updated_at ? Math.round((Date.now() - new Date(cache.cheap_data_updated_at).getTime()) / 60000) : null,
     buyboxDataAgeMinutes: cache.buybox_data_updated_at ? Math.round((Date.now() - new Date(cache.buybox_data_updated_at).getTime()) / 60000) : null,
     isMockData: typeof cache.last_synced_by === 'string' && cache.last_synced_by.endsWith('_mock'),
@@ -217,6 +219,8 @@ function buildCacheRow(asin, parsed, nowIso) {
     variations_count: parsed.variationsCount ?? null,
     competitive_price_threshold: parsed.competitivePriceThreshold ?? null,
     suggested_lower_price: parsed.suggestedLowerPrice ?? null,
+    category_breadcrumb: parsed.categoryBreadcrumb ?? [],
+    ean: parsed.ean ?? null,
     cheap_data_updated_at: nowIso, buybox_data_updated_at: nowIso,
     // Sufixo "_mock" marca a linha como dado fictício de teste — o
     // front-end usa isso pra mostrar um aviso bem visível.

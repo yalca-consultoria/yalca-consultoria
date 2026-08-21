@@ -258,6 +258,7 @@ function parseKeepaProduct(p) {
     buybox: priceHistoryBuyBox.slice(-90),
   };
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
+  const categoryBreadcrumb = Array.isArray(p.categoryTree) ? p.categoryTree.map(c => c?.name).filter(Boolean) : [];
   const fbaFees = p.fbaFees ? {
     pickAndPack: centsToReais(p.fbaFees.pickAndPackFee),
     pickAndPackTax: centsToReais(p.fbaFees.pickAndPackFeeTax),
@@ -297,6 +298,8 @@ function parseKeepaProduct(p) {
     variationsCount: Array.isArray(p.variations) ? p.variations.length : null,
     competitivePriceThreshold: centsToReais(p.competitivePriceThreshold),
     suggestedLowerPrice: centsToReais(p.suggestedLowerPrice),
+    categoryBreadcrumb,
+    ean: Array.isArray(p.eanList) && p.eanList.length > 0 ? p.eanList[0] : null,
   };
 }
 
@@ -529,6 +532,8 @@ async function main() {
         variations_count: parsed.variationsCount ?? null,
         competitive_price_threshold: parsed.competitivePriceThreshold ?? null,
         suggested_lower_price: parsed.suggestedLowerPrice ?? null,
+        category_breadcrumb: parsed.categoryBreadcrumb ?? [],
+        ean: parsed.ean ?? null,
         cheap_data_updated_at: nowIso,
         buybox_data_updated_at: item.priority === 0 ? nowIso : (oldRow?.buybox_data_updated_at ?? nowIso),
         last_synced_by: KEEPA_MOCK ? 'cron_mock' : 'cron',
