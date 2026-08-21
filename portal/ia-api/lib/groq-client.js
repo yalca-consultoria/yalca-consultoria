@@ -10,7 +10,14 @@
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'openai/gpt-oss-120b';
-const MAX_TOKENS = 2048;
+// gpt-oss é um modelo de raciocínio: antes de responder ele gera tokens de
+// "pensamento" em inglês (campo separado `reasoning`, não aparece na
+// resposta) que contam no mesmo orçamento de max_completion_tokens. Com
+// 2048 e reasoning padrão, respostas mais longas (ex.: diagnóstico com
+// vários números) estouravam o teto e vinham cortadas no meio da frase.
+// reasoning_effort baixo + teto maior resolve.
+const MAX_TOKENS = 4096;
+const REASONING_EFFORT = 'low';
 
 function mapError(status, bodyText) {
   if (status === 401) return new Error('Chave de API do Groq inválida ou não configurada.');
@@ -27,7 +34,7 @@ async function chatStream(messages, { systemPrompt, onChunk, apiKey }) {
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: MODEL, messages: fullMessages, max_completion_tokens: MAX_TOKENS, stream: true }),
+    body: JSON.stringify({ model: MODEL, messages: fullMessages, max_completion_tokens: MAX_TOKENS, reasoning_effort: REASONING_EFFORT, stream: true }),
   });
   if (!res.ok || !res.body) throw mapError(res.status, await res.text().catch(() => ''));
 
