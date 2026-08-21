@@ -54,30 +54,50 @@
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/></svg>
         <span class="portal-nav__label">Visão Geral</span>
       </button>
-      <button class="portal-nav__item" data-section="financeiro">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.5-1.5-2-3-2s-3 .8-3 2c0 3 6 1.5 6 4.5 0 1.5-1.5 2-3 2s-3-.5-3-2"/></svg>
-        <span class="portal-nav__label">Financeiro</span>
-      </button>
-      <button class="portal-nav__item" data-section="marketplaces">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M4 9v10h16V9"/></svg>
-        <span class="portal-nav__label">Gestão de Marketplaces</span>
-      </button>
-      <button class="portal-nav__item" data-section="keepa">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <span class="portal-nav__label">Compras &amp; Concorrência</span>
-      </button>
-      <button class="portal-nav__item" data-section="precificacao">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
-        <span class="portal-nav__label">Calculadora de Preço</span>
-      </button>
-      <button class="portal-nav__item" data-section="estoque">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
-        <span class="portal-nav__label">Controle de Estoque</span>
-      </button>
-      <button class="portal-nav__item" data-section="fluxocaixa">
-        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
-        <span class="portal-nav__label">Fluxo de Caixa</span>
-      </button>
+
+      <!-- Grupos expansíveis (cabeçalho + subitens) — mesma lógica de
+           navegação do Bling: categoria com ícone/seta que revela as
+           páginas dela. Os botões internos continuam sendo
+           .portal-nav__item com data-section normal — o JS de troca de
+           seção não muda, só ganha um toggle novo pros cabeçalhos. -->
+      <div class="portal-nav__group is-open">
+        <button type="button" class="portal-nav__group-heading" data-group="financeiro" aria-expanded="true">
+          <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.5-1.5-2-3-2s-3 .8-3 2c0 3 6 1.5 6 4.5 0 1.5-1.5 2-3 2s-3-.5-3-2"/></svg>
+          <span class="portal-nav__label">Financeiro</span>
+          <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="portal-nav__group-items">
+          <button class="portal-nav__item" data-section="financeiro">
+            <span class="portal-nav__label">Receitas e despesas</span>
+          </button>
+          <button class="portal-nav__item" data-section="fluxocaixa">
+            <span class="portal-nav__label">Fluxo de Caixa</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="portal-nav__group is-open">
+        <button type="button" class="portal-nav__group-heading" data-group="marketplaces" aria-expanded="true">
+          <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M4 9v10h16V9"/></svg>
+          <span class="portal-nav__label">Marketplaces</span>
+          <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="portal-nav__group-items">
+          <button class="portal-nav__item" data-section="marketplaces">
+            <span class="portal-nav__label">Gestão de Marketplaces</span>
+          </button>
+          <button class="portal-nav__item" data-section="keepa">
+            <span class="portal-nav__label">Compras &amp; Concorrência</span>
+          </button>
+          <button class="portal-nav__item" data-section="precificacao">
+            <span class="portal-nav__label">Calculadora de Preço</span>
+          </button>
+          <button class="portal-nav__item" data-section="estoque">
+            <span class="portal-nav__label">Controle de Estoque</span>
+          </button>
+        </div>
+      </div>
+
       <button class="portal-nav__item" data-section="assistente">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
         <span class="portal-nav__label">Assistente IA</span>

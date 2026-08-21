@@ -128,6 +128,16 @@ function initSidebarNav() {
     });
   });
 
+  // Grupos expansíveis do menu (Financeiro, Marketplaces) — cabeçalho só
+  // abre/fecha o próprio grupo, não troca de seção (não tem data-section).
+  document.querySelectorAll('.portal-nav__group-heading').forEach(heading => {
+    heading.addEventListener('click', () => {
+      const group = heading.closest('.portal-nav__group');
+      const isOpen = group.classList.toggle('is-open');
+      heading.setAttribute('aria-expanded', String(isOpen));
+    });
+  });
+
   toggle.addEventListener('click', () => {
     if (sidebar.classList.contains('is-open')) closeSidebar({ returnFocus: true });
     else openSidebar();

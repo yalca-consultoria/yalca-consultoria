@@ -229,6 +229,68 @@ body.portal-body {
 }
 .portal-nav__label { min-width: 0; }
 
+/* ---------- Grupos expansíveis do menu (lógica emprestada do Bling:
+   cabeçalho com ícone + seta que revela as páginas daquela categoria) ---- */
+.portal-nav__group { display: flex; flex-direction: column; }
+.portal-nav__group-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--p-radius-sm);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.portal-nav__group-heading:hover { color: var(--text); background: var(--surface); }
+.portal-nav__chevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  transition: transform 0.2s ease;
+}
+.portal-nav__group.is-open .portal-nav__group-heading .portal-nav__chevron { transform: rotate(180deg); }
+.portal-nav__group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+/* max-height fixo generoso em vez de "auto" — CSS não anima pra auto, e o
+   conteúdo real de cada grupo é curto o bastante pra nunca estourar isso. */
+.portal-nav__group.is-open .portal-nav__group-items { max-height: 260px; }
+.portal-nav__group-items .portal-nav__item {
+  padding-left: 44px;
+  font-size: 0.88rem;
+  position: relative;
+}
+.portal-nav__group-items .portal-nav__item::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+.portal-nav__group-items .portal-nav__item.is-active::before { opacity: 0.9; background: #fff; }
+
 .portal-sidebar__footer {
   border-top: 1px solid var(--border);
   padding-top: 16px;
