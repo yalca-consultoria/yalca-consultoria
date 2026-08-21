@@ -185,7 +185,90 @@ body.portal-body {
   top: 0;
   height: 100vh;
 }
-.portal-sidebar__brand { padding: 0 8px 24px; }
+.portal-sidebar__brand { padding: 0 8px 24px; position: relative; }
+
+/* ---------- Sidebar recolhível (ícones só, inspirado no Bling) ----------
+   Só se aplica em desktop — no mobile o sidebar já usa outro mecanismo
+   (drawer off-canvas via .is-open), então o botão de recolher fica
+   escondido abaixo de 900px pra não conflitar com os dois estados. */
+.portal-sidebar__collapse-btn {
+  position: absolute;
+  top: 6px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  z-index: 10;
+  box-shadow: var(--p-shadow);
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.2s ease;
+}
+.portal-sidebar__collapse-btn:hover { color: var(--text); border-color: var(--primary-2); }
+.portal-sidebar.is-collapsed .portal-sidebar__collapse-btn { transform: rotate(180deg); }
+@media (max-width: 900px) { .portal-sidebar__collapse-btn { display: none; } }
+
+/* Regras de .is-collapsed só valem a partir de 901px — abaixo disso o
+   sidebar já é o drawer off-canvas mobile (.is-open), e o botão de
+   recolher fica escondido; sem esse guard, um .is-collapsed herdado de
+   uma sessão desktop anterior (persistido via localStorage) encolheria
+   o drawer mobile pra 76px se a janela for redimensionada sem F5. */
+@media (min-width: 901px) {
+  .portal-sidebar.is-collapsed { width: 76px; padding-left: 12px; padding-right: 12px; }
+  .portal-sidebar.is-collapsed .portal-sidebar__brand { display: flex; justify-content: center; padding: 0 0 24px; }
+  .portal-sidebar.is-collapsed .portal-sidebar__brand .logo { font-size: 0; }
+  .portal-sidebar.is-collapsed .portal-sidebar__brand .logo::before {
+    content: "Y"; font-size: 1.3rem; font-family: var(--font-heading); font-weight: 800; color: var(--text);
+  }
+  .portal-sidebar.is-collapsed .portal-nav__label,
+  .portal-sidebar.is-collapsed .portal-nav__chevron { display: none; }
+  .portal-sidebar.is-collapsed .portal-nav__item,
+  .portal-sidebar.is-collapsed .portal-nav__group-heading {
+    justify-content: center;
+    padding: 12px 8px;
+  }
+  /* Grupos viram flyout: no rail recolhido não tem espaço pra empurrar a
+     lista de subitens pra baixo do cabeçalho, então ela vira um painel
+     flutuante ao lado — mesma lógica visual do rail colapsado do Bling. */
+  .portal-sidebar.is-collapsed .portal-nav__group { position: relative; }
+  .portal-sidebar.is-collapsed .portal-nav__group-items {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 0;
+    max-height: none;
+    width: 230px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top-color: var(--p-edge-light);
+    border-radius: var(--p-radius-sm);
+    padding: 8px;
+    box-shadow: var(--p-shadow-lg);
+    z-index: 70;
+    display: none;
+  }
+  .portal-sidebar.is-collapsed .portal-nav__group.is-open .portal-nav__group-items { display: flex; }
+  .portal-sidebar.is-collapsed .portal-nav__group-items .portal-nav__label { display: inline; }
+  .portal-sidebar.is-collapsed .portal-nav__group-items .portal-nav__item {
+    justify-content: flex-start;
+    padding-left: 14px;
+  }
+  .portal-sidebar.is-collapsed .portal-nav__group-items .portal-nav__item::before { left: 14px; }
+
+  /* Rodapé (avatar/nome, restaurar dados, sair): só o avatar sobra visível
+     quando recolhido — os botões de texto ficam escondidos até expandir
+     de novo, pra não espremer texto num rail de 76px. */
+  .portal-sidebar.is-collapsed .portal-user { justify-content: center; padding: 8px 0; background: none; border: none; }
+  .portal-sidebar.is-collapsed .portal-user__name,
+  .portal-sidebar.is-collapsed .portal-user__role,
+  .portal-sidebar.is-collapsed .reset-demo,
+  .portal-sidebar.is-collapsed #logoutBtn { display: none; }
+}
 .portal-nav {
   display: flex;
   flex-direction: column;
@@ -406,6 +489,45 @@ body.portal-body {
 
 .section-intro p { max-width: 640px; }
 
+/* ---------- Barra de filtro de período + comparação (estilo Bling) ---------- */
+.period-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
+  padding: 18px 22px;
+  box-shadow: var(--p-shadow);
+}
+.period-filter-bar .field { gap: 4px; }
+.period-filter-bar .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.period-filter-bar .field input[type="date"] { min-width: 168px; }
+.period-filter-bar__actions { margin-left: auto; }
+
+/* ---------- Barra de situação empilhada (ex: distribuição de estoque) ---------- */
+.status-stack {
+  display: flex;
+  height: 34px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.status-stack__seg { min-width: 3px; transition: width 0.3s ease; }
+.status-stack__legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.status-stack__legend-item { display: flex; align-items: center; gap: 7px; }
+.status-stack__legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
 /* ---------- KPI cards ---------- */
 /* Colunas fixas por faixa de largura, não auto-fit: com auto-fit o número
    de colunas dependia da largura exata do container em cada tela, então
@@ -476,6 +598,27 @@ body.portal-body {
 .kpi-card__delta.up { color: var(--good); }
 .kpi-card__delta.down { color: var(--critical); }
 .kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4; }
+
+/* ---------- Barra de progresso do card (estilo Bling: mostra o quanto do
+   período de comparação já foi atingido) ---------- */
+.kpi-card__progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.kpi-card__progress-fill { height: 100%; border-radius: 999px; background: var(--gradient); transition: width 0.3s ease; }
+.kpi-card__progress-fill.is-negative { background: var(--critical); }
+.kpi-card__compare {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
 
 /* KPI de destaque (1ª de cada grade) — só ela carrega o gradiente da marca.
    Mesmo tamanho que os outros cards (não usa grid-column:span — ver nota
@@ -1004,6 +1147,11 @@ body.portal-body {
   .portal-content { padding: 16px; gap: 20px; }
   .panel { padding: 18px; }
   .demo-banner { font-size: 0.72rem; padding: 6px 10px; }
+
+  .period-filter-bar { padding: 14px 16px; gap: 14px; }
+  .period-filter-bar .field input[type="date"] { min-width: 0; width: 100%; }
+  .period-filter-bar__actions { margin-left: 0; width: 100%; }
+  .period-filter-bar__actions .btn { width: 100%; }
 
   /* KPIs: 2 colunas em vez de empilhar tudo — chega no gráfico mais rápido.
      O tamanho da fonte do valor não precisa de override aqui: o

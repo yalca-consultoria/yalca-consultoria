@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initModals();
   populateMarketplaceSelects();
   bindGlobalActions();
+  initOverviewPeriodFilter();
   initPricingCalculator();
   initKeepaSection();
   initIaSection();
@@ -125,6 +126,10 @@ function initSidebarNav() {
       sections.forEach(s => s.classList.toggle('is-active', s.dataset.section === target));
       title.textContent = item.querySelector('.portal-nav__label').textContent;
       if (isMobileDrawer()) closeSidebar();
+      if (sidebar.classList.contains('is-collapsed')) {
+        const group = item.closest('.portal-nav__group');
+        if (group) { group.classList.remove('is-open'); group.querySelector('.portal-nav__group-heading').setAttribute('aria-expanded', 'false'); }
+      }
     });
   });
 
@@ -162,6 +167,41 @@ function initSidebarNav() {
     } else if (!e.shiftKey && document.activeElement === last) {
       e.preventDefault(); first.focus();
     }
+  });
+
+  /* --------------------------------------------------------------
+     Sidebar recolhível (só desktop) — rail de ícones + flyout pros
+     grupos, mesma lógica visual do menu colapsado do Bling. Estado
+     persistido pra sobreviver a um F5 no meio do expediente.
+     -------------------------------------------------------------- */
+  const collapseBtn = document.getElementById('portalSidebarCollapseBtn');
+  const SIDEBAR_COLLAPSE_KEY = 'yalcaSidebarCollapsed';
+
+  function closeAllGroupFlyouts() {
+    document.querySelectorAll('.portal-nav__group.is-open').forEach(g => {
+      g.classList.remove('is-open');
+      g.querySelector('.portal-nav__group-heading').setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function setCollapsed(collapsed) {
+    sidebar.classList.toggle('is-collapsed', collapsed);
+    collapseBtn.setAttribute('aria-expanded', String(!collapsed));
+    closeAllGroupFlyouts();
+    try { localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? '1' : '0'); } catch { /* localStorage indisponível — sem persistência, sem quebra */ }
+  }
+
+  collapseBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('is-collapsed')));
+
+  try {
+    if (!isMobileDrawer() && localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === '1') setCollapsed(true);
+  } catch { /* localStorage indisponível — abre expandido, comportamento padrão */ }
+
+  // Fecha o flyout de um grupo ao clicar fora dele (sidebar recolhida).
+  document.addEventListener('click', (e) => {
+    if (!sidebar.classList.contains('is-collapsed')) return;
+    if (e.target.closest('.portal-nav__group')) return;
+    closeAllGroupFlyouts();
   });
 }
 
@@ -268,51 +308,166 @@ function populateMarketplaceSelects() {
 
 /* ============================================================
    VISÃO GERAL
+   Estilo Bling: filtro de período + período de comparação, KPIs
+   com barra de progresso e variação % real contra o período
+   anterior, gráfico com as duas janelas sobrepostas por dia/semana.
    ============================================================ */
-function renderOverview() {
-  const monthly = yalcaGroupTransactionsByMonth(DATA.transactions);
+let OVERVIEW_PERIOD = null;
 
-  if (monthly.length === 0) {
-    const stockAlerts = DATA.products.filter(p => ['Esgotado', 'Baixo'].includes(yalcaStockStatus(p)));
-    renderKpiGrid('overviewKpis', [
-      { label: 'Faturamento', value: yalcaFormatCurrency(0), delta: null, hint: 'nenhum lançamento ainda' },
-      { label: 'Lucro líquido do mês', value: yalcaFormatCurrency(0), delta: null },
-      { label: 'Margem líquida', value: '—', delta: null },
-      { label: 'Estoque em alerta', value: stockAlerts.length, delta: null, hint: 'produtos baixos ou esgotados' },
-      { label: 'Saldo em caixa', value: yalcaFormatCurrency(DATA.settings.cashBalance), delta: null, hint: 'cadastre lançamentos para projetar' }
-    ]);
-    document.getElementById('overviewTrendChart').innerHTML = '<p class="alert-empty">Cadastre seus lançamentos em "Financeiro" (ou clique em "Carregar dados de exemplo" no menu lateral) para ver o gráfico aqui.</p>';
-    renderOverviewAlerts();
-    return;
+function isoDateLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function defaultOverviewPeriod() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const compareStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const compareEnd = new Date(now.getFullYear(), now.getMonth(), 0); // último dia do mês anterior
+  return { start: isoDateLocal(start), end: isoDateLocal(now), compareStart: isoDateLocal(compareStart), compareEnd: isoDateLocal(compareEnd) };
+}
+
+function initOverviewPeriodFilter() {
+  OVERVIEW_PERIOD = defaultOverviewPeriod();
+  document.getElementById('overviewPeriodStart').value = OVERVIEW_PERIOD.start;
+  document.getElementById('overviewPeriodEnd').value = OVERVIEW_PERIOD.end;
+  document.getElementById('overviewComparePeriodStart').value = OVERVIEW_PERIOD.compareStart;
+  document.getElementById('overviewComparePeriodEnd').value = OVERVIEW_PERIOD.compareEnd;
+
+  document.getElementById('overviewApplyPeriodBtn').addEventListener('click', () => {
+    const start = document.getElementById('overviewPeriodStart').value;
+    const end = document.getElementById('overviewPeriodEnd').value;
+    const compareStart = document.getElementById('overviewComparePeriodStart').value;
+    const compareEnd = document.getElementById('overviewComparePeriodEnd').value;
+    if (!start || !end || !compareStart || !compareEnd) { alert('Preencha as datas de início e fim dos dois períodos.'); return; }
+    if (start > end || compareStart > compareEnd) { alert('Em cada período, a data final deve ser igual ou posterior à inicial.'); return; }
+    OVERVIEW_PERIOD = { start, end, compareStart, compareEnd };
+    renderOverview();
+  });
+}
+
+function pctDelta(curr, prev) {
+  if (prev === 0) return curr === 0 ? null : 100;
+  return ((curr - prev) / Math.abs(prev)) * 100;
+}
+function progressOf(curr, prev) {
+  if (prev <= 0) return curr > 0 ? 100 : 0;
+  return (curr / prev) * 100;
+}
+
+// Agrega receita por dia (ou por semana, se o período passar de 31 dias —
+// dia a dia num período de meses viraria um gráfico ilegível) dentro da
+// janela [startStr, endStr]. bucketDays vem junto pro rótulo do eixo X
+// bater com a granularidade escolhida.
+function bucketedRevenue(transactions, startStr, endStr) {
+  const start = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr + 'T00:00:00');
+  const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+  const bucketDays = totalDays > 31 ? 7 : 1;
+  const bucketCount = Math.ceil(totalDays / bucketDays);
+  const byDate = new Map();
+  transactions.forEach(t => {
+    if (t.type !== 'receita') return;
+    byDate.set(t.date, (byDate.get(t.date) || 0) + Number(t.amount));
+  });
+  const buckets = new Array(bucketCount).fill(0);
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    buckets[Math.floor(i / bucketDays)] += byDate.get(isoDateLocal(d)) || 0;
   }
+  return { buckets, bucketDays };
+}
 
-  const current = monthly[monthly.length - 1];
-  const lucroAtual = current.receita - current.despesa;
-  const margemAtual = current.receita > 0 ? (lucroAtual / current.receita) * 100 : 0;
+function renderOverview() {
+  if (!OVERVIEW_PERIOD) OVERVIEW_PERIOD = defaultOverviewPeriod();
+  const { start, end, compareStart, compareEnd } = OVERVIEW_PERIOD;
+
+  const currentTx = DATA.transactions.filter(t => t.date >= start && t.date <= end);
+  const compareTx = DATA.transactions.filter(t => t.date >= compareStart && t.date <= compareEnd);
+  const sum = (txs, type) => txs.filter(t => t.type === type).reduce((a, t) => a + Number(t.amount), 0);
+
+  const receitaAtual = sum(currentTx, 'receita');
+  const despesaAtual = sum(currentTx, 'despesa');
+  const lucroAtual = receitaAtual - despesaAtual;
+  const margemAtual = receitaAtual > 0 ? (lucroAtual / receitaAtual) * 100 : 0;
+
+  const receitaAnterior = sum(compareTx, 'receita');
+  const despesaAnterior = sum(compareTx, 'despesa');
+  const lucroAnterior = receitaAnterior - despesaAnterior;
+  const margemAnterior = receitaAnterior > 0 ? (lucroAnterior / receitaAnterior) * 100 : 0;
 
   const stockAlerts = DATA.products.filter(p => ['Esgotado', 'Baixo'].includes(yalcaStockStatus(p)));
   const cashflow = computeCashflowProjection();
   const nextMonthBalance = cashflow.projection[0];
 
-  const kpis = [
-    { label: `Faturamento (${yalcaMonthLabel(current.key + '-01')})`, value: yalcaFormatCurrency(current.receita), delta: null, hint: 'mês em andamento — total parcial' },
-    { label: 'Lucro líquido do mês', value: yalcaFormatCurrency(lucroAtual), delta: null, hint: `Margem de ${margemAtual.toFixed(1)}%` },
-    { label: 'Margem líquida', value: `${margemAtual.toFixed(1)}%`, delta: null, hint: 'Receita menos todos os custos' },
-    { label: 'Estoque em alerta', value: stockAlerts.length, delta: null, hint: 'produtos baixos ou esgotados' },
-    { label: 'Saldo projetado (próx. mês)', value: yalcaFormatCurrency(nextMonthBalance.saldo), delta: null, hint: yalcaMonthLabel(nextMonthBalance.key + '-01') }
-  ];
-  renderKpiGrid('overviewKpis', kpis);
+  const hasAnyData = currentTx.length > 0 || compareTx.length > 0;
 
-  const last6 = monthly.slice(-6);
-  yalcaRenderLineChart(document.getElementById('overviewTrendChart'), {
-    series: [
-      { name: 'Faturamento', color: YALCA_COLORS.series1, data: last6.map(m => ({ label: yalcaMonthLabel(m.key + '-01'), value: m.receita })) },
-      { name: 'Custo total', color: YALCA_COLORS.series2, data: last6.map(m => ({ label: yalcaMonthLabel(m.key + '-01'), value: m.despesa })) }
-    ],
-    formatValue: (v) => yalcaFormatCurrency(v)
-  });
+  renderKpiGrid('overviewKpis', [
+    {
+      label: 'Faturamento no período', value: yalcaFormatCurrency(receitaAtual),
+      delta: hasAnyData ? pctDelta(receitaAtual, receitaAnterior) : null,
+      progress: hasAnyData ? progressOf(receitaAtual, receitaAnterior) : null,
+      compareValue: hasAnyData ? `${yalcaFormatCurrency(receitaAnterior)} no período anterior` : null,
+      hint: hasAnyData ? null : 'cadastre lançamentos para ver aqui'
+    },
+    {
+      label: 'Lucro líquido', value: yalcaFormatCurrency(lucroAtual),
+      delta: hasAnyData ? pctDelta(lucroAtual, lucroAnterior) : null,
+      progress: hasAnyData ? progressOf(lucroAtual, lucroAnterior) : null,
+      compareValue: hasAnyData ? `${yalcaFormatCurrency(lucroAnterior)} no período anterior` : null
+    },
+    { label: 'Margem líquida', value: hasAnyData ? `${margemAtual.toFixed(1)}%` : '—', hint: hasAnyData ? `Período anterior: ${margemAnterior.toFixed(1)}%` : 'Receita menos todos os custos' },
+    { label: 'Estoque em alerta', value: stockAlerts.length, hint: 'produtos baixos ou esgotados' },
+    { label: 'Saldo projetado (próx. mês)', value: yalcaFormatCurrency(nextMonthBalance.saldo), hint: yalcaMonthLabel(nextMonthBalance.key + '-01') }
+  ]);
+
+  const chartEl = document.getElementById('overviewTrendChart');
+  if (!hasAnyData) {
+    chartEl.innerHTML = '<p class="alert-empty">Cadastre seus lançamentos em "Financeiro" (ou clique em "Carregar dados de exemplo" no menu lateral) para ver o gráfico aqui.</p>';
+  } else {
+    const curBuckets = bucketedRevenue(currentTx, start, end);
+    const cmpBuckets = bucketedRevenue(compareTx, compareStart, compareEnd);
+    const len = Math.max(curBuckets.buckets.length, cmpBuckets.buckets.length);
+    const unitLabel = curBuckets.bucketDays > 1 ? 'Sem' : 'Dia';
+    const labels = Array.from({ length: len }, (_, i) => `${unitLabel} ${i + 1}`);
+    yalcaRenderLineChart(chartEl, {
+      series: [
+        { name: 'Período atual', color: YALCA_COLORS.series1, data: labels.map((label, i) => ({ label, value: curBuckets.buckets[i] || 0 })) },
+        { name: 'Período anterior', color: YALCA_COLORS.series2, data: labels.map((label, i) => ({ label, value: cmpBuckets.buckets[i] || 0 })) }
+      ],
+      formatValue: (v) => yalcaFormatCurrency(v)
+    });
+  }
 
   renderOverviewAlerts();
+  renderOverviewChannelChart(currentTx);
+  renderOverviewTopProducts();
+}
+
+function renderOverviewChannelChart(currentTx) {
+  const el = document.getElementById('overviewChannelChart');
+  const data = MARKETPLACES
+    .map(mk => ({ label: mk, value: currentTx.filter(t => t.type === 'receita' && t.marketplace === mk).reduce((a, t) => a + Number(t.amount), 0), color: YALCA_MARKETPLACE_COLOR[mk] }))
+    .filter(d => d.value > 0);
+  if (data.length === 0) {
+    el.innerHTML = '<p class="alert-empty">Sem receita registrada no período selecionado.</p>';
+    return;
+  }
+  yalcaRenderBarChart(el, { data, formatValue: (v) => yalcaFormatCurrency(v) });
+}
+
+function renderOverviewTopProducts() {
+  const tbody = document.getElementById('overviewTopProductsBody');
+  const top = [...DATA.products].sort((a, b) => b.unitsSoldMonth - a.unitsSoldMonth).slice(0, 10);
+  if (top.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="alert-empty">Nenhum produto cadastrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = top.map(p => `
+    <tr>
+      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
+      <td data-label="Marketplace"><div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div></td>
+      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
+    </tr>`).join('');
 }
 
 function renderOverviewAlerts() {
@@ -347,15 +502,31 @@ function renderAlertList(container, alerts) {
     </div>`).join('');
 }
 
+// progress (0-100, pode ser negativo pra indicar queda) e compareValue são
+// opcionais — só a Visão Geral usa (barra de progresso + comparação com o
+// período anterior, estilo Bling); as demais seções continuam passando só
+// {label, value, delta, hint} e renderizam exatamente como antes.
 function renderKpiGrid(containerId, kpis) {
   const el = document.getElementById(containerId);
-  el.innerHTML = kpis.map(k => `
+  el.innerHTML = kpis.map(k => {
+    const hasDelta = k.delta !== null && k.delta !== undefined;
+    const hasCompareRow = hasDelta || k.compareValue;
+    return `
     <div class="kpi-card">
       <div class="kpi-card__label">${yalcaEscapeHtml(k.label)}</div>
       <div class="kpi-card__value">${k.value}</div>
-      ${k.delta !== null ? `<div class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</div>` : ''}
+      ${k.progress !== undefined && k.progress !== null ? `
+      <div class="kpi-card__progress">
+        <div class="kpi-card__progress-fill ${k.progress < 0 ? 'is-negative' : ''}" style="width:${Math.max(0, Math.min(100, Math.abs(k.progress)))}%"></div>
+      </div>` : ''}
+      ${hasCompareRow ? `
+      <div class="kpi-card__compare">
+        <span>${hasDelta ? `<span class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</span>` : ''}</span>
+        ${k.compareValue ? `<span>${yalcaEscapeHtml(k.compareValue)}</span>` : ''}
+      </div>` : ''}
       ${k.hint ? `<div class="kpi-card__hint">${yalcaEscapeHtml(k.hint)}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ============================================================
@@ -1134,6 +1305,35 @@ function openSaveAsProduct(marketplace, price, cost) {
   openModal('productModal');
 }
 
+const STOCK_STATUS_VISUALS = {
+  OK: { color: 'var(--good)', badge: 'badge--ok' },
+  Baixo: { color: 'var(--warning)', badge: 'badge--baixo' },
+  Esgotado: { color: 'var(--critical)', badge: 'badge--esgotado' },
+  Parado: { color: 'var(--serious)', badge: 'badge--parado' }
+};
+
+function renderStockStatusStack(withStatus) {
+  const stack = document.getElementById('stockStatusStack');
+  const legend = document.getElementById('stockStatusLegend');
+  const total = withStatus.length;
+  if (total === 0) {
+    stack.innerHTML = '';
+    legend.innerHTML = '<p class="alert-empty">Nenhum produto cadastrado.</p>';
+    return;
+  }
+  const counts = { OK: 0, Baixo: 0, Esgotado: 0, Parado: 0 };
+  withStatus.forEach(p => { counts[p.status_calc] = (counts[p.status_calc] || 0) + 1; });
+
+  stack.innerHTML = Object.entries(counts).filter(([, n]) => n > 0).map(([status, n]) => {
+    const pct = (n / total) * 100;
+    return `<div class="status-stack__seg" style="width:${pct}%; background:${STOCK_STATUS_VISUALS[status].color};" title="${status}: ${n} produto(s) (${pct.toFixed(1)}%)"></div>`;
+  }).join('');
+
+  legend.innerHTML = Object.entries(counts).filter(([, n]) => n > 0).map(([status, n]) => `
+    <span class="status-stack__legend-item"><span class="status-stack__legend-swatch" style="background:${STOCK_STATUS_VISUALS[status].color}"></span>${status}: <strong style="color:var(--text);">${n}</strong> (${((n / total) * 100).toFixed(1)}%)</span>
+  `).join('');
+}
+
 /* ============================================================
    CONTROLE DE ESTOQUE
    ============================================================ */
@@ -1153,6 +1353,8 @@ function renderEstoque() {
     { label: 'Estoque parado', value: parado.length, delta: null },
     { label: 'Capital parado em estoque', value: yalcaFormatCurrency(valorParado), delta: null, hint: 'custo × unidades de itens parados' }
   ]);
+
+  renderStockStatusStack(withStatus);
 
   const alerts = [];
   withStatus.filter(p => p.status_calc === 'Esgotado').forEach(p =>

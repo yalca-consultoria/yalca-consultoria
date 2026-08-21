@@ -45,6 +45,7 @@
 
   <!-- SIDEBAR -->
   <aside class="portal-sidebar" id="portalSidebar">
+    <button type="button" class="portal-sidebar__collapse-btn" id="portalSidebarCollapseBtn" aria-label="Recolher menu" aria-expanded="true">‹</button>
     <div class="portal-sidebar__brand">
       <a href="../index.html" class="logo">Yalca<span>.</span></a>
     </div>
@@ -141,14 +142,36 @@
           <p>Resumo do seu negócio com base nos lançamentos financeiros e no estoque cadastrado.</p>
         </div>
 
+        <div class="period-filter-bar">
+          <div class="field">
+            <label for="overviewPeriodStart">Período</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="date" id="overviewPeriodStart">
+              <span style="color:var(--text-muted);">até</span>
+              <input type="date" id="overviewPeriodEnd">
+            </div>
+          </div>
+          <div class="field">
+            <label for="overviewComparePeriodStart">Período de comparação</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="date" id="overviewComparePeriodStart">
+              <span style="color:var(--text-muted);">até</span>
+              <input type="date" id="overviewComparePeriodEnd">
+            </div>
+          </div>
+          <div class="period-filter-bar__actions">
+            <button type="button" class="btn btn--primary btn--sm" id="overviewApplyPeriodBtn">Visualizar</button>
+          </div>
+        </div>
+
         <div class="kpi-grid" id="overviewKpis"></div>
 
         <div class="grid-2">
           <div class="panel chart-card">
             <div class="panel__head">
               <div>
-                <h3>Faturamento x Custo (últimos 6 meses)</h3>
-                <p>Como a receita e o custo total evoluíram mês a mês.</p>
+                <h3 id="overviewTrendTitle">Faturamento — período atual x anterior</h3>
+                <p>Período atual comparado ao período anterior selecionado acima.</p>
               </div>
             </div>
             <div id="overviewTrendChart"></div>
@@ -162,6 +185,33 @@
               </div>
             </div>
             <div class="alert-list" id="overviewAlerts"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel chart-card">
+            <div class="panel__head">
+              <div>
+                <h3>Faturamento por canal no período</h3>
+                <p>Quais marketplaces mais venderam na janela selecionada.</p>
+              </div>
+            </div>
+            <div id="overviewChannelChart"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Top 10 produtos mais vendidos</h3>
+                <p>Por unidades vendidas/mês, considerando todos os canais.</p>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table data-table--cards">
+                <thead><tr><th>Produto</th><th>Marketplace</th><th class="num">Vendidos/mês</th></tr></thead>
+                <tbody id="overviewTopProductsBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -481,6 +531,12 @@
         </div>
 
         <div class="kpi-grid" id="stockKpis"></div>
+
+        <div class="panel">
+          <div class="panel__head"><div><h3>Situação do estoque</h3><p>Proporção de produtos em cada status.</p></div></div>
+          <div class="status-stack" id="stockStatusStack"></div>
+          <div class="status-stack__legend" id="stockStatusLegend"></div>
+        </div>
 
         <div class="grid-2">
           <div class="panel">
