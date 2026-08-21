@@ -66,6 +66,40 @@ function yalcaAxisLeftPad(niceMax, steps, formatValue) {
   return Math.max(46, Math.min(96, Math.ceil(widest * CHAR_WIDTH) + 14));
 }
 
+// Quantas linhas a visão "Ver como tabela" mostra de cara — o resto fica
+// atrás de um botão "Ver mais", pra uma série de 90+ pontos (ex: histórico
+// de preço) não virar uma tabela gigantesca por padrão.
+const CHART_TABLE_PAGE_SIZE = 10;
+
+// rowsHtml: array de strings "<tr>...</tr>", uma por linha (não já
+// concatenado) — precisa vir separado pra poder fatiar em "visíveis" e
+// "escondidas". Devolve o HTML de duas <tbody> (uma tabela pode ter
+// várias, é válido) mais o botão de expandir, se houver linhas escondidas.
+function yalcaBuildPagedTableRows(rowsHtml) {
+  if (rowsHtml.length <= CHART_TABLE_PAGE_SIZE) {
+    return { tbodyHtml: `<tbody>${rowsHtml.join('')}</tbody>`, toggleHtml: '' };
+  }
+  const visible = rowsHtml.slice(0, CHART_TABLE_PAGE_SIZE).join('');
+  const hidden = rowsHtml.slice(CHART_TABLE_PAGE_SIZE).join('');
+  const remaining = rowsHtml.length - CHART_TABLE_PAGE_SIZE;
+  const tbodyHtml = `<tbody>${visible}</tbody><tbody class="chart-table-extra" style="display:none;">${hidden}</tbody>`;
+  const toggleHtml = `<button type="button" class="table-view-toggle chart-table-expand" data-more-label="Ver mais ${remaining} linha${remaining > 1 ? 's' : ''}" data-less-label="Ver menos">Ver mais ${remaining} linha${remaining > 1 ? 's' : ''}</button>`;
+  return { tbodyHtml, toggleHtml };
+}
+
+// Liga o clique do botão "Ver mais"/"Ver menos" dentro de um container que
+// já tem a tabela paginada montada (chamar depois de container.innerHTML=...).
+function yalcaWireTableExpand(container) {
+  const btn = container.querySelector('.chart-table-expand');
+  if (!btn) return;
+  const extra = container.querySelector('.chart-table-extra');
+  btn.addEventListener('click', () => {
+    const showing = extra.style.display !== 'none';
+    extra.style.display = showing ? 'none' : '';
+    btn.textContent = showing ? btn.dataset.moreLabel : btn.dataset.lessLabel;
+  });
+}
+
 function yalcaMakeTooltip(wrap) {
   let tip = wrap.querySelector('.chart-tooltip');
   if (!tip) {
@@ -182,16 +216,17 @@ function yalcaRenderCategoricalLineChart(container, opts) {
 
   const tableRows = labels.map((label, i) =>
     `<tr><td>${yalcaEscapeHtml(label)}</td>${series.map(s => `<td class="num">${formatValue(s.data[i].value)}</td>`).join('')}</tr>`
-  ).join('');
+  );
+  const { tbodyHtml, toggleHtml } = yalcaBuildPagedTableRows(tableRows);
   const tableHtml = `<div class="table-scroll chart-table-view">
     <table class="data-table"><thead><tr><th>Período</th>${series.map(s => `<th class="num">${yalcaEscapeHtml(s.name)}</th>`).join('')}</tr></thead>
-    <tbody>${tableRows}</tbody></table></div>`;
+    ${tbodyHtml}</table>${toggleHtml}</div>`;
 
   const startAsTable = yalcaIsMobileChart();
   container.innerHTML = `
     <div class="chart-card">
       ${legend}
-      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
+      <button type="button" class="table-view-toggle" data-role="view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
       ${tableHtml}
       <div class="chart-wrap">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de linha">
@@ -219,13 +254,14 @@ function yalcaRenderCategoricalLineChart(container, opts) {
     hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
   });
 
-  const toggleBtn = container.querySelector('.table-view-toggle');
+  const toggleBtn = container.querySelector('[data-role="view-toggle"]');
   const tableView = container.querySelector('.chart-table-view');
   if (startAsTable) tableView.classList.add('is-visible');
   toggleBtn.addEventListener('click', () => {
     const showing = tableView.classList.toggle('is-visible');
     toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
   });
+  yalcaWireTableExpand(container);
 }
 
 // Formato compacto (dd/mm/aa) pro eixo de um gráfico de linha do tempo —
@@ -322,16 +358,17 @@ function yalcaRenderTimeLineChart(container, opts) {
       const v = valueAtOrBefore(s, dateStr);
       return `<td class="num">${v !== null ? formatValue(v) : '—'}</td>`;
     }).join('')}</tr>`
-  ).join('');
+  );
+  const { tbodyHtml, toggleHtml } = yalcaBuildPagedTableRows(tableRows);
   const tableHtml = `<div class="table-scroll chart-table-view">
     <table class="data-table"><thead><tr><th>Data</th>${series.map(s => `<th class="num">${yalcaEscapeHtml(s.name)}</th>`).join('')}</tr></thead>
-    <tbody>${tableRows}</tbody></table></div>`;
+    ${tbodyHtml}</table>${toggleHtml}</div>`;
 
   const startAsTable = yalcaIsMobileChart();
   container.innerHTML = `
     <div class="chart-card">
       ${legend}
-      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
+      <button type="button" class="table-view-toggle" data-role="view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
       ${tableHtml}
       <div class="chart-wrap">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de linha do tempo">
@@ -361,13 +398,14 @@ function yalcaRenderTimeLineChart(container, opts) {
     hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
   });
 
-  const toggleBtn = container.querySelector('.table-view-toggle');
+  const toggleBtn = container.querySelector('[data-role="view-toggle"]');
   const tableView = container.querySelector('.chart-table-view');
   if (startAsTable) tableView.classList.add('is-visible');
   toggleBtn.addEventListener('click', () => {
     const showing = tableView.classList.toggle('is-visible');
     toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
   });
+  yalcaWireTableExpand(container);
 }
 
 /**
@@ -411,15 +449,16 @@ function yalcaRenderBarChart(container, opts) {
       <text x="${x + barW / 2}" y="${H - 10}" font-size="13" text-anchor="middle">${labelHtml}</text>`;
   }).join('');
 
-  const tableRows = data.map(d => `<tr><td>${yalcaEscapeHtml(d.label)}</td><td class="num">${formatValue(d.value)}</td></tr>`).join('');
+  const tableRows = data.map(d => `<tr><td>${yalcaEscapeHtml(d.label)}</td><td class="num">${formatValue(d.value)}</td></tr>`);
+  const { tbodyHtml, toggleHtml } = yalcaBuildPagedTableRows(tableRows);
   const tableHtml = `<div class="table-scroll chart-table-view">
     <table class="data-table"><thead><tr><th>Categoria</th><th class="num">Valor</th></tr></thead>
-    <tbody>${tableRows}</tbody></table></div>`;
+    ${tbodyHtml}</table>${toggleHtml}</div>`;
 
   const startAsTable = yalcaIsMobileChart();
   container.innerHTML = `
     <div class="chart-card">
-      <button type="button" class="table-view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
+      <button type="button" class="table-view-toggle" data-role="view-toggle">${startAsTable ? 'Ver como gráfico' : 'Ver como tabela'}</button>
       ${tableHtml}
       <div class="chart-wrap">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gráfico de barras">
@@ -445,13 +484,14 @@ function yalcaRenderBarChart(container, opts) {
     hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
   });
 
-  const toggleBtn = container.querySelector('.table-view-toggle');
+  const toggleBtn = container.querySelector('[data-role="view-toggle"]');
   const tableView = container.querySelector('.chart-table-view');
   if (startAsTable) tableView.classList.add('is-visible');
   toggleBtn.addEventListener('click', () => {
     const showing = tableView.classList.toggle('is-visible');
     toggleBtn.textContent = showing ? 'Ver como gráfico' : 'Ver como tabela';
   });
+  yalcaWireTableExpand(container);
 }
 
 /**

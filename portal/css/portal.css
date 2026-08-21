@@ -970,6 +970,13 @@ body.portal-body {
   padding: 0;
   text-decoration: underline;
 }
+/* Botão "Ver mais" dentro da tabela (não é filho direto do .chart-card
+   flex, então align-self acima não vale pra ele) — precisa do próprio
+   espaçamento e virar bloco pra não ficar colado embaixo da tabela. */
+.chart-table-expand {
+  display: block;
+  margin-top: 10px;
+}
 .chart-table-view { display: none; }
 .chart-table-view.is-visible { display: block; }
 .chart-table-view.is-visible + .chart-wrap { display: none; }
