@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Yalca Portal — API Node pra IA. Testado self-hosted (DeepSeek R1,
-// Qwen2.5) via Ollama local na VPS antes disso — trocado pra API da
-// Claude (Anthropic) depois de reclamação de demora/qualidade real do
-// usuário. Modelo claude-haiku-4-5 (mais barato da Claude), cobrado na
-// conta Anthropic do próprio usuário — ver lib/claude-client.js.
+// Qwen2.5) via Ollama local na VPS antes disso — trocado pra API do Groq
+// (modelo llama-3.3-70b-versatile) depois de reclamação de demora real
+// do usuário e do pedido explícito de zero custo. Groq é a API mais
+// rápida do mercado hoje (hardware próprio, LPU) e o tier grátis (1.000
+// requisições/dia) não precisa de cartão de crédito — ver lib/groq-client.js.
 //
 // Quatro rotas:
 //   POST /assistant   — só admin do portal Yalca: chat livre.
@@ -25,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { makeRestClient } = require('./lib/rest-client');
 const { makeAuthClient } = require('./lib/auth');
-const { chatStream } = require('./lib/claude-client');
+const { chatStream } = require('./lib/groq-client');
 const { buildDiagnosticPrompt } = require('./lib/diagnostic-builder');
 
 function loadEnv(envPath) {
@@ -46,7 +47,7 @@ const PORT = Number(env.PORT || 3002);
 const SUPABASE_URL = env.SUPABASE_URL || 'https://api.yalca.com.br';
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = env.SUPABASE_ANON_KEY;
-const ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
+const GROQ_API_KEY = env.GROQ_API_KEY;
 // Duas origens diferentes chamam essa API: o portal da Yalca (/assistant,
 // /diagnostico, /suporte) e o painel pessoal (/chat) — cada uma só pode
 // receber SEU PRÓPRIO Access-Control-Allow-Origin de volta, nunca as duas
@@ -69,8 +70,8 @@ if (!SERVICE_ROLE_KEY || !ANON_KEY) {
   console.error('SUPABASE_SERVICE_ROLE_KEY e/ou SUPABASE_ANON_KEY não configuradas em .env — abortando.');
   process.exit(1);
 }
-if (!ANTHROPIC_API_KEY) {
-  console.error('ANTHROPIC_API_KEY não configurada em .env — abortando.');
+if (!GROQ_API_KEY) {
+  console.error('GROQ_API_KEY não configurada em .env — abortando.');
   process.exit(1);
 }
 
@@ -115,7 +116,7 @@ async function streamChatResponse(res, messages, systemPrompt) {
   try {
     const full = await chatStream(messages, {
       systemPrompt,
-      apiKey: ANTHROPIC_API_KEY,
+      apiKey: GROQ_API_KEY,
       onChunk: (piece) => res.write(piece),
     });
     res.end();
