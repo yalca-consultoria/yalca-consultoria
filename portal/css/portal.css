@@ -502,9 +502,11 @@ body.portal-body {
   padding: 18px 22px;
   box-shadow: var(--p-shadow);
 }
-.period-filter-bar .field { gap: 4px; }
+.period-filter-bar .field { gap: 4px; min-width: 0; }
 .period-filter-bar .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.period-filter-bar .field input[type="date"] { min-width: 168px; }
+.period-filter-bar__range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.period-filter-bar__sep { color: var(--text-muted); flex-shrink: 0; }
+.period-filter-bar .field input[type="date"] { min-width: 150px; }
 .period-filter-bar__actions { margin-left: auto; }
 
 /* ---------- Barra de situação empilhada (ex: distribuição de estoque) ---------- */
@@ -546,6 +548,11 @@ body.portal-body {
 }
 .kpi-card {
   position: relative;
+  /* min-width:0 sobrescreve o min-width:auto implícito de item de grid —
+     sem isso, um valor/rótulo longo sem espaço pra quebrar (ex: um número
+     muito grande) força a COLUNA do grid a alargar, e o card acaba
+     estourando a largura do painel em vez de só quebrar linha internamente. */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-top-color: var(--p-edge-light);
@@ -594,7 +601,7 @@ body.portal-body {
      "R$ / número" antes de partir os dígitos ao meio. */
   overflow-wrap: break-word;
 }
-.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 700; margin-top: 10px; }
+.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 700; }
 .kpi-card__delta.up { color: var(--good); }
 .kpi-card__delta.down { color: var(--critical); }
 .kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4; }
@@ -614,10 +621,24 @@ body.portal-body {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
+  flex-wrap: wrap;
   margin-top: 8px;
   font-size: 0.76rem;
   color: var(--text-muted);
+}
+/* O texto de comparação ("R$ X no período anterior") pode ser mais longo
+   que o delta — sem min-width:0 ele empurra o card pra fora em vez de
+   quebrar linha (mesma causa-raiz do min-width:0 do .kpi-card acima, mas
+   no nível do item flex). */
+.kpi-card__compare > span { min-width: 0; overflow-wrap: break-word; }
+.kpi-card__delta { white-space: nowrap; }
+/* Card muito estreito (2 colunas no mobile, ou 4 colunas numa tela média):
+   empilha delta e valor de comparação em vez de espremer os dois lado a
+   lado. Usa o container query já ativado no .kpi-card (container-type
+   acima), então reage à largura REAL do card, não à da tela. */
+@container (max-width: 190px) {
+  .kpi-card__compare { flex-direction: column; align-items: flex-start; gap: 2px; }
 }
 
 /* KPI de destaque (1ª de cada grade) — só ela carrega o gradiente da marca.

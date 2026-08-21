@@ -55,6 +55,17 @@ function yalcaTruncateLabel(label, maxWidthPx) {
   return label.slice(0, maxChars - 1).trimEnd() + '…';
 }
 
+// Largura reservada à esquerda do gráfico pros rótulos do eixo Y (valores
+// formatados, ex: "R$ 20.000,00"). Calculada a partir do MAIOR valor que
+// vai aparecer (niceMax — o topo da escala sempre tem o rótulo mais largo
+// num eixo crescente), não de um valor fixo — sem isso, valores grandes
+// eram cortados/vazavam pra fora do card em telas estreitas.
+function yalcaAxisLeftPad(niceMax, steps, formatValue) {
+  const CHAR_WIDTH = 6.2; // mesma estimativa de yalcaTruncateLabel, fonte 13px
+  const widest = String(formatValue(niceMax)).length;
+  return Math.max(46, Math.min(96, Math.ceil(widest * CHAR_WIDTH) + 14));
+}
+
 function yalcaMakeTooltip(wrap) {
   let tip = wrap.querySelector('.chart-tooltip');
   if (!tip) {
@@ -91,13 +102,19 @@ function yalcaChartSteps() {
 function yalcaRenderLineChart(container, opts) {
   const { series, formatValue = (v) => v, steps = yalcaChartSteps() } = opts;
   const W = 640, H = 260;
-  const padL = 46, padR = 16, padT = 16, padB = 34;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const padR = 16, padT = 16, padB = 34;
 
   const labels = series[0].data.map(d => d.label);
   const allValues = series.flatMap(s => s.data.map(d => d.value));
   const maxVal = Math.max(...allValues, 1);
   const niceMax = Math.ceil(maxVal / 5) * 5 || 1;
+  // padL dinâmico: o rótulo mais largo do eixo Y (ex: "R$ 20.000,00") precisa
+  // caber ANTES do início da área de plotagem, senão (com .chart-svg em
+  // overflow:visible) o texto vaza pra fora do card à esquerda — bug real
+  // com valores grandes/formatados em moeda. 46px fixos só bastavam pra
+  // números curtos.
+  const padL = yalcaAxisLeftPad(niceMax, steps, formatValue);
+  const plotW = W - padL - padR, plotH = H - padT - padB;
 
   const xStep = labels.length > 1 ? plotW / (labels.length - 1) : 0;
   const yScale = (v) => padT + plotH - (v / niceMax) * plotH;
@@ -111,9 +128,15 @@ function yalcaRenderLineChart(container, opts) {
       <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
   }).join('');
 
-  const xLabels = labels.map((label, i) =>
-    `<text x="${xScale(i)}" y="${H - 10}" font-size="13" text-anchor="middle">${yalcaEscapeHtml(label)}</text>`
-  ).join('');
+  // Largura disponível por rótulo = espaço entre pontos (ou a largura toda
+  // do gráfico, se houver só 1 ponto) — sem truncar, rótulos longos (ex:
+  // muitos "Dia N" num período grande) colidiam uns com os outros.
+  const xLabelMaxWidth = labels.length > 1 ? xStep : plotW;
+  const xLabels = labels.map((label, i) => {
+    const truncated = yalcaTruncateLabel(label, xLabelMaxWidth);
+    const inner = truncated === label ? yalcaEscapeHtml(label) : `<title>${yalcaEscapeHtml(label)}</title>${yalcaEscapeHtml(truncated)}`;
+    return `<text x="${xScale(i)}" y="${H - 10}" font-size="13" text-anchor="middle">${inner}</text>`;
+  }).join('');
 
   const seriesSvg = series.map(s => {
     const points = s.data.map((d, i) => `${xScale(i)},${yScale(d.value)}`).join(' ');
@@ -183,11 +206,12 @@ function yalcaRenderLineChart(container, opts) {
 function yalcaRenderBarChart(container, opts) {
   const { data, formatValue = (v) => v, steps = yalcaChartSteps() } = opts;
   const W = 640, H = 260;
-  const padL = 46, padR = 16, padT = 16, padB = 34;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const padR = 16, padT = 16, padB = 34;
 
   const maxVal = Math.max(...data.map(d => d.value), 1);
   const niceMax = Math.ceil(maxVal / 5) * 5 || 1;
+  const padL = yalcaAxisLeftPad(niceMax, steps, formatValue);
+  const plotW = W - padL - padR, plotH = H - padT - padB;
   const barGap = 18;
   const barW = (plotW - barGap * (data.length - 1)) / data.length;
   const yScale = (v) => (v / niceMax) * plotH;

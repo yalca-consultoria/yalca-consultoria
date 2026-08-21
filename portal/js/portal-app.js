@@ -521,7 +521,7 @@ function renderKpiGrid(containerId, kpis) {
       </div>` : ''}
       ${hasCompareRow ? `
       <div class="kpi-card__compare">
-        <span>${hasDelta ? `<span class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</span>` : ''}</span>
+        ${hasDelta ? `<span class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</span>` : ''}
         ${k.compareValue ? `<span>${yalcaEscapeHtml(k.compareValue)}</span>` : ''}
       </div>` : ''}
       ${k.hint ? `<div class="kpi-card__hint">${yalcaEscapeHtml(k.hint)}</div>` : ''}
