@@ -1,5 +1,5 @@
 /* =========================================
-   Yalca Portal — Área do Cliente (protótipo)
+   Yalca Portal — Área do Cliente
    Reaproveita os tokens de css/style.css e
    adiciona os componentes do dashboard.
    ========================================= */
@@ -43,6 +43,16 @@
   --p-primary-soft: rgba(109, 91, 246, 0.14);
   --p-primary-border: rgba(109, 91, 246, 0.35);
   --p-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --p-shadow-lg: 0 20px 45px -18px rgba(0, 0, 0, 0.65);
+  /* Raio maior que o --radius do site (16px) — cards de dashboard em
+     grade ficam mais "premium"/modernos com curvas mais generosas do
+     que o card único de uma landing page. */
+  --p-radius: 20px;
+  --p-radius-sm: 12px;
+  /* Aresta superior levemente clareada — simula luz vindo de cima nos
+     cards escuros, dá profundidade sem precisar de imagem/gradiente
+     pesado. Usada em conjunto com a borda normal, não no lugar dela. */
+  --p-edge-light: rgba(255, 255, 255, 0.07);
 }
 
 html, body { height: 100%; }
@@ -77,9 +87,10 @@ body.portal-body {
   max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
   padding: 40px 36px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--p-shadow-lg);
 }
 .login-card .logo { display: inline-block; margin-bottom: 6px; }
 .login-card h1 {
@@ -95,7 +106,7 @@ body.portal-body {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   padding: 12px 14px;
   color: var(--text);
   font-family: var(--font-body);
@@ -110,7 +121,7 @@ body.portal-body {
   color: #ff9b9b;
   font-size: 0.85rem;
   padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
 }
 .login-error.is-visible { display: block; }
 
@@ -118,7 +129,7 @@ body.portal-body {
   margin-top: 24px;
   background: var(--surface-2);
   border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   padding: 14px 16px;
   font-size: 0.82rem;
   color: var(--text-muted);
@@ -165,7 +176,7 @@ body.portal-body {
 .portal-sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: var(--bg-alt);
+  background: linear-gradient(180deg, var(--bg-alt), var(--bg));
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -178,7 +189,7 @@ body.portal-body {
 .portal-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
   overflow-y: auto;
 }
@@ -186,8 +197,8 @@ body.portal-body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
-  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  border-radius: var(--p-radius-sm);
   color: var(--text-muted);
   font-size: 0.92rem;
   font-weight: 500;
@@ -197,23 +208,16 @@ body.portal-body {
   width: 100%;
   text-align: left;
   font-family: var(--font-body);
+  transition: color 0.15s ease, background 0.15s ease;
 }
 .portal-nav__item:hover { color: var(--text); background: var(--surface); }
 .portal-nav__item.is-active {
-  color: var(--text);
-  background: var(--p-primary-soft);
+  color: #fff;
+  background: var(--gradient);
   border-color: transparent;
   position: relative;
-}
-.portal-nav__item.is-active::before {
-  content: "";
-  position: absolute;
-  left: -18px;
-  top: 6px;
-  bottom: 6px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--gradient);
+  font-weight: 600;
+  box-shadow: 0 8px 20px -10px rgba(109, 91, 246, 0.7);
 }
 .portal-nav__icon {
   width: 19px;
@@ -230,19 +234,29 @@ body.portal-body {
   padding-top: 16px;
   margin-top: 12px;
 }
-.portal-user { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.portal-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: var(--p-radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
 .portal-user__avatar {
-  width: 38px; height: 38px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--gradient);
   color: #0b1120;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800;
   font-family: var(--font-heading);
+  font-size: 0.82rem;
   flex-shrink: 0;
 }
-.portal-user__name { font-size: 0.88rem; font-weight: 600; color: var(--text); }
-.portal-user__role { font-size: 0.76rem; color: var(--text-muted); }
+.portal-user__name { font-size: 0.86rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.portal-user__role { font-size: 0.74rem; color: var(--text-muted); }
 
 .portal-main {
   flex: 1;
@@ -258,11 +272,13 @@ body.portal-body {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: rgba(11, 17, 32, 0.85);
-  backdrop-filter: blur(10px);
+  /* Fundo sólido em vez de translúcido+blur: mesma legibilidade sobre o
+     conteúdo que rola por baixo, sem o custo de repintura do
+     backdrop-filter a cada frame de scroll numa barra fixa. */
+  background: var(--bg-alt);
   z-index: 20;
 }
-.portal-topbar h2 { font-size: 1.3rem; line-height: 1.2; }
+.portal-topbar h2 { font-size: 1.35rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
 .portal-topbar__eyebrow {
   display: block;
   font-size: var(--p-text-xs);
@@ -276,7 +292,7 @@ body.portal-body {
   display: none;
   background: none;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   color: var(--text);
   min-width: 44px;
   min-height: 44px;
@@ -302,11 +318,27 @@ body.portal-body {
 }
 
 .portal-content {
+  position: relative;
   padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 28px;
 }
+/* Glow ambiente bem sutil atrás do conteúdo — mesmo recurso já usado na
+   tela de login e no site institucional, aqui bem mais discreto (é uma
+   tela de trabalho, não uma vitrine) só pra tirar o "chapado" do fundo
+   liso em telas grandes. */
+.portal-content::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 420px;
+  background: radial-gradient(700px 380px at 15% 0%, rgba(109, 91, 246, 0.08), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-content > * { position: relative; z-index: 1; }
+
 .portal-section { display: none; flex-direction: column; gap: 24px; }
 .portal-section.is-active { display: flex; }
 
@@ -332,8 +364,9 @@ body.portal-body {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 22px;
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
+  padding: 22px;
   overflow: hidden;
   box-shadow: var(--p-shadow);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -343,12 +376,33 @@ body.portal-body {
      2 colunas no desktop mas só 1 linha inteira no mobile. */
   container-type: inline-size;
 }
-.kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6); }
-.kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.kpi-card:hover { transform: translateY(-3px); border-color: var(--primary-2); box-shadow: var(--p-shadow-lg); }
+.kpi-card__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+/* Bolinha colorida antes do rótulo — mesma cor de destaque do card,
+   assinatura visual leve que não depende de ícone novo no HTML/JS. */
+.kpi-card__label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-2);
+  flex-shrink: 0;
+}
 .kpi-card__value {
   font-family: var(--font-heading);
-  font-size: clamp(0.88rem, 10cqi, 1.7rem);
+  font-size: clamp(0.92rem, 11cqi, 1.9rem);
   font-weight: 800;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   /* Rede de segurança: só entra em ação se mesmo no menor tamanho da
      fonte (acima) um valor realmente extremo ainda não couber numa
@@ -356,19 +410,16 @@ body.portal-body {
      "R$ / número" antes de partir os dígitos ao meio. */
   overflow-wrap: break-word;
 }
-.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 600; margin-top: 8px; }
+.kpi-card__delta { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 700; margin-top: 10px; }
 .kpi-card__delta.up { color: var(--good); }
 .kpi-card__delta.down { color: var(--critical); }
-.kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+.kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4; }
 
 /* KPI de destaque (1ª de cada grade) — só ela carrega o gradiente da marca.
-   Antes ocupava 2 colunas via grid-column:span — com auto-fit, isso fazia
-   a contagem de colunas variar por seção (4 cards enchiam a linha, 5
-   sobravam 1 card sozinho com um vão enorme do lado). Card do mesmo
-   tamanho que os outros, destaque só por cor/borda — grid nunca mais
-   "sobra" um card, qualquer quantidade de KPIs preenche linhas cheias. */
+   Mesmo tamanho que os outros cards (não usa grid-column:span — ver nota
+   acima do .kpi-grid), destaque só por cor/borda/glow. */
 .kpi-grid .kpi-card:first-child {
-  background: linear-gradient(160deg, var(--surface) 55%, rgba(109, 91, 246, 0.14));
+  background: linear-gradient(160deg, var(--surface) 45%, rgba(109, 91, 246, 0.16));
   border-color: var(--p-primary-border);
 }
 .kpi-grid .kpi-card:first-child::before {
@@ -378,14 +429,16 @@ body.portal-body {
   height: 3px;
   background: var(--gradient);
 }
+.kpi-grid .kpi-card:first-child .kpi-card__label::before { background: var(--gradient); width: 8px; height: 8px; }
 
 /* ---------- Painéis genéricos ---------- */
 .panel {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
+  padding: 26px;
   box-shadow: var(--p-shadow);
 }
 /* Painel de destaque — o mais decisório de cada seção (ex: detalhe da
@@ -393,11 +446,11 @@ body.portal-body {
    painel: usado com moderação para não virar ruído visual. */
 .panel--highlight {
   border-color: var(--p-primary-border);
-  box-shadow: 0 0 0 1px var(--p-primary-border) inset;
+  box-shadow: var(--p-shadow), 0 0 0 1px var(--p-primary-border) inset;
 }
 .panel--highlight .panel__head h3 {
   position: relative;
-  padding-left: 12px;
+  padding-left: 14px;
 }
 .panel--highlight .panel__head h3::before {
   content: "";
@@ -413,9 +466,9 @@ body.portal-body {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
-.panel__head h3 { font-size: 1.05rem; }
+.panel__head h3 { font-size: 1.08rem; font-weight: 800; letter-spacing: -0.01em; }
 .panel__head p { font-size: 0.85rem; margin-top: 4px; }
 .panel__toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex: 1; }
 .panel__toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-left: auto; }
@@ -458,12 +511,13 @@ body.portal-body {
 .field input, .field select, .field textarea {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   padding: 10px 12px;
   color: var(--text);
   font-family: var(--font-body);
   font-size: 0.95rem;
   width: 100%;
+  transition: border-color 0.15s ease;
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary-2); }
 .field-row {
@@ -506,7 +560,7 @@ body.portal-body {
 .keepa-tabpanel.is-active { display: flex; }
 
 /* ---------- Tabelas ---------- */
-.table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
+.table-scroll { overflow-x: auto; border-radius: var(--p-radius-sm); }
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -517,22 +571,23 @@ body.portal-body {
   text-align: left;
   padding: 10px 14px;
   color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.78rem;
+  font-weight: 700;
+  font-size: 0.76rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 .data-table td {
-  padding: 12px 14px;
+  padding: 13px 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
   white-space: nowrap;
   vertical-align: middle;
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
-.data-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.data-table tbody tr { transition: background 0.12s ease; }
+.data-table tbody tr:hover { background: var(--p-primary-soft); }
 .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .row-actions { display: flex; gap: 6px; align-items: center; }
 
@@ -546,7 +601,7 @@ body.portal-body {
 .marketplace-cell__logo {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 9px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -582,12 +637,13 @@ body.portal-body {
 .icon-btn {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   min-width: 32px;
   min-height: 32px;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 0.85rem;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 .icon-btn:hover { color: var(--text); border-color: var(--primary-2); }
 
@@ -596,9 +652,9 @@ body.portal-body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -620,18 +676,31 @@ body.portal-body {
 /* ---------- Alertas ---------- */
 .alert-list { display: flex; flex-direction: column; gap: 10px; }
 .alert-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
+  padding: 13px 14px 13px 18px;
+  border-radius: var(--p-radius-sm);
   border: 1px solid var(--border);
   background: var(--surface-2);
   font-size: 0.88rem;
 }
+/* Barra colorida na lateral em vez de tingir o card inteiro — sinaliza
+   severidade sem competir visualmente com o texto/ícone. */
+.alert-item::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--border);
+}
 .alert-item__icon { font-size: 1.1rem; line-height: 1; }
-.alert-item.critical { border-color: rgba(208,59,59,0.4); background: rgba(208,59,59,0.08); }
-.alert-item.warning { border-color: rgba(250,178,25,0.35); background: rgba(250,178,25,0.07); }
+.alert-item.critical { border-color: rgba(208,59,59,0.35); background: rgba(208,59,59,0.06); }
+.alert-item.critical::before { background: var(--critical); }
+.alert-item.warning { border-color: rgba(250,178,25,0.3); background: rgba(250,178,25,0.06); }
+.alert-item.warning::before { background: var(--warning); }
 .alert-item strong { display: block; color: var(--text); margin-bottom: 2px; }
 .alert-item span { color: var(--text-muted); font-size: 0.82rem; }
 .alert-empty { color: var(--text-muted); font-size: 0.88rem; padding: 8px 0; }
@@ -652,7 +721,7 @@ body.portal-body {
   padding: 8px 12px;
   font-size: 0.78rem;
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: var(--p-shadow-lg);
   transform: translate(-50%, -110%);
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -667,6 +736,7 @@ body.portal-body {
 .table-view-toggle {
   align-self: flex-start;
   font-size: 0.78rem;
+  font-weight: 600;
   color: var(--accent);
   background: none;
   border: none;
@@ -682,8 +752,8 @@ body.portal-body {
 .waterfall-bar {
   display: flex;
   gap: 2px;
-  height: 44px;
-  border-radius: 10px;
+  height: 46px;
+  border-radius: 12px;
   overflow: hidden;
 }
 .waterfall-seg {
@@ -706,7 +776,7 @@ body.portal-body {
 .fee-editor { display: flex; flex-direction: column; gap: 14px; }
 .fee-editor-row {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   padding: 14px 16px;
   background: var(--surface-2);
 }
@@ -740,19 +810,19 @@ body.portal-body {
   border-radius: 999px;
   margin-top: 2px;
 }
-.comparison-row--selected { background: rgba(109,91,246,0.08); }
+.comparison-row--selected { background: var(--p-primary-soft); }
 
 /* ---------- Calculadora de precificação ---------- */
 .calc-result {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--p-radius);
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.calc-result__headline { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.calc-result__headline { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .calc-result__breakdown { display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; }
 .calc-result__row { display: flex; justify-content: space-between; color: var(--text-muted); }
 .calc-result__row strong { color: var(--text); font-weight: 600; }
@@ -787,7 +857,7 @@ body.portal-body {
   color: var(--text-muted);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   padding: 8px 14px;
   cursor: pointer;
 }
@@ -808,12 +878,14 @@ body.portal-body {
 .modal {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
   padding: 28px;
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: var(--p-shadow-lg);
 }
 .modal--wide { max-width: 920px; }
 
@@ -834,6 +906,7 @@ body.portal-body {
 }
 .search-input:focus { outline: none; border-color: var(--primary-2); }
 .modal__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal__head h3 { font-size: 1.1rem; font-weight: 800; }
 .modal__close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; min-width: 36px; min-height: 36px; }
 .modal form { display: flex; flex-direction: column; gap: 14px; }
 .modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
@@ -887,7 +960,7 @@ body.portal-body {
   .data-table--cards tbody tr {
     display: block;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--p-radius-sm);
     margin-bottom: var(--p-space-3);
     padding: var(--p-space-3) var(--p-space-4);
   }
@@ -944,7 +1017,7 @@ body.portal-body {
   padding: var(--p-space-4);
   background: var(--bg-alt);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   margin-top: var(--p-space-3);
 }
 .ia-msg { display: flex; }
@@ -958,7 +1031,7 @@ body.portal-body {
   line-height: 1.5;
   white-space: normal;
 }
-.ia-msg--user .ia-msg__bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+.ia-msg--user .ia-msg__bubble { background: var(--gradient); color: #fff; border-bottom-right-radius: 4px; }
 .ia-msg--assistant .ia-msg__bubble { background: var(--surface-2); color: var(--text); border-bottom-left-radius: 4px; }
 .ia-chat-form { display: flex; gap: var(--p-space-2); margin-top: var(--p-space-3); }
 .ia-chat-form textarea {
@@ -969,7 +1042,7 @@ body.portal-body {
   padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   color: var(--text);
   font-family: var(--font-body);
   font-size: var(--p-text-base);
@@ -979,6 +1052,6 @@ body.portal-body {
   padding: var(--p-space-4);
   background: var(--bg-alt);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--p-radius-sm);
   line-height: 1.6;
 }
