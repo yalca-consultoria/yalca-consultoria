@@ -170,11 +170,18 @@ async function yalcaKeepaApiCall(path, body) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) throw new Error('Sessão inválida. Faça login novamente.');
-  const res = await fetch(`${KEEPA_API_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${KEEPA_API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    if (err.name === 'TimeoutError') throw new Error('A consulta demorou demais e foi cancelada. Tente novamente.');
+    throw new Error('Não foi possível consultar agora. Verifique sua conexão e tente novamente.');
+  }
   const json = await res.json().catch(() => null);
   if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
   return json;
@@ -199,11 +206,18 @@ async function yalcaIaApiStream(path, body, onChunk) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
   const token = sessionData?.session?.access_token;
   if (!token) throw new Error('Sessão inválida. Faça login novamente.');
-  const res = await fetch(`${IA_API_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${IA_API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(100_000),
+    });
+  } catch (err) {
+    if (err.name === 'TimeoutError') throw new Error('A resposta demorou demais e foi cancelada. Tente novamente.');
+    throw new Error('Não foi possível consultar agora. Verifique sua conexão e tente novamente.');
+  }
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     const json = await res.json().catch(() => null);

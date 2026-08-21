@@ -212,6 +212,7 @@
               <p>Receitas e despesas registradas.</p>
             </div>
             <div class="panel__toolbar">
+              <input type="text" class="search-input" id="financeSearch" placeholder="Buscar por descrição ou categoria">
               <select class="select-chip" id="financeFilterMonth"></select>
               <div class="panel__toolbar-actions">
                 <button class="btn-tool" id="exportCsvBtn">Exportar CSV</button>
@@ -261,6 +262,7 @@
               <p>Itens com margem negativa aparecem destacados — é dinheiro saindo do bolso a cada venda.</p>
             </div>
             <div class="panel__toolbar">
+              <input type="text" class="search-input" id="marketplaceSearch" placeholder="Buscar por SKU ou nome">
               <select class="select-chip" id="marketplaceFilter"></select>
               <button class="btn btn--primary btn--sm" id="addProductBtn">+ Novo produto</button>
             </div>
@@ -502,6 +504,7 @@
           <div class="panel__head">
             <div><h3>Estoque por produto</h3></div>
             <div class="panel__toolbar">
+              <input type="text" class="search-input" id="stockSearch" placeholder="Buscar por SKU ou nome">
               <select class="select-chip" id="stockFilter">
                 <option value="todos">Todos os status</option>
                 <option value="OK">OK</option>
@@ -752,6 +755,25 @@
         <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- MODAL: confirmar substituição por dados de exemplo (apaga dados reais) -->
+<div class="modal-backdrop" id="resetDemoModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3>Substituir por dados de exemplo?</h3>
+      <button class="modal__close" data-close-modal="resetDemoModal">×</button>
+    </div>
+    <p id="resetDemoModalText" style="margin-bottom:14px;"></p>
+    <div class="field">
+      <label for="resetDemoConfirmInput">Digite <strong>CONFIRMAR</strong> para continuar</label>
+      <input type="text" id="resetDemoConfirmInput" autocomplete="off">
+    </div>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost btn--sm" data-close-modal="resetDemoModal">Cancelar</button>
+      <button type="button" class="btn btn--primary btn--sm" id="resetDemoConfirmBtn" disabled>Substituir dados</button>
+    </div>
   </div>
 </div>
 

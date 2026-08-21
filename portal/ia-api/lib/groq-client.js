@@ -18,6 +18,9 @@ const MODEL = 'openai/gpt-oss-120b';
 // reasoning_effort baixo + teto maior resolve.
 const MAX_TOKENS = 4096;
 const REASONING_EFFORT = 'low';
+// Generoso porque a resposta é streamada aos poucos (não é um "tudo ou
+// nada" de 90s) — isso só protege contra a chamada travar de vez.
+const FETCH_TIMEOUT_MS = 90_000;
 
 function mapError(status, bodyText) {
   if (status === 401) return new Error('Chave de API do Groq inválida ou não configurada.');
@@ -35,6 +38,7 @@ async function chatStream(messages, { systemPrompt, onChunk, apiKey }) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model: MODEL, messages: fullMessages, max_completion_tokens: MAX_TOKENS, reasoning_effort: REASONING_EFFORT, stream: true }),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok || !res.body) throw mapError(res.status, await res.text().catch(() => ''));
 

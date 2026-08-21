@@ -127,15 +127,30 @@ async function streamChatResponse(res, messages, systemPrompt) {
   }
 }
 
-function readJsonBody(req) {
+// Corpo grande demais devolve 413 explícito em vez de só destruir a conexão
+// (req.destroy() sozinho derruba o socket sem resposta HTTP nenhuma — o
+// cliente via um erro de rede cru em vez de uma mensagem tratável).
+function readJsonBody(req, res) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (chunk) => { data += chunk; if (data.length > 200_000) req.destroy(); });
+    let tooLarge = false;
+    req.on('data', (chunk) => {
+      if (tooLarge) return;
+      data += chunk;
+      if (data.length > 200_000) {
+        tooLarge = true;
+        sendJson(res, 413, { ok: false, reason: 'payload_too_large', message: 'Requisição grande demais.' });
+        req.destroy();
+        const err = new Error('payload_too_large'); err.alreadyResponded = true;
+        reject(err);
+      }
+    });
     req.on('end', () => {
+      if (tooLarge) return;
       if (!data) { resolve({}); return; }
       try { resolve(JSON.parse(data)); } catch { reject(new Error('invalid_json')); }
     });
-    req.on('error', reject);
+    req.on('error', (err) => { if (!tooLarge) reject(err); });
   });
 }
 
@@ -196,7 +211,7 @@ async function handleAssistant(req, res) {
   if (!(await requireAdmin(user.id, res))) return;
 
   let body;
-  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
@@ -230,7 +245,7 @@ async function handleSuporte(req, res) {
   if (!(await requireApprovedClient(user.id, res))) return;
 
   let body;
-  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
@@ -246,7 +261,7 @@ async function handlePanelChat(req, res) {
   if (!(await requireApprovedIaUser(user.id, res))) return;
 
   let body;
-  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);

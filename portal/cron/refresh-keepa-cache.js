@@ -346,7 +346,7 @@ async function callKeepa(asin) {
   }
   if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada');
   const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&asin=${asin}&stats=180&buybox=1&offers=20&rating=1`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   const json = await res.json();
   if (json.error) throw new Error(`Keepa: ${json.error.message || JSON.stringify(json.error)}`);
   if (!json.products || !json.products[0]) throw new Error('Produto não encontrado no Keepa.');

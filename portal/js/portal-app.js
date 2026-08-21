@@ -171,18 +171,42 @@ function bindGlobalActions() {
     window.location.href = 'login.html';
   });
 
-  document.getElementById('resetDemoBtn').addEventListener('click', async () => {
+  document.getElementById('resetDemoBtn').addEventListener('click', () => {
     const isEmpty = DATA && DATA.products.length === 0 && DATA.transactions.length === 0;
-    const msg = isEmpty
-      ? 'Isso vai preencher sua conta com produtos e lançamentos de exemplo, só para você conhecer as ferramentas. Continuar?'
-      : 'Isso vai apagar TODOS os seus produtos, lançamentos e lançamentos futuros atuais e substituir por dados de exemplo. Essa ação não pode ser desfeita. Continuar?';
-    if (!confirm(msg)) return;
+    const confirmInput = document.getElementById('resetDemoConfirmInput');
+    const confirmBtn = document.getElementById('resetDemoConfirmBtn');
+    confirmInput.value = '';
+    confirmBtn.disabled = true;
+
+    if (isEmpty) {
+      // Conta vazia: nada real a perder, então uma confirmação simples basta.
+      document.getElementById('resetDemoModalText').textContent = 'Isso vai preencher sua conta com produtos e lançamentos de exemplo, só para você conhecer as ferramentas.';
+      document.getElementById('resetDemoConfirmInput').closest('.field').style.display = 'none';
+      confirmBtn.disabled = false;
+    } else {
+      document.getElementById('resetDemoModalText').textContent = 'Isso vai APAGAR TODOS os seus produtos, lançamentos e lançamentos futuros atuais e substituir por dados de exemplo. Essa ação não pode ser desfeita.';
+      document.getElementById('resetDemoConfirmInput').closest('.field').style.display = '';
+    }
+    openModal('resetDemoModal');
+  });
+
+  document.getElementById('resetDemoConfirmInput').addEventListener('input', (e) => {
+    document.getElementById('resetDemoConfirmBtn').disabled = e.target.value.trim().toUpperCase() !== 'CONFIRMAR';
+  });
+
+  document.getElementById('resetDemoConfirmBtn').addEventListener('click', async () => {
+    const isEmpty = DATA && DATA.products.length === 0 && DATA.transactions.length === 0;
+    const btn = document.getElementById('resetDemoConfirmBtn');
+    btn.disabled = true; btn.textContent = 'Aplicando...';
     try {
       if (!isEmpty) await yalcaClearAllData();
       await yalcaSeedDemoData();
+      closeModal('resetDemoModal');
       await reloadAndRenderAll();
     } catch (err) {
       alert('Não foi possível carregar os dados de exemplo: ' + err.message);
+    } finally {
+      btn.textContent = 'Substituir dados';
     }
   });
 }
@@ -236,6 +260,10 @@ function populateMarketplaceSelects() {
   marketplaceFilter.addEventListener('change', renderMarketplaces);
 
   document.getElementById('stockFilter').addEventListener('change', renderEstoque);
+
+  document.getElementById('financeSearch').addEventListener('input', renderFinanceiro);
+  document.getElementById('marketplaceSearch').addEventListener('input', renderMarketplaces);
+  document.getElementById('stockSearch').addEventListener('input', renderEstoque);
 }
 
 /* ============================================================
@@ -415,7 +443,11 @@ function renderFinanceiro() {
     document.getElementById('financeCategoryChart').innerHTML = '<p class="alert-empty">Sem despesas registradas nesse período.</p>';
   }
 
-  renderTransactionsTable(filteredTx);
+  const search = document.getElementById('financeSearch').value.trim().toLowerCase();
+  const searchedTx = search
+    ? filteredTx.filter(t => t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search))
+    : filteredTx;
+  renderTransactionsTable(searchedTx);
 }
 
 function populateMonthFilter(monthly) {
@@ -533,6 +565,22 @@ function exportTransactionsCsv() {
   URL.revokeObjectURL(url);
 }
 
+// Formato de data aceito: YYYY-MM-DD (o mesmo que o CSV exportado usa).
+const CSV_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseCsvAmount(raw) {
+  const trimmed = (raw || '').trim();
+  if (trimmed === '') return null;
+  // Aceita tanto "1234.56" (padrão do CSV exportado) quanto "1.234,56"
+  // (formato pt-BR que uma planilha exportada pelo Excel/Sheets no Brasil
+  // costuma gerar) — sem isso, qualquer valor nesse segundo formato virava
+  // silenciosamente R$0,00 (parseFloat('1.234,56') lê só o "1.234").
+  const ptBr = /^-?\d{1,3}(\.\d{3})*,\d+$/.test(trimmed);
+  const normalized = ptBr ? trimmed.replace(/\./g, '').replace(',', '.') : trimmed;
+  const value = parseFloat(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
 function importTransactionsCsv(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -541,23 +589,39 @@ function importTransactionsCsv(e) {
     const lines = String(reader.result).split(/\r?\n/).filter(l => l.trim().length > 0);
     const dataLines = lines.slice(1); // ignora cabeçalho
     const records = [];
-    dataLines.forEach(line => {
+    const skipped = [];
+    dataLines.forEach((line, idx) => {
+      const rowNum = idx + 2; // +1 pelo cabeçalho, +1 porque é 1-indexado
       const cols = line.match(/(".*?"|[^,]+)(?=,|$)/g);
-      if (!cols || cols.length < 6) return;
+      if (!cols || cols.length < 6) { skipped.push(`Linha ${rowNum}: número de colunas inválido.`); return; }
       const clean = cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
-      const [date, type, category, marketplace, description, amount] = clean;
-      if (!date || !['receita', 'despesa'].includes(type)) return;
+      const [date, type, category, marketplace, description, amountRaw] = clean;
+      if (!date || !CSV_DATE_RE.test(date)) { skipped.push(`Linha ${rowNum}: data inválida ("${date || ''}") — use AAAA-MM-DD.`); return; }
+      if (!['receita', 'despesa'].includes(type)) { skipped.push(`Linha ${rowNum}: tipo inválido ("${type || ''}") — use "receita" ou "despesa".`); return; }
+      const amount = parseCsvAmount(amountRaw);
+      if (amount === null) { skipped.push(`Linha ${rowNum}: valor inválido ("${amountRaw || ''}").`); return; }
       records.push({
         date, type, category: category || 'Outros',
-        marketplace: marketplace || '-', description: description || '', amount: parseFloat(amount) || 0
+        marketplace: marketplace || '-', description: description || '', amount
       });
     });
+
+    if (records.length === 0 && skipped.length > 0) {
+      alert(`Nenhum lançamento pôde ser importado. Problemas encontrados:\n\n${skipped.slice(0, 15).join('\n')}${skipped.length > 15 ? `\n... e mais ${skipped.length - 15}.` : ''}`);
+      e.target.value = '';
+      return;
+    }
+
     try {
       for (const record of records) {
         await yalcaAddTransaction(record);
       }
       await reloadAndRenderAll();
-      alert(`${records.length} lançamento(s) importado(s) com sucesso.`);
+      let msg = `${records.length} lançamento(s) importado(s) com sucesso.`;
+      if (skipped.length > 0) {
+        msg += `\n\n${skipped.length} linha(s) ignorada(s) por erro:\n${skipped.slice(0, 15).join('\n')}${skipped.length > 15 ? `\n... e mais ${skipped.length - 15}.` : ''}`;
+      }
+      alert(msg);
     } catch (err) {
       alert('Erro ao importar CSV: ' + err.message);
     }
@@ -603,12 +667,17 @@ function renderMarketplaces() {
     document.getElementById('marketplaceMarginChart').innerHTML = '<p class="alert-empty">Cadastre produtos para ver a margem média por marketplace.</p>';
   }
 
+  const search = document.getElementById('marketplaceSearch').value.trim().toLowerCase();
+  const searchedProducts = search
+    ? products.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search))
+    : products;
+
   const tbody = document.getElementById('productsTableBody');
-  if (products.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="alert-empty">Nenhum produto cadastrado.</td></tr>';
+  if (searchedProducts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="alert-empty">${products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado para essa busca.'}</td></tr>`;
     return;
   }
-  tbody.innerHTML = products.map(p => {
+  tbody.innerHTML = searchedProducts.map(p => {
     const { marginPct } = yalcaProductMargin(p, DATA.settings);
     const marginClass = marginPct < 0 ? 'text-critical' : (marginPct < 15 ? '' : 'text-good');
     const gaugeColor = marginPct < 0 ? 'var(--critical)' : (marginPct < 15 ? 'var(--warning)' : 'var(--good)');
@@ -1094,13 +1163,18 @@ function renderEstoque() {
     alerts.push({ level: '', icon: '🐌', title: `${p.name} está parado`, sub: `${p.stock} unidades em estoque, só ${p.unitsSoldMonth} vendidas no mês — ${yalcaFormatCurrency(p.cost * p.stock)} parados` }));
   renderAlertList(document.getElementById('stockAlerts'), alerts.slice(0, 8));
 
+  const search = document.getElementById('stockSearch').value.trim().toLowerCase();
+  const searched = search
+    ? filtered.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search))
+    : filtered;
+
   const tbody = document.getElementById('stockTableBody');
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="alert-empty">Nenhum produto nesse status.</td></tr>';
+  if (searched.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="alert-empty">${filtered.length === 0 ? 'Nenhum produto nesse status.' : 'Nenhum produto encontrado para essa busca.'}</td></tr>`;
     return;
   }
   const badgeClass = { OK: 'ok', Baixo: 'baixo', Esgotado: 'esgotado', Parado: 'parado' };
-  tbody.innerHTML = filtered.map(p => `
+  tbody.innerHTML = searched.map(p => `
     <tr>
       <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
       <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>

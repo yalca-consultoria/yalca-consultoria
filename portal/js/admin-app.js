@@ -96,6 +96,68 @@ function openModal(id) { document.getElementById(id).classList.add('is-open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('is-open'); }
 
 /* ============================================================
+   TRILHA DE AUDITORIA
+   Registra ações administrativas que mudam o estado de um
+   cliente ou de outro admin — não bloqueia a ação principal se
+   o log falhar (é auditoria, não controle de acesso).
+   ============================================================ */
+async function logAdminAction(action, targetUserId, details) {
+  try {
+    await supabaseClient.from('admin_audit_log').insert({
+      actor_user_id: CURRENT_USER_ID,
+      action,
+      target_user_id: targetUserId || null,
+      details: details || null
+    });
+  } catch (err) {
+    console.error('Falha ao registrar log de auditoria:', err);
+  }
+}
+
+async function loadAuditLog() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('admin_audit_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    renderAuditLog(data || []);
+  } catch (err) {
+    document.getElementById('auditLogBody').innerHTML = `<tr><td colspan="4" class="alert-empty">Não foi possível carregar o log: ${yalcaEscapeHtmlSafe(err.message)}</td></tr>`;
+  }
+}
+
+const AUDIT_ACTION_LABELS = {
+  approve_client: 'Aprovou cliente',
+  block_client: 'Bloqueou cliente',
+  delete_client: 'Excluiu cliente',
+  promote_admin: 'Promoveu admin',
+  remove_admin: 'Removeu admin',
+  edit_notes: 'Editou observações'
+};
+
+function renderAuditLog(rows) {
+  const tbody = document.getElementById('auditLogBody');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="alert-empty">Nenhuma ação registrada ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const actor = CLIENTS.find(c => c.user_id === r.actor_user_id);
+    const target = CLIENTS.find(c => c.user_id === r.target_user_id);
+    const actorLabel = actor ? (actor.store_name || actor.email) : r.actor_user_id;
+    const targetLabel = target ? (target.store_name || target.email) : (r.details?.label || r.target_user_id || '—');
+    return `<tr>
+      <td>${new Date(r.created_at).toLocaleString('pt-BR')}</td>
+      <td>${yalcaEscapeHtmlSafe(actorLabel)}</td>
+      <td>${AUDIT_ACTION_LABELS[r.action] || r.action}</td>
+      <td>${yalcaEscapeHtmlSafe(targetLabel)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============================================================
    CARGA DE DADOS
    ============================================================ */
 async function loadClients() {
@@ -119,6 +181,7 @@ async function loadClients() {
 
     recomputeMetricsAndRender();
     renderAdminsPanel();
+    await loadAuditLog();
   } catch (err) {
     alert('Não foi possível carregar os clientes: ' + err.message);
   }
@@ -288,6 +351,7 @@ async function updateClientStatus(userId, status) {
   try {
     const { error } = await supabaseClient.from('client_profiles').update({ status }).eq('user_id', userId);
     if (error) throw new Error(error.message);
+    await logAdminAction(status === 'blocked' ? 'block_client' : 'approve_client', userId);
     await loadClients();
   } catch (err) {
     alert('Não foi possível atualizar o status: ' + err.message);
@@ -393,6 +457,7 @@ async function saveNotes(e) {
   try {
     const { error } = await supabaseClient.from('client_profiles').update({ admin_notes: notes }).eq('user_id', userId);
     if (error) throw new Error(error.message);
+    await logAdminAction('edit_notes', userId);
     closeModal('notesModal');
     await loadClients();
   } catch (err) {
@@ -414,9 +479,16 @@ async function deleteClient(userId) {
     await supabaseClient.from('transactions').delete().eq('user_id', userId);
     await supabaseClient.from('planned_entries').delete().eq('user_id', userId);
     await supabaseClient.from('client_settings').delete().eq('user_id', userId);
+    // Sem isso, os ASINs que esse cliente monitorava continuavam ativos e
+    // o cron de refresh (refresh-keepa-cache.js) seguia gastando o
+    // orçamento diário de tokens do Keepa — que é compartilhado entre
+    // TODOS os clientes — atualizando dados de um cliente que não existe mais.
+    await supabaseClient.from('keepa_tracked_asins').delete().eq('user_id', userId);
+    await supabaseClient.from('keepa_search_log').delete().eq('user_id', userId);
     await supabaseClient.from('admins').delete().eq('user_id', userId);
     const { error } = await supabaseClient.from('client_profiles').delete().eq('user_id', userId);
     if (error) throw new Error(error.message);
+    await logAdminAction('delete_client', userId, { label });
     alert('Dados excluídos. Observação: o login desse cliente ainda existe no Supabase (Authentication > Users) — para remover também o acesso por e-mail/senha, apague o usuário lá manualmente.');
     await loadClients();
   } catch (err) {
@@ -462,6 +534,7 @@ async function promoteSelectedAdmin() {
   try {
     const { error } = await supabaseClient.from('admins').insert({ user_id: userId });
     if (error) throw new Error(error.message);
+    await logAdminAction('promote_admin', userId);
     await loadClients();
   } catch (err) {
     alert('Não foi possível promover: ' + err.message);
@@ -477,6 +550,7 @@ async function removeAdmin(userId) {
   try {
     const { error } = await supabaseClient.from('admins').delete().eq('user_id', userId);
     if (error) throw new Error(error.message);
+    await logAdminAction('remove_admin', userId);
     await loadClients();
     if (isSelf) window.location.href = 'dashboard.html';
   } catch (err) {

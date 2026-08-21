@@ -52,6 +52,7 @@ const KEEPA_MOCK = env.KEEPA_MOCK === 'true';
 const ALLOWED_ORIGIN = env.PORTAL_ORIGIN || 'https://www.yalca.com.br';
 const ASIN_RE = /^[A-Z0-9]{10}$/;
 const MAX_SELLER_IDS_PER_REQUEST = 50;
+const KEEPA_FETCH_TIMEOUT_MS = 15_000;
 
 // Custo estimado de uma pesquisa completa — pré-checagem de orçamento
 // (usada só ANTES de saber o custo real da chamada em andamento). Testes
@@ -83,15 +84,30 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-function readJsonBody(req) {
+// Corpo grande demais devolve 413 explícito em vez de só destruir a conexão
+// (req.destroy() sozinho derruba o socket sem resposta HTTP nenhuma — o
+// cliente via um erro de rede cru em vez de uma mensagem tratável).
+function readJsonBody(req, res) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (chunk) => { data += chunk; if (data.length > 1_000_000) req.destroy(); });
+    let tooLarge = false;
+    req.on('data', (chunk) => {
+      if (tooLarge) return;
+      data += chunk;
+      if (data.length > 1_000_000) {
+        tooLarge = true;
+        sendJson(res, 413, { ok: false, reason: 'payload_too_large', message: 'Requisição grande demais.' });
+        req.destroy();
+        const err = new Error('payload_too_large'); err.alreadyResponded = true;
+        reject(err);
+      }
+    });
     req.on('end', () => {
+      if (tooLarge) return;
       if (!data) { resolve({}); return; }
       try { resolve(JSON.parse(data)); } catch { reject(new Error('invalid_json')); }
     });
-    req.on('error', reject);
+    req.on('error', (err) => { if (!tooLarge) reject(err); });
   });
 }
 
@@ -196,7 +212,7 @@ async function handleKeepaSearch(req, res) {
   if (!user) return;
 
   let body;
-  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const asin = (body.asin || '').trim().toUpperCase();
   if (!ASIN_RE.test(asin)) { sendJson(res, 400, { ok: false, reason: 'invalid_asin', message: 'ASIN inválido — deve ter 10 letras/números (ex: B0EXAMPLE1).' }); return; }
 
@@ -242,7 +258,7 @@ async function handleKeepaSearch(req, res) {
     } else {
       if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada no ambiente do servidor');
       const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&asin=${asin}&stats=180&buybox=1&offers=20&rating=1`;
-      const kres = await fetch(url);
+      const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
       const json = await kres.json();
       // Captura tokensLeft/tokensConsumed ANTES de checar erro/produto vazio
       // — senão um "produto não encontrado" causado por saldo insuficiente
@@ -291,7 +307,7 @@ async function handleKeepaSellerLookup(req, res) {
   if (!user) return;
 
   let body;
-  try { body = await readJsonBody(req); } catch { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const requested = Array.isArray(body.sellerIds) ? [...new Set(body.sellerIds.filter((s) => typeof s === 'string' && s.length > 0))] : [];
   if (requested.length === 0) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Nenhum vendedor informado.' }); return; }
   if (requested.length > MAX_SELLER_IDS_PER_REQUEST) { sendJson(res, 400, { ok: false, reason: 'too_many', message: `Máximo de ${MAX_SELLER_IDS_PER_REQUEST} vendedores por vez.` }); return; }
@@ -345,7 +361,7 @@ async function handleKeepaSellerLookup(req, res) {
     } else {
       if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada no ambiente do servidor');
       const url = `https://api.keepa.com/seller?key=${KEEPA_API_KEY}&domain=12&seller=${missing.join(',')}`;
-      const kres = await fetch(url);
+      const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
       const json = await kres.json();
       if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`);
       sellersRaw = normalizeSellersResponse(json);
