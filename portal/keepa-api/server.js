@@ -59,8 +59,10 @@ const KEEPA_FETCH_TIMEOUT_MS = 15_000;
 // reais em 2026-08-20 mostraram variação de ~2 a ~12 tokens pro mesmo
 // produto (plano Keepa Pro consumidor, saldo baixo/reposição lenta) — fica
 // no teto observado + margem, pra nunca deixar passar uma chamada que
-// estoura o orçamento diário.
-const ESTIMATED_SEARCH_COST = 15;
+// estoura o orçamento diário. Subiu de 15 pra 25 em 2026-08-21 ao ligar
+// stock=1 (necessário pra popular a coluna "Estoque" da tabela de
+// ofertas) — esse parâmetro cobra tokens extras por cima do custo base.
+const ESTIMATED_SEARCH_COST = 25;
 
 if (!SERVICE_ROLE_KEY || !ANON_KEY) {
   console.error('SUPABASE_SERVICE_ROLE_KEY e/ou SUPABASE_ANON_KEY não configuradas em .env — abortando.');
@@ -171,6 +173,7 @@ function formatResult(cache) {
       salesRankDrops30: cache.sales_rank_drops_30 ?? null, salesRankDrops90: cache.sales_rank_drops_90 ?? null, salesRankDrops180: cache.sales_rank_drops_180 ?? null,
       buyBoxStats: cache.buybox_stats ?? [],
       offerCountFBA: cache.offer_count_fba ?? null, offerCountFBM: cache.offer_count_fbm ?? null,
+      totalOfferCount: cache.total_offer_count ?? null,
       deltaPct90MonthlySold: cache.delta_pct_90_monthly_sold ?? null,
       buyBoxIsUnqualified: cache.buybox_is_unqualified ?? null, buyBoxIsMAP: cache.buybox_is_map ?? null,
     },
@@ -211,6 +214,7 @@ function buildCacheRow(asin, parsed, nowIso) {
     sales_rank_drops_30: parsed.stats?.salesRankDrops30 ?? null, sales_rank_drops_90: parsed.stats?.salesRankDrops90 ?? null, sales_rank_drops_180: parsed.stats?.salesRankDrops180 ?? null,
     buybox_stats: parsed.stats?.buyBoxStats ?? [],
     offer_count_fba: parsed.stats?.offerCountFBA ?? null, offer_count_fbm: parsed.stats?.offerCountFBM ?? null,
+    total_offer_count: parsed.stats?.totalOfferCount ?? null,
     delta_pct_90_monthly_sold: parsed.stats?.deltaPct90MonthlySold ?? null,
     buybox_is_unqualified: parsed.stats?.buyBoxIsUnqualified ?? null, buybox_is_map: parsed.stats?.buyBoxIsMAP ?? null,
     return_rate: parsed.returnRate ?? null,
@@ -297,7 +301,12 @@ async function handleKeepaSearch(req, res) {
     } else {
       if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada no ambiente do servidor');
       const identifierQuery = hasAsin ? `asin=${asinInput}` : `code=${codeInput}`;
-      const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&${identifierQuery}&stats=180&buybox=1&offers=20&rating=1`;
+      // stock=1 é o que faz o Keepa devolver stockCSV por oferta — sem ele
+      // a coluna "Estoque" da tabela de ofertas fica sempre vazia (bug real:
+      // faltava esse parâmetro). Só ligado aqui na busca sob demanda — o
+      // refresh em lote do cron não mostra estoque por oferta, então não
+      // vale gastar o token extra ali.
+      const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&${identifierQuery}&stats=180&buybox=1&offers=20&rating=1&stock=1`;
       const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
       const json = await kres.json();
       // Captura tokensLeft/tokensConsumed ANTES de checar erro/produto vazio

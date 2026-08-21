@@ -263,9 +263,14 @@ function renderKeepaSearchResult(result) {
   if (result.stats?.buyBoxIsUnqualified) buyboxWarnParts.push('vendedor não está "qualificado" pra buybox (preço fora da faixa aceitável)');
   if (result.stats?.buyBoxIsMAP) buyboxWarnParts.push('preço sob política de MAP');
   const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
+  // "Ninguém com a buybox" é um estado REAL da Amazon (acontece mesmo com
+  // ofertas ativas — ex: preço fora da faixa aceitável, restrição de
+  // categoria, corte temporário) e não um erro do painel — mas o texto
+  // antigo ("ninguém está vendendo agora") lia como se o produto estivesse
+  // sem nenhuma oferta, o que confundia quem via ofertas ativas > 0 ao lado.
   const buyboxKpi = result.buybox
     ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: buyboxHint || null, delta: null }
-    : { label: 'Buybox', value: '—', hint: 'ninguém está vendendo agora', delta: null };
+    : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null };
 
   const stats = result.stats || {};
   const priceNow = result.buybox?.price ?? result.currentPrice;
@@ -305,23 +310,39 @@ function renderKeepaSearchResult(result) {
 
   const ofertasHintParts = [];
   if (result.availabilityStatus) ofertasHintParts.push(result.availabilityStatus);
-  if (stats.outOfStockPct90 != null && stats.outOfStockPct90 > 0) ofertasHintParts.push(`sem estoque ${stats.outOfStockPct90}% do tempo (90d)`);
   // Divisão FBA/FBM dá a real "temperatura" da concorrência — 10 ofertas
   // FBA brigando por buybox é bem diferente de 10 FBM.
   if (stats.offerCountFBA != null || stats.offerCountFBM != null) {
     ofertasHintParts.push(`${stats.offerCountFBA ?? 0} FBA · ${stats.offerCountFBM ?? 0} FBM`);
   }
+  // totalOfferCount (stats) é a métrica que realmente soma igual a
+  // offerCountFBA+FBM — o "offersCount" do produto mede outra coisa e podia
+  // aparecer inconsistente ao lado da divisão FBA/FBM (ex: "9" vs "2+5").
+  const ofertasAtivasValue = result.stats?.totalOfferCount ?? result.offersCount;
+
+  // Estoque: do vendedor da buybox quando existe, senão do mais barato
+  // (offers já vem ordenado por preço). Só fica disponível a partir de
+  // 2026-08-21, quando passamos a pedir stock=1 ao Keepa — antes disso
+  // essa coluna sempre voltava vazia.
+  const offersList = result.offers || [];
+  const buyboxOffer = result.buybox ? offersList.find(o => o.sellerId === result.buybox.seller) : null;
+  const stockRefOffer = buyboxOffer || offersList[0] || null;
+  const estoqueValue = stockRefOffer?.stock != null ? stockRefOffer.stock : '—';
+  const estoqueHint = stockRefOffer?.stock != null ? (buyboxOffer ? 'do vendedor da buybox' : 'do vendedor mais barato') : 'sem dado de estoque nessa consulta';
 
   const kpis = [
     { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint },
     buyboxKpi,
     { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende' },
     { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null },
-    { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: ofertasHintParts.join(' · ') || null },
+    { label: 'Ofertas ativas', value: ofertasAtivasValue != null ? ofertasAtivasValue : '—', delta: null, hint: ofertasHintParts.join(' · ') || null },
     { label: 'Vendas estimadas/mês', value: vendasValue, delta: null, hint: vendasHint },
     { label: 'Taxa de devolução', value: result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : '—', delta: null, hint: result.returnRate ? 'reportada pela Amazon — pesa na decisão de revender' : 'sem dado suficiente' },
     { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto' },
     { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem' },
+    { label: 'Estoque disponível', value: estoqueValue, delta: null, hint: estoqueHint },
+    { label: 'Preço médio (90 dias)', value: stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : '—', delta: null, hint: 'referência pra saber se o preço atual está alto ou baixo' },
+    { label: 'Fora de estoque (90d)', value: stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : '—', delta: null, hint: stats.outOfStockPct90 == null ? 'sem dado suficiente' : (stats.outOfStockPct90 > 0 ? 'quanto do tempo o produto ficou indisponível' : 'sempre em estoque nos últimos 90 dias') },
   ];
   renderKpiGrid('keepaResultKpis', kpis);
 
@@ -405,7 +426,7 @@ function renderKeepaDetailPanel(result) {
   ].filter(Boolean).join('');
 
   const rightRows = [
-    row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'ninguém vendendo'),
+    row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'nenhum vendedor no momento'),
     row('Buy Box — preço', result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : null),
     row('Buy Box — média 90d', stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : null),
     row('Buy Box — menor já registrado', stats.lowestEver?.price != null ? `${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}` : null),

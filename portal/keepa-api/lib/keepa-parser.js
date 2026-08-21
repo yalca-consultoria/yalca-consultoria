@@ -156,6 +156,11 @@ function parseStats(stats) {
     // "ofertas ativas" total sozinho não mostra.
     offerCountFBA: typeof stats.offerCountFBA === 'number' ? stats.offerCountFBA : null,
     offerCountFBM: typeof stats.offerCountFBM === 'number' ? stats.offerCountFBM : null,
+    // Contagem oficial que realmente bate com offerCountFBA+FBM — o campo
+    // top-level "offersCount" do produto é uma métrica diferente (outra
+    // condição/critério do Keepa) e pode não somar igual, o que parecia
+    // inconsistente na tela ("9 ofertas" vs "2 FBA + 5 FBM").
+    totalOfferCount: typeof stats.totalOfferCount === 'number' ? stats.totalOfferCount : null,
     // % de variação do "vendido/mês" atual vs a média de 90 dias — sinal de
     // tendência (produto crescendo ou murchando), não só a foto do mês.
     deltaPct90MonthlySold: typeof stats.deltaPercent90_monthlySold === 'number' ? stats.deltaPercent90_monthlySold : null,
