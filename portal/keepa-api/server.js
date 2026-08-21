@@ -281,7 +281,9 @@ async function handleKeepaSearch(req, res) {
     sendJson(res, 502, {
       ok: false,
       reason: lowBudget ? 'keepa_low_budget' : 'keepa_error',
-      message: lowBudget ? 'A cota de consultas está baixa no momento (reposição é lenta). Tente novamente em alguns minutos.' : 'Não foi possível consultar a Amazon agora. Tente novamente em instantes.',
+      message: lowBudget
+        ? 'Pesquisa temporariamente indisponível — a cota de consultas do dia está baixa e se recompõe aos poucos. Não é um erro no seu cadastro; tente de novo em alguns minutos.'
+        : 'Não foi possível consultar a Amazon agora. Tente novamente em instantes.',
     });
     return;
   }
