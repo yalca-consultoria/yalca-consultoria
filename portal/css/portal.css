@@ -313,10 +313,20 @@ body.portal-body {
 .section-intro p { max-width: 640px; }
 
 /* ---------- KPI cards ---------- */
+/* Colunas fixas por faixa de largura, não auto-fit: com auto-fit o número
+   de colunas dependia da largura exata do container em cada tela, então
+   uma seção com o mesmo número de KPIs podia preencher a linha numa tela
+   e sobrar um card sozinho em outra. Fixo = previsível em qualquer
+   resolução; a última linha pode ficar parcial quando a contagem não é
+   múltiplo exato, mas isso é comportamento normal de qualquer grade de
+   cards (inclusive dashboards como o do Bling), não um bug. */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+}
+@media (max-width: 1180px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
 .kpi-card {
   position: relative;
@@ -410,7 +420,13 @@ body.portal-body {
 .panel__toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex: 1; }
 .panel__toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-left: auto; }
 
-.grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+/* align-items:stretch (padrão do grid, mas deixado explícito aqui) — os
+   dois painéis de uma linha sempre terminam na mesma altura. Antes era
+   "start": cada painel só tomava a altura do próprio conteúdo, e como as
+   colunas têm larguras diferentes (1.3fr/1fr) e os gráficos SVG escalam
+   altura a partir da largura, dois gráficos do mesmo tipo terminavam em
+   alturas visivelmente diferentes — bordas desencontradas na linha. */
+.grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: stretch; }
 .grid-2--reverse { grid-template-columns: 1fr 1.3fr; }
 
 /* Painéis de referência colapsáveis (ex: legenda de status) — ficam a um
@@ -644,7 +660,10 @@ body.portal-body {
   z-index: 30;
 }
 .chart-tooltip.is-visible { opacity: 1; }
-.chart-wrap { position: relative; }
+/* Quando o painel é esticado pelo align-items:stretch do .grid-2 (pra
+   bater a borda inferior com o painel vizinho), o gráfico centraliza no
+   espaço extra em vez de ficar colado no topo com um vão vazio embaixo. */
+.chart-wrap { position: relative; flex: 1; display: flex; align-items: center; }
 .table-view-toggle {
   align-self: flex-start;
   font-size: 0.78rem;
