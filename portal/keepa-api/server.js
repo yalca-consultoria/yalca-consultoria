@@ -213,21 +213,35 @@ async function handleKeepaSearch(req, res) {
 
   let body;
   try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
-  const asin = (body.asin || '').trim().toUpperCase();
-  if (!ASIN_RE.test(asin)) { sendJson(res, 400, { ok: false, reason: 'invalid_asin', message: 'ASIN inválido — deve ter 10 letras/números (ex: B0EXAMPLE1).' }); return; }
+  // Aceita um ASIN direto OU um código de barras (EAN/UPC/ISBN, 8-14
+  // dígitos) — o front-end (portal/js/keepa.js) já extrai o ASIN de um
+  // link colado da Amazon antes de chegar aqui, então "code" só existe
+  // quando o cliente colou um código de barras de verdade.
+  const asinInput = typeof body.asin === 'string' ? body.asin.trim().toUpperCase() : '';
+  const codeInput = typeof body.code === 'string' ? body.code.replace(/\D/g, '') : '';
+  const hasAsin = ASIN_RE.test(asinInput);
+  const hasCode = !hasAsin && /^\d{8,14}$/.test(codeInput);
+  if (!hasAsin && !hasCode) {
+    sendJson(res, 400, { ok: false, reason: 'invalid_asin', message: 'Informe um ASIN válido (10 letras/números, ex: B0EXAMPLE1), um link de produto da Amazon, ou o código de barras (EAN/UPC) do produto.' });
+    return;
+  }
 
   if (!(await requireApprovedClient(user.id, res))) return;
 
   const config = await db.restGetOne('keepa_config', 'id=eq.1&select=*');
   const cacheMaxAgeMs = (config?.search_cache_max_age_hours ?? 24) * 3600 * 1000;
 
-  // --- cache primeiro: sempre grátis, nunca passa por checagem de cota ---
-  const cached = await db.restGetOne('keepa_asin_cache', `asin=eq.${asin}&select=*`);
-  const cacheAgeMs = cached?.cheap_data_updated_at ? Date.now() - new Date(cached.cheap_data_updated_at).getTime() : Infinity;
-  if (cached && cacheAgeMs < cacheMaxAgeMs) {
-    await db.restInsert('keepa_search_log', [{ user_id: user.id, asin, resulted_in_live_call: false }]);
-    sendJson(res, 200, { ok: true, source: 'cache', ...formatResult(cached) });
-    return;
+  // --- cache primeiro: só é possível quando já sabemos o ASIN exato —
+  // uma busca por código de barras só revela o ASIN DEPOIS de uma chamada
+  // real ao Keepa, então não tem como checar o cache antes disso. ---
+  if (hasAsin) {
+    const cached = await db.restGetOne('keepa_asin_cache', `asin=eq.${asinInput}&select=*`);
+    const cacheAgeMs = cached?.cheap_data_updated_at ? Date.now() - new Date(cached.cheap_data_updated_at).getTime() : Infinity;
+    if (cached && cacheAgeMs < cacheMaxAgeMs) {
+      await db.restInsert('keepa_search_log', [{ user_id: user.id, asin: asinInput, resulted_in_live_call: false }]);
+      sendJson(res, 200, { ok: true, source: 'cache', ...formatResult(cached) });
+      return;
+    }
   }
 
   // --- limite diário de pesquisas do cliente ---
@@ -249,15 +263,19 @@ async function handleKeepaSearch(req, res) {
   }
 
   // --- chamada real ao Keepa (ou mock) ---
-  let parsed, tokensLeft = null, tokensConsumed = null, lowBudget = false;
+  // resolvedAsin começa como o ASIN informado (se houver) e vira o ASIN
+  // de verdade devolvido pelo Keepa quando a busca foi por código de
+  // barras — é essa versão resolvida que vale pra cache/log a partir daqui.
+  let parsed, tokensLeft = null, tokensConsumed = null, lowBudget = false, resolvedAsin = asinInput;
   try {
     let rawProduct;
     if (KEEPA_MOCK) {
-      rawProduct = mockKeepaResponse(asin);
+      rawProduct = mockKeepaResponse(hasAsin ? asinInput : 'B0MOCKCODE');
       tokensLeft = 999; tokensConsumed = 0;
     } else {
       if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada no ambiente do servidor');
-      const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&asin=${asin}&stats=180&buybox=1&offers=20&rating=1`;
+      const identifierQuery = hasAsin ? `asin=${asinInput}` : `code=${codeInput}`;
+      const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=12&${identifierQuery}&stats=180&buybox=1&offers=20&rating=1`;
       const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
       const json = await kres.json();
       // Captura tokensLeft/tokensConsumed ANTES de checar erro/produto vazio
@@ -268,13 +286,15 @@ async function handleKeepaSearch(req, res) {
       if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`);
       if (!json.products || !json.products[0]) {
         lowBudget = tokensLeft !== null && tokensLeft <= 0;
-        throw new Error(lowBudget ? `Produto não encontrado no Keepa para esse ASIN (saldo de tokens baixo no momento: ${tokensLeft}).` : 'Produto não encontrado no Keepa para esse ASIN.');
+        const notFoundMsg = hasCode ? 'Nenhum produto encontrado na Amazon para esse código de barras.' : 'Produto não encontrado para esse ASIN.';
+        throw new Error(lowBudget ? `${notFoundMsg} (saldo de tokens baixo no momento: ${tokensLeft})` : notFoundMsg);
       }
       rawProduct = json.products[0];
     }
+    if (rawProduct.asin) resolvedAsin = String(rawProduct.asin).toUpperCase();
     parsed = parseKeepaProduct(rawProduct);
   } catch (err) {
-    await db.restInsert('keepa_token_usage_log', [{ triggered_by: 'on_demand_search', asin, success: false, error_message: String(err.message || err) }]);
+    await db.restInsert('keepa_token_usage_log', [{ triggered_by: 'on_demand_search', asin: resolvedAsin || null, success: false, error_message: String(err.message || err) }]);
     if (tokensLeft !== null) {
       await db.restUpdate('keepa_token_budget', 'id=eq.1', { last_known_tokens_left: tokensLeft, last_checked_at: new Date().toISOString() });
     }
@@ -289,17 +309,17 @@ async function handleKeepaSearch(req, res) {
   }
 
   const nowIso = new Date().toISOString();
-  const cacheRow = buildCacheRow(asin, parsed, nowIso);
+  const cacheRow = buildCacheRow(resolvedAsin, parsed, nowIso);
   await db.restUpsert('keepa_asin_cache', [cacheRow], 'asin');
 
   const consumedForBudget = tokensConsumed ?? ESTIMATED_SEARCH_COST;
   await db.restUpdate('keepa_token_budget', 'id=eq.1', { last_known_tokens_left: tokensLeft, last_checked_at: nowIso, tokens_spent_today: spentToday + consumedForBudget, spend_day: todayStr });
   await db.restInsert('keepa_token_usage_log', [{
-    triggered_by: 'on_demand_search', asin,
+    triggered_by: 'on_demand_search', asin: resolvedAsin,
     tokens_before: tokensLeft !== null && tokensConsumed !== null ? tokensLeft + tokensConsumed : null,
     tokens_after: tokensLeft, tokens_consumed: tokensConsumed, success: true,
   }]);
-  await db.restInsert('keepa_search_log', [{ user_id: user.id, asin, resulted_in_live_call: true }]);
+  await db.restInsert('keepa_search_log', [{ user_id: user.id, asin: resolvedAsin, resulted_in_live_call: true }]);
 
   sendJson(res, 200, { ok: true, source: 'live', ...formatResult(cacheRow) });
 }
@@ -366,13 +386,25 @@ async function handleKeepaSellerLookup(req, res) {
       const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
       const json = await kres.json();
       if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`);
+      // Resposta sem a chave "sellers" não significa "nenhum desses
+      // vendedores existe" — na prática acontece quando a cota de tokens
+      // está esgotada no momento (ex: tokensLeft negativo). Tratar isso
+      // como "não encontrado" fazia o cache guardar not_found_at_keepa por
+      // até seller_reputation_cache_max_age_days (30 dias) pra vendedores
+      // reais, então o nome nunca mais era buscado de novo mesmo depois da
+      // cota se recompor — bug real encontrado em 2026-08-21. Lançando erro
+      // aqui garante que essa rodada não escreve nada no cache, e a
+      // próxima pesquisa tenta de novo do zero.
+      if (json.sellers === undefined) {
+        throw new Error(`Keepa não retornou dados de vendedor agora (cota de tokens provavelmente baixa; tokensLeft=${json.tokensLeft ?? 'desconhecido'}).`);
+      }
       sellersRaw = normalizeSellersResponse(json);
       tokensLeft = typeof json.tokensLeft === 'number' ? json.tokensLeft : null;
       tokensConsumed = typeof json.tokensConsumed === 'number' ? json.tokensConsumed : null;
     }
   } catch (err) {
     await db.restInsert('keepa_token_usage_log', [{ triggered_by: 'on_demand_seller_lookup', user_id: user.id, success: false, error_message: String(err.message || err) }]);
-    sendJson(res, 502, { ok: false, reason: 'keepa_error', message: 'Não foi possível consultar a reputação agora. Tente novamente em instantes.', sellers: result });
+    sendJson(res, 502, { ok: false, reason: 'keepa_error', message: 'Reputação dos vendedores temporariamente indisponível — a cota de consultas do dia está baixa. Não é um erro no seu cadastro; tente de novo em alguns minutos.', sellers: result });
     return;
   }
 

@@ -375,8 +375,8 @@
             <div class="panel__head"><div><h3>Pesquisar um produto pra comprar e revender</h3><p>Veja quem já vende, a que preço, e a margem estimada se você entrar nesse produto.</p></div></div>
             <form id="keepaSearchForm" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
               <div class="field" style="flex:1; min-width:200px;">
-                <label for="keepaSearchAsin">ASIN do produto</label>
-                <input type="text" id="keepaSearchAsin" maxlength="10" placeholder="Ex: B0EXAMPLE1" required>
+                <label for="keepaSearchAsin">ASIN, link da Amazon ou código de barras (EAN)</label>
+                <input type="text" id="keepaSearchAsin" maxlength="200" placeholder="Ex: B0EXAMPLE1, um link de amazon.com.br ou o EAN do produto" required>
               </div>
               <button type="submit" class="btn btn--primary btn--sm">Pesquisar</button>
             </form>

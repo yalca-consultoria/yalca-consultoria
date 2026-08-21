@@ -167,16 +167,40 @@ async function handleDeleteTrackedAsin(id) {
   }
 }
 
-/* ---------- "Pesquisar Produto" ---------- */
+/* ---------- "Pesquisar Produto" ----------
+   Aceita três formatos no mesmo campo: ASIN direto (10 letras/números),
+   um link de produto da Amazon (extrai o ASIN da URL), ou o código de
+   barras do produto (EAN/UPC/ISBN, 8-14 dígitos — a Amazon aceita como
+   parâmetro "code" na busca, útil quando o cliente só tem a embalagem
+   física em mãos e não sabe o ASIN). */
+function yalcaParseKeepaSearchInput(raw) {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return null;
+
+  // Link da Amazon: procura o ASIN nos formatos de URL mais comuns
+  // (/dp/ASIN, /gp/product/ASIN, /gp/aw/d/ASIN) em qualquer domínio da
+  // Amazon — funciona colando a URL inteira ou só o caminho.
+  const urlMatch = trimmed.match(/\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?:[/?]|$)/i);
+  if (urlMatch) return { asin: urlMatch[1].toUpperCase() };
+
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z0-9]{10}$/.test(upper)) return { asin: upper };
+
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  if (/^\d{8,14}$/.test(digitsOnly)) return { code: digitsOnly };
+
+  return null;
+}
+
 async function handleKeepaSearchSubmit(e) {
   e.preventDefault();
   const input = document.getElementById('keepaSearchAsin');
   const statusEl = document.getElementById('keepaSearchStatus');
-  const asin = input.value.trim().toUpperCase();
+  const query = yalcaParseKeepaSearchInput(input.value);
   const submitBtn = e.target.querySelector('button[type="submit"]');
 
-  if (!/^[A-Z0-9]{10}$/.test(asin)) {
-    statusEl.textContent = 'ASIN inválido — deve ter 10 letras/números (ex: B0EXAMPLE1).';
+  if (!query) {
+    statusEl.textContent = 'Não reconheci isso como ASIN, link de produto da Amazon ou código de barras. Exemplos: B0EXAMPLE1, https://www.amazon.com.br/dp/B0EXAMPLE1, ou um EAN de 8 a 14 dígitos.';
     statusEl.style.color = 'var(--critical)';
     return;
   }
@@ -187,7 +211,7 @@ async function handleKeepaSearchSubmit(e) {
   document.getElementById('keepaSearchResultPanel').style.display = 'none';
 
   try {
-    const result = await yalcaKeepaSearch(asin);
+    const result = await yalcaKeepaSearch(query);
     if (!result.ok) {
       statusEl.textContent = result.message || 'Não foi possível pesquisar agora.';
       statusEl.style.color = 'var(--warning)';
@@ -308,7 +332,7 @@ function renderKeepaSearchResult(result) {
   renderKeepaBuyboxStatsTable(stats.buyBoxStats || []);
   renderKeepaCategoryRanks(result.categoryRanks || []);
   renderKeepaOffersTable(result.offers || []);
-  autoLoadTopSellerReputation(result.offers || []);
+  autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
 }
 
 function renderKeepaBuyboxStatsTable(buyBoxStats) {
@@ -337,12 +361,19 @@ function renderKeepaBuyboxStatsTable(buyBoxStats) {
 }
 
 // Chamado sozinho a cada pesquisa nova — carrega a reputação dos
-// KEEPA_AUTO_LOAD_SELLER_COUNT vendedores mais baratos sem esperar clique
-// nenhum. Vendedores além desse número (se houver) ficam pro botão manual.
-async function autoLoadTopSellerReputation(offers) {
+// KEEPA_AUTO_LOAD_SELLER_COUNT vendedores mais relevantes sem esperar
+// clique nenhum. Vendedores além desse número (se houver) ficam pro botão
+// manual. "Mais relevantes" = os das ofertas ativas (o que o cliente vê na
+// hora de decidir comprar) PRIMEIRO, depois quem mais domina a buybox
+// histórica (tabela "Quem domina a buybox") — sem essa segunda lista, só a
+// tabela de ofertas ganhava nome de vendedor, e a de domínio de buybox
+// ficava sempre só com o ID técnico.
+async function autoLoadTopSellerReputation(offers, buyBoxStats) {
   const statusEl = document.getElementById('keepaOffersStatus');
   const btn = document.getElementById('keepaLoadSellerRepBtn');
-  const allSellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
+  const offerSellerIds = offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId);
+  const buyBoxSellerIds = (buyBoxStats || []).filter(s => s.sellerId).map(s => s.sellerId);
+  const allSellerIds = [...new Set([...offerSellerIds, ...buyBoxSellerIds])];
 
   if (allSellerIds.length === 0) {
     btn.style.display = 'none';
@@ -351,7 +382,8 @@ async function autoLoadTopSellerReputation(offers) {
   }
   btn.style.display = '';
 
-  const toAutoLoad = allSellerIds.filter(id => !KEEPA_SELLER_REPUTATION[id]).slice(0, KEEPA_AUTO_LOAD_SELLER_COUNT);
+  const priorityOrder = [...new Set([...offerSellerIds, ...buyBoxSellerIds])];
+  const toAutoLoad = priorityOrder.filter(id => !KEEPA_SELLER_REPUTATION[id]).slice(0, KEEPA_AUTO_LOAD_SELLER_COUNT);
   if (toAutoLoad.length > 0) {
     statusEl.textContent = 'Carregando reputação dos vendedores...';
     await loadSellerReputation(toAutoLoad, offers);
@@ -452,8 +484,12 @@ async function loadSellerReputation(sellerIds, offers) {
 
 async function handleLoadSellerReputation() {
   const offers = LAST_KEEPA_SEARCH_RESULT?.offers || [];
+  const buyBoxStats = LAST_KEEPA_SEARCH_RESULT?.stats?.buyBoxStats || [];
   const btn = document.getElementById('keepaLoadSellerRepBtn');
-  const allSellerIds = [...new Set(offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId))];
+  const allSellerIds = [...new Set([
+    ...offers.filter(o => o.sellerId && !o.isAmazon).map(o => o.sellerId),
+    ...buyBoxStats.filter(s => s.sellerId).map(s => s.sellerId)
+  ])];
   const missing = allSellerIds.filter(id => !KEEPA_SELLER_REPUTATION[id]);
   if (missing.length === 0) return;
 

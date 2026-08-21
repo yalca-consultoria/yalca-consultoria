@@ -186,8 +186,10 @@ async function yalcaKeepaApiCall(path, body) {
   if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
   return json;
 }
-async function yalcaKeepaSearch(asin) {
-  return yalcaKeepaApiCall('/keepa-search', { asin: asin.toUpperCase() });
+// query: { asin } ou { code } (EAN/UPC) — yalcaParseKeepaSearchInput (em
+// keepa.js) decide qual dos dois montar a partir do texto digitado/colado.
+async function yalcaKeepaSearch(query) {
+  return yalcaKeepaApiCall('/keepa-search', query.asin ? { asin: query.asin.toUpperCase() } : { code: query.code });
 }
 async function yalcaKeepaSellerLookup(sellerIds) {
   return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });

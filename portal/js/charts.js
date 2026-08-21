@@ -128,11 +128,18 @@ function yalcaRenderLineChart(container, opts) {
       <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
   }).join('');
 
-  // Largura disponível por rótulo = espaço entre pontos (ou a largura toda
-  // do gráfico, se houver só 1 ponto) — sem truncar, rótulos longos (ex:
-  // muitos "Dia N" num período grande) colidiam uns com os outros.
-  const xLabelMaxWidth = labels.length > 1 ? xStep : plotW;
+  // Decimação do eixo X: com muitos pontos (ex: 90 dias de histórico de
+  // preço), um rótulo POR PONTO vira uma sopa de texto ilegível mesmo
+  // truncado (não sobra nem 1 caractere de espaço por ponto). Em vez
+  // disso, só um a cada N pontos ganha texto — os demais continuam com
+  // seu ponto/linha no gráfico, só sem rótulo embaixo — e o texto some
+  // até caber confortavelmente no espaço reservado (~46px por rótulo).
+  const MIN_LABEL_GAP_PX = 46;
+  const labelStride = xStep > 0 ? Math.max(1, Math.ceil(MIN_LABEL_GAP_PX / xStep)) : 1;
+  const xLabelMaxWidth = labelStride * xStep || plotW;
   const xLabels = labels.map((label, i) => {
+    const isLastPoint = i === labels.length - 1;
+    if (i % labelStride !== 0 && !isLastPoint) return '';
     const truncated = yalcaTruncateLabel(label, xLabelMaxWidth);
     const inner = truncated === label ? yalcaEscapeHtml(label) : `<title>${yalcaEscapeHtml(label)}</title>${yalcaEscapeHtml(truncated)}`;
     return `<text x="${xScale(i)}" y="${H - 10}" font-size="13" text-anchor="middle">${inner}</text>`;
