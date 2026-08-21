@@ -382,6 +382,14 @@ function yalcaFormatDate(isoDate) {
   return `${d}/${m}/${y}`;
 }
 
+// Versão curta (ano com 2 dígitos) pra rótulo de eixo de gráfico, onde o
+// espaço é apertado — "20/04/2025" não cabe nem truncado em séries com
+// muitos pontos (ex: histórico de preço de 90 dias), "20/04/25" cabe.
+function yalcaFormatDateShort(isoDate) {
+  const [y, m, d] = isoDate.split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
 function yalcaMonthLabel(isoDate) {
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const [y, m] = isoDate.split('-').map(Number);

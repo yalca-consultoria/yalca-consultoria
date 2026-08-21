@@ -238,9 +238,16 @@ function renderKeepaSearchResult(result) {
   if (result.brand) metaParts.push(result.brand);
   if (result.listedSince) metaParts.push(`no mercado desde ${yalcaFormatDate(result.listedSince.slice(0, 10))}`);
   if (result.packageDimensionsCm) metaParts.push(`${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm${result.packageWeightKg ? `, ${result.packageWeightKg}kg` : ''}`);
+  if (result.variationsCount) metaParts.push(`${result.variationsCount} variações (cor/tamanho)`);
   document.getElementById('keepaResultMeta').textContent = metaParts.join(' · ');
 
   document.getElementById('keepaMockBanner').style.display = result.isMockData ? '' : 'none';
+
+  // Aviso crítico: ASIN redirecionado significa que a Amazon fundiu ou
+  // descontinuou esse anúncio específico — comprar estoque pra revender
+  // NELE seria comprar pra um anúncio que pode nem existir mais.
+  const redirectBanner = document.getElementById('keepaRedirectBanner');
+  redirectBanner.style.display = result.isRedirectAsin ? '' : 'none';
 
   const sourceLabel = result.source === 'cache' ? 'dado em cache' : 'consulta ao vivo';
   document.getElementById('keepaResultConfidence').textContent =
@@ -249,8 +256,15 @@ function renderKeepaSearchResult(result) {
   const rotationHint = result.buyboxRotation90d != null
     ? (result.buyboxRotation90d === 0 ? 'buybox estável nos últimos 90 dias' : `trocou de dono ${result.buyboxRotation90d}x nos últimos 90 dias`)
     : null;
+  // Ganhar a buybox "não qualificado" (preço fora da faixa aceitável) ou
+  // sob restrição de MAP é sinal de que a disputa de preço ali é instável —
+  // vale mais como alerta do que a rotação sozinha.
+  const buyboxWarnParts = [];
+  if (result.stats?.buyBoxIsUnqualified) buyboxWarnParts.push('vendedor não está "qualificado" pra buybox (preço fora da faixa aceitável)');
+  if (result.stats?.buyBoxIsMAP) buyboxWarnParts.push('preço sob política de MAP');
+  const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
   const buyboxKpi = result.buybox
-    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: result.buybox.isAmazon ? 'é a própria Amazon' : rotationHint, delta: null }
+    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: buyboxHint || null, delta: null }
     : { label: 'Buybox', value: '—', hint: 'ninguém está vendendo agora', delta: null };
 
   const stats = result.stats || {};
@@ -260,11 +274,21 @@ function renderKeepaSearchResult(result) {
     const deltaPct = ((priceNow - stats.avg90) / stats.avg90) * 100;
     priceHint = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(0)}% vs. média dos últimos 90 dias`;
   }
+  // suggestedLowerPrice/competitivePriceThreshold só vêm preenchidos quando
+  // a Amazon SUPRIME a buybox por preço fora da faixa — o sinal mais direto
+  // que existe de "o preço de venda planejado está errado pra esse produto".
+  if (result.suggestedLowerPrice != null) {
+    priceHint = `${priceHint ? priceHint + ' · ' : ''}Amazon sugere baixar pra ${yalcaFormatCurrency(result.suggestedLowerPrice)} (buybox suprimida)`;
+  } else if (result.competitivePriceThreshold != null) {
+    priceHint = `${priceHint ? priceHint + ' · ' : ''}preço competitivo de referência: ${yalcaFormatCurrency(result.competitivePriceThreshold)}`;
+  }
 
   // Vendas estimadas: monthlySold é dado direto da Amazon, mas a maioria dos
   // produtos não tem esse valor — nesse caso usamos a contagem de quedas no
   // ranking (que o próprio Keepa já calcula) como estimativa, deixando claro
-  // que é estimativa e não dado direto.
+  // que é estimativa e não dado direto. deltaPct90MonthlySold (quando
+  // disponível) mostra se a demanda está crescendo ou murchando, não só a
+  // foto do mês — importante pra não comprar estoque de um produto em queda.
   let vendasValue = '—';
   let vendasHint = 'sem dado suficiente pra estimar';
   if (result.monthlySold != null) {
@@ -274,10 +298,19 @@ function renderKeepaSearchResult(result) {
     vendasValue = `~${stats.salesRankDrops30.toLocaleString('pt-BR')}`;
     vendasHint = 'estimativa por quedas no ranking (não é dado direto da Amazon)';
   }
+  if (stats.deltaPct90MonthlySold != null) {
+    const trend = stats.deltaPct90MonthlySold;
+    vendasHint = `${trend >= 0 ? '📈' : '📉'} ${trend >= 0 ? '+' : ''}${trend}% vs. média de 90 dias · ${vendasHint}`;
+  }
 
   const ofertasHintParts = [];
   if (result.availabilityStatus) ofertasHintParts.push(result.availabilityStatus);
   if (stats.outOfStockPct90 != null && stats.outOfStockPct90 > 0) ofertasHintParts.push(`sem estoque ${stats.outOfStockPct90}% do tempo (90d)`);
+  // Divisão FBA/FBM dá a real "temperatura" da concorrência — 10 ofertas
+  // FBA brigando por buybox é bem diferente de 10 FBM.
+  if (stats.offerCountFBA != null || stats.offerCountFBM != null) {
+    ofertasHintParts.push(`${stats.offerCountFBA ?? 0} FBA · ${stats.offerCountFBM ?? 0} FBM`);
+  }
 
   const kpis = [
     { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint },
@@ -286,6 +319,7 @@ function renderKeepaSearchResult(result) {
     { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null },
     { label: 'Ofertas ativas', value: result.offersCount != null ? result.offersCount : '—', delta: null, hint: ofertasHintParts.join(' · ') || null },
     { label: 'Vendas estimadas/mês', value: vendasValue, delta: null, hint: vendasHint },
+    { label: 'Taxa de devolução', value: result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : '—', delta: null, hint: result.returnRate ? 'reportada pela Amazon — pesa na decisão de revender' : 'sem dado suficiente' },
     { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto' },
     { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem' },
   ];
@@ -304,9 +338,9 @@ function renderKeepaSearchResult(result) {
   const priceChartContainer = document.getElementById('keepaPriceHistoryChart');
   const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
   const priceSeries = [];
-  if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
-  if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
-  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
+  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) });
   if (priceSeries.length > 0) {
     yalcaRenderLineChart(priceChartContainer, { series: priceSeries, formatValue: (v) => yalcaFormatCurrency(v) });
   } else {
@@ -322,7 +356,7 @@ function renderKeepaSearchResult(result) {
   if (result.bsrHistory && result.bsrHistory.length > 1) {
     rankWrap.style.display = '';
     yalcaRenderLineChart(rankChartContainer, {
-      series: [{ name: 'Ranking (BSR)', color: YALCA_COLORS.series3, data: result.bsrHistory.map(p => ({ label: yalcaFormatDate(p.date.slice(0, 10)), value: p.value })) }],
+      series: [{ name: 'Ranking (BSR)', color: YALCA_COLORS.series3, data: result.bsrHistory.map(p => ({ label: yalcaFormatDateShort(p.date.slice(0, 10)), value: p.value })) }],
       formatValue: (v) => `#${Math.round(v).toLocaleString('pt-BR')}`
     });
   } else {

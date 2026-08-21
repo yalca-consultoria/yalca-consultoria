@@ -333,7 +333,7 @@
       <!-- ===================== COMPRAS & CONCORRÊNCIA ===================== -->
       <section class="portal-section" data-section="keepa">
         <div class="section-intro">
-          <p>Dados atualizados em lote pra preservar a capacidade de consulta — nada aqui é buscado ao vivo quando a página abre.</p>
+          <p>Acompanhe os produtos que você já vende (atualizados automaticamente) ou pesquise um produto novo pra decidir se vale comprar pra revenda.</p>
         </div>
 
         <div class="keepa-tabs" role="tablist">
@@ -351,7 +351,7 @@
             <div class="panel__head">
               <div>
                 <h3>ASINs monitorados</h3>
-                <p>Preço, ranking e buybox atualizados automaticamente.</p>
+                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia.</p>
               </div>
               <div class="panel__toolbar">
                 <input type="text" class="search-input" id="keepaNewAsin" maxlength="10" placeholder="ASIN (ex: B0EXAMPLE1)" style="min-width:160px;">
@@ -387,6 +387,9 @@
           <div class="panel panel--highlight" id="keepaSearchResultPanel" style="display:none;">
             <div id="keepaMockBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(250,178,25,0.14); border:1px solid rgba(250,178,25,0.4); color:var(--warning); font-size:0.88rem; font-weight:600;">
               ⚠️ Modo de teste — estes números são fictícios, não refletem o produto real. Confirme com a Yalca se a fonte de dados está temporariamente indisponível.
+            </div>
+            <div id="keepaRedirectBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(208,59,59,0.14); border:1px solid rgba(208,59,59,0.4); color:var(--critical); font-size:0.88rem; font-weight:600;">
+              ⛔ Este ASIN foi redirecionado pela Amazon (anúncio fundido ou descontinuado) — não compre estoque pra revender especificamente nele, pode não existir mais como está aqui.
             </div>
             <div class="panel__head">
               <div>

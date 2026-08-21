@@ -230,8 +230,14 @@ function parseStats(stats) {
     outOfStockPct30: pctAt(stats.outOfStockPercentage30), outOfStockPct90: pctAt(stats.outOfStockPercentage90),
     salesRankDrops30: dropsOrNull(stats.salesRankDrops30), salesRankDrops90: dropsOrNull(stats.salesRankDrops90), salesRankDrops180: dropsOrNull(stats.salesRankDrops180),
     buyBoxStats: parseBuyBoxStats(stats.buyBoxStats),
+    offerCountFBA: typeof stats.offerCountFBA === 'number' ? stats.offerCountFBA : null,
+    offerCountFBM: typeof stats.offerCountFBM === 'number' ? stats.offerCountFBM : null,
+    deltaPct90MonthlySold: typeof stats.deltaPercent90_monthlySold === 'number' ? stats.deltaPercent90_monthlySold : null,
+    buyBoxIsUnqualified: typeof stats.buyBoxIsUnqualified === 'boolean' ? stats.buyBoxIsUnqualified : null,
+    buyBoxIsMAP: typeof stats.buyBoxIsMAP === 'boolean' ? stats.buyBoxIsMAP : null,
   };
 }
+const RETURN_RATE_LABELS = { 1: 'baixa', 2: 'alta' };
 function mmToCm(mm) { return (mm === null || mm === undefined || mm <= 0) ? null : Math.round((mm / 10) * 10) / 10; }
 function gToKg(g) { return (g === null || g === undefined || g <= 0) ? null : Math.round((g / 1000) * 100) / 100; }
 
@@ -285,6 +291,12 @@ function parseKeepaProduct(p) {
     packageDimensionsCm: (p.packageLength > 0 && p.packageWidth > 0 && p.packageHeight > 0)
       ? { length: mmToCm(p.packageLength), width: mmToCm(p.packageWidth), height: mmToCm(p.packageHeight) }
       : null,
+    returnRate: RETURN_RATE_LABELS[p.returnRate] ?? null,
+    isRedirectAsin: !!p.isRedirectASIN,
+    parentAsin: typeof p.parentAsin === 'string' ? p.parentAsin : null,
+    variationsCount: Array.isArray(p.variations) ? p.variations.length : null,
+    competitivePriceThreshold: centsToReais(p.competitivePriceThreshold),
+    suggestedLowerPrice: centsToReais(p.suggestedLowerPrice),
   };
 }
 
@@ -506,6 +518,17 @@ async function main() {
         sales_rank_drops_90: parsed.stats?.salesRankDrops90 ?? null,
         sales_rank_drops_180: parsed.stats?.salesRankDrops180 ?? null,
         buybox_stats: parsed.stats?.buyBoxStats ?? [],
+        offer_count_fba: parsed.stats?.offerCountFBA ?? null,
+        offer_count_fbm: parsed.stats?.offerCountFBM ?? null,
+        delta_pct_90_monthly_sold: parsed.stats?.deltaPct90MonthlySold ?? null,
+        buybox_is_unqualified: parsed.stats?.buyBoxIsUnqualified ?? null,
+        buybox_is_map: parsed.stats?.buyBoxIsMAP ?? null,
+        return_rate: parsed.returnRate ?? null,
+        is_redirect_asin: parsed.isRedirectAsin ?? false,
+        parent_asin: parsed.parentAsin ?? null,
+        variations_count: parsed.variationsCount ?? null,
+        competitive_price_threshold: parsed.competitivePriceThreshold ?? null,
+        suggested_lower_price: parsed.suggestedLowerPrice ?? null,
         cheap_data_updated_at: nowIso,
         buybox_data_updated_at: item.priority === 0 ? nowIso : (oldRow?.buybox_data_updated_at ?? nowIso),
         last_synced_by: KEEPA_MOCK ? 'cron_mock' : 'cron',
