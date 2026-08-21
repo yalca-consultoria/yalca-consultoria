@@ -43,6 +43,18 @@ function yalcaEscapeHtml(str) {
   return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
 }
 
+/* Trunca o rótulo pra caber na largura da barra sem colidir com o vizinho
+   (ex: "Fornecedor" e "Taxa de Marketplace" grudados quando há muitas
+   categorias). Estimativa de ~6.2px por caractere em fonte 13px — grosseira
+   de propósito (SVG não tem measureText síncrono sem canvas extra), só
+   precisa evitar overflow visível; o nome completo continua no tooltip. */
+function yalcaTruncateLabel(label, maxWidthPx) {
+  const CHAR_WIDTH = 6.2;
+  const maxChars = Math.max(3, Math.floor(maxWidthPx / CHAR_WIDTH));
+  if (label.length <= maxChars) return label;
+  return label.slice(0, maxChars - 1).trimEnd() + '…';
+}
+
 function yalcaMakeTooltip(wrap) {
   let tip = wrap.querySelector('.chart-tooltip');
   if (!tip) {
@@ -188,12 +200,20 @@ function yalcaRenderBarChart(container, opts) {
       <text x="${padL - 8}" y="${y + 4}" font-size="13" text-anchor="end">${formatValue(val)}</text>`;
   }).join('');
 
+  // Rótulo pode ocupar a barra + parte do respiro dos dois lados (metade
+  // do gap pra cada vizinho) sem colidir — mais generoso que travar na
+  // largura exata da barra, que trunca rótulos curtos sem necessidade.
+  const labelMaxWidth = barW + barGap * 0.8;
   const bars = data.map((d, i) => {
     const x = padL + i * (barW + barGap);
     const h = yScale(d.value);
     const y = padT + plotH - h;
+    const truncated = yalcaTruncateLabel(d.label, labelMaxWidth);
+    const labelHtml = truncated === d.label
+      ? yalcaEscapeHtml(d.label)
+      : `<title>${yalcaEscapeHtml(d.label)}</title>${yalcaEscapeHtml(truncated)}`;
     return `<rect class="hit" data-i="${i}" x="${x}" y="${y}" width="${barW}" height="${Math.max(h, 2)}" rx="4" fill="${d.color}" style="cursor:pointer" />
-      <text x="${x + barW / 2}" y="${H - 10}" font-size="13" text-anchor="middle">${yalcaEscapeHtml(d.label)}</text>`;
+      <text x="${x + barW / 2}" y="${H - 10}" font-size="13" text-anchor="middle">${labelHtml}</text>`;
   }).join('');
 
   const tableRows = data.map(d => `<tr><td>${yalcaEscapeHtml(d.label)}</td><td class="num">${formatValue(d.value)}</td></tr>`).join('');

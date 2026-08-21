@@ -42,6 +42,7 @@
   --p-surface-3: #212d4d;
   --p-primary-soft: rgba(109, 91, 246, 0.14);
   --p-primary-border: rgba(109, 91, 246, 0.35);
+  --p-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
 }
 
 html, body { height: 100%; }
@@ -324,14 +325,15 @@ body.portal-body {
   border-radius: var(--radius);
   padding: 20px 22px;
   overflow: hidden;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  box-shadow: var(--p-shadow);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   /* Vira um container de consulta: a fonte do valor abaixo se ajusta pela
      largura REAL do card (cqi), não pela largura da tela. Isso funciona
      em qualquer grade/coluna, incluindo quando o card de destaque ocupa
      2 colunas no desktop mas só 1 linha inteira no mobile. */
   container-type: inline-size;
 }
-.kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); }
+.kpi-card:hover { transform: translateY(-2px); border-color: var(--primary-2); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6); }
 .kpi-card__label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
 .kpi-card__value {
   font-family: var(--font-heading);
@@ -350,10 +352,12 @@ body.portal-body {
 .kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
 
 /* KPI de destaque (1ª de cada grade) — só ela carrega o gradiente da marca.
-   Ocupa 2 colunas: a fonte maior (--p-text-2xl) não cabe na largura de uma
-   coluna comum sem cortar o valor. */
+   Antes ocupava 2 colunas via grid-column:span — com auto-fit, isso fazia
+   a contagem de colunas variar por seção (4 cards enchiam a linha, 5
+   sobravam 1 card sozinho com um vão enorme do lado). Card do mesmo
+   tamanho que os outros, destaque só por cor/borda — grid nunca mais
+   "sobra" um card, qualquer quantidade de KPIs preenche linhas cheias. */
 .kpi-grid .kpi-card:first-child {
-  grid-column: span 2;
   background: linear-gradient(160deg, var(--surface) 55%, rgba(109, 91, 246, 0.14));
   border-color: var(--p-primary-border);
 }
@@ -364,7 +368,6 @@ body.portal-body {
   height: 3px;
   background: var(--gradient);
 }
-.kpi-grid .kpi-card:first-child .kpi-card__value { font-size: clamp(1rem, 9cqi, var(--p-text-2xl)); }
 
 /* ---------- Painéis genéricos ---------- */
 .panel {
@@ -373,6 +376,7 @@ body.portal-body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;
+  box-shadow: var(--p-shadow);
 }
 /* Painel de destaque — o mais decisório de cada seção (ex: detalhe da
    precificação, projeção do fluxo de caixa). Não é o padrão de todo
@@ -852,7 +856,6 @@ body.portal-body {
      container-type:inline-size no .kpi-card já faz o clamp(...cqi...)
      reagir sozinho à largura de cada coluna, em qualquer tela. */
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: var(--p-space-3); }
-  .kpi-grid .kpi-card:first-child { grid-column: 1 / -1; }
   .kpi-card { padding: var(--p-space-4); }
 
   .data-table { font-size: 0.82rem; }

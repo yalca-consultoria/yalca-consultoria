@@ -255,6 +255,10 @@ async function yalcaSeedDemoData() {
   await supabaseClient.from('products').insert(seed.products);
   await supabaseClient.from('transactions').insert(seed.transactions);
   await supabaseClient.from('planned_entries').insert(seed.plannedEntries);
+  // client_settings já existe desde o cadastro (linha default criada no
+  // signup) — sem isso o "Saldo atual em caixa" ficava travado em R$0,00
+  // mesmo com meses de lançamentos de exemplo mostrando lucro real.
+  await yalcaUpdateSettings({ cash_balance: 18500 });
 }
 
 async function yalcaClearAllData() {
