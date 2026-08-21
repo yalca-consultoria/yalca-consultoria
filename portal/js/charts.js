@@ -290,22 +290,20 @@ function yalcaRenderTimeLineChart(container, opts) {
       const yNow = yScale(sorted[i].value).toFixed(1);
       line += ` L ${x} ${yPrev} L ${x} ${yNow}`;
     }
-    const lastX = xScale(sorted[sorted.length - 1].t).toFixed(1);
-    const baseline = (padT + plotH).toFixed(1);
-    const area = `${line} L ${lastX} ${baseline} L ${xScale(sorted[0].t).toFixed(1)} ${baseline} Z`;
-    return { line, area, sorted };
+    return { line, sorted };
   }
 
-  const seriesSvg = series.map((s, sIdx) => {
-    const { line, area, sorted } = stepPath(s.data.map(d => ({ ...d, t: new Date(d.date).getTime() })));
-    // Só a primeira série ganha preenchimento — igual ao Keepa, que só
-    // sombreia sob a linha "de referência" (buybox/menor preço) pra não
-    // virar um emaranhado de áreas sobrepostas com 2-3 séries.
-    const fillPath = sIdx === 0 ? `<path d="${area}" fill="${s.color}" fill-opacity="0.12" stroke="none" />` : '';
+  // Sem preenchimento de área: testado contra um produto real cuja série
+  // de referência passa longos trechos "achatada" (ex: buybox indisponível
+  // por semanas) — a área sob um trecho longo e plano vira um bloco sólido
+  // enorme até o zero do eixo Y, mais confuso do que informativo. A linha
+  // em degrau sozinha já deixa a variação real bem legível.
+  const seriesSvg = series.map((s) => {
+    const { line, sorted } = stepPath(s.data.map(d => ({ ...d, t: new Date(d.date).getTime() })));
     const dots = sorted.map((d, i) =>
       `<circle data-i="${i}" data-s="${yalcaEscapeHtml(s.name)}" class="hit" cx="${xScale(d.t).toFixed(1)}" cy="${yScale(d.value).toFixed(1)}" r="9" fill="transparent" style="cursor:pointer" />`
     ).join('');
-    return `${fillPath}<path d="${line}" fill="none" stroke="${s.color}" stroke-width="1.6" stroke-linejoin="round" />${dots}`;
+    return `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="1.6" stroke-linejoin="round" />${dots}`;
   }).join('');
 
   const legend = series.length > 1 ? `<div class="chart-legend">${series.map(s =>
