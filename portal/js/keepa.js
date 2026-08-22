@@ -62,6 +62,37 @@ async function reloadKeepaData() {
   ]);
   const cacheByAsin = Object.fromEntries(cacheRows.map(c => [c.asin, c]));
   KEEPA_DATA = { tracked, cache: cacheByAsin, alerts, sellerMetrics };
+
+  // Resolve o nome de quem está com a buybox de cada anúncio monitorado —
+  // sem isso a coluna "Buybox" da tabela mostra só o ID técnico do
+  // vendedor (ex: A2L77EE7U53NWQ), que não ajuda em nada na decisão do
+  // cliente. Cabe numa única requisição (cache compartilhado de 30 dias no
+  // servidor, então repetir não gasta token de novo).
+  const buyboxSellerIds = [...new Set(cacheRows.map(c => c.buybox_seller).filter(Boolean))];
+  await yalcaResolveSellerNames(buyboxSellerIds);
+}
+
+// Busca (e guarda em KEEPA_SELLER_REPUTATION) o nome/reputação de uma lista
+// de vendedores, pulando os que já estão em cache nesta sessão. Usado tanto
+// pro nome da buybox na tabela "Meus Anúncios" quanto pelo popup de detalhe
+// — silencioso em caso de erro (ex: sem cota no momento), a tela continua
+// mostrando o ID técnico como fallback em vez de travar.
+async function yalcaResolveSellerNames(sellerIds) {
+  const missing = [...new Set(sellerIds)].filter(id => id && !KEEPA_SELLER_REPUTATION[id]);
+  if (missing.length === 0) return;
+  // O servidor recusa lotes acima de 50 vendedores por requisição —
+  // fatia em blocos pra continuar funcionando mesmo se o cliente tiver
+  // muitos anúncios monitorados com vendedores de buybox distintos.
+  const KEEPA_SELLER_LOOKUP_BATCH_SIZE = 50;
+  for (let i = 0; i < missing.length; i += KEEPA_SELLER_LOOKUP_BATCH_SIZE) {
+    const batch = missing.slice(i, i + KEEPA_SELLER_LOOKUP_BATCH_SIZE);
+    try {
+      const result = await yalcaKeepaSellerLookup(batch);
+      if (result.ok) Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
+    } catch (err) {
+      console.error('Keepa (nomes de vendedor):', err);
+    }
+  }
 }
 
 /* ---------- "Meus Anúncios" ---------- */
@@ -82,8 +113,9 @@ function renderKeepaTracked() {
       : '—';
     const bsrLabel = c && c.bsr != null ? c.bsr.toLocaleString('pt-BR') : '—';
     const isOwnBuybox = c && c.buybox_seller && t.own_seller_name && c.buybox_seller === t.own_seller_name;
+    const buyboxSellerName = c?.buybox_seller ? KEEPA_SELLER_REPUTATION[c.buybox_seller]?.sellerName : null;
     const buyboxLabel = c && c.buybox_seller
-      ? (isOwnBuybox ? '<span class="badge badge--ativo">Você</span>' : yalcaEscapeHtml(c.buybox_seller))
+      ? (isOwnBuybox ? '<span class="badge badge--ativo">Você</span>' : yalcaEscapeHtml(buyboxSellerName || c.buybox_seller))
       : (c ? '<span class="text-muted-num">ninguém</span>' : '—');
     const ageLabel = c && c.cheap_data_updated_at
       ? `atualizado ${yalcaKeepaRelativeAge(c.cheap_data_updated_at)}`
@@ -190,7 +222,7 @@ function yalcaCacheRowToResult(c) {
 // Abre o modal de detalhe completo de um anúncio monitorado a partir dos
 // dados já em cache (sem gastar token novo — é a mesma leitura já feita
 // pra montar a tabela "Meus Anúncios", só que exibida por inteiro).
-function openKeepaTrackedDetail(asin) {
+async function openKeepaTrackedDetail(asin) {
   const t = KEEPA_DATA.tracked.find(x => x.asin === asin);
   const c = KEEPA_DATA.cache[asin];
   if (!c) {
@@ -198,6 +230,20 @@ function openKeepaTrackedDetail(asin) {
     return;
   }
   const result = yalcaCacheRowToResult(c);
+
+  // Resolve o nome de todos os vendedores que aparecem nesse produto (buybox
+  // + ofertas ativas + histórico de quem domina a buybox) ANTES de
+  // renderizar — sem isso, todo o popup mostra só IDs técnicos em vez de
+  // nome de concorrente, que é exatamente a informação que o cliente
+  // precisa pra decidir. Cache compartilhado de 30 dias no servidor, então
+  // reabrir o mesmo produto depois não gasta token de novo.
+  const sellerIds = [...new Set([
+    result.buybox?.seller,
+    ...(result.offers || []).filter(o => !o.isAmazon).map(o => o.sellerId),
+    ...(result.stats?.buyBoxStats || []).map(s => s.sellerId),
+  ].filter(Boolean))];
+  await yalcaResolveSellerNames(sellerIds);
+
   renderKeepaTrackedDetailModal(result, t);
   openModal('keepaTrackedDetailModal');
 }
@@ -227,9 +273,9 @@ function renderKeepaTrackedDetailModal(result, t) {
   renderKeepaDescription(result, 'keepaTrackedDetailDescription');
 
   const stats = result.stats || {};
-  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody');
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody', 'keepaTrackedDetailBuyboxToggle');
   renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaTrackedDetailRanksWrap', 'keepaTrackedDetailRanksList');
-  renderKeepaOffersTable(result.offers || [], 'keepaTrackedDetailOffersWrap', 'keepaTrackedDetailOffersBody', false);
+  renderKeepaOffersTable(result.offers || [], 'keepaTrackedDetailOffersWrap', 'keepaTrackedDetailOffersBody', true, 'keepaTrackedDetailOffersToggle');
 }
 
 // "Desempenho do vendedor" — só aparece depois que um admin cadastra o
@@ -362,6 +408,11 @@ async function handleKeepaSearchSubmit(e) {
       return;
     }
     LAST_KEEPA_SEARCH_RESULT = result;
+    // Resolve o vendedor da buybox ANTES do primeiro render — sem isso o
+    // KPI "Buybox" e a linha "Buy Box — vendedor" mostram o ID técnico e só
+    // trocam pro nome depois (quando autoLoadTopSellerReputation termina e
+    // re-renderiza só as tabelas de ofertas/domínio de buybox, não os KPIs).
+    if (result.buybox?.seller) await yalcaResolveSellerNames([result.buybox.seller]);
     renderKeepaSearchResult(result);
   } catch (err) {
     statusEl.textContent = 'Não foi possível consultar agora: ' + err.message;
@@ -397,83 +448,7 @@ function renderKeepaSearchResult(result) {
   document.getElementById('keepaResultConfidence').textContent =
     `${sourceLabel} · atualizado ${result.cheapDataAgeMinutes != null ? yalcaKeepaMinutesLabel(result.cheapDataAgeMinutes) : 'agora'}`;
 
-  const rotationHint = result.buyboxRotation90d != null
-    ? (result.buyboxRotation90d === 0 ? 'buybox estável nos últimos 90 dias' : `trocou de dono ${result.buyboxRotation90d}x nos últimos 90 dias`)
-    : null;
-  // Ganhar a buybox "não qualificado" (preço fora da faixa aceitável) ou
-  // sob restrição de MAP é sinal de que a disputa de preço ali é instável —
-  // vale mais como alerta do que a rotação sozinha.
-  const buyboxWarnParts = [];
-  if (result.stats?.buyBoxIsUnqualified) buyboxWarnParts.push('vendedor não está "qualificado" pra buybox (preço fora da faixa aceitável)');
-  if (result.stats?.buyBoxIsMAP) buyboxWarnParts.push('preço sob política de MAP');
-  const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
-  // "Ninguém com a buybox" é um estado REAL da Amazon (acontece mesmo com
-  // ofertas ativas — ex: preço fora da faixa aceitável, restrição de
-  // categoria, corte temporário) e não um erro do painel — mas o texto
-  // antigo ("ninguém está vendendo agora") lia como se o produto estivesse
-  // sem nenhuma oferta, o que confundia quem via ofertas ativas > 0 ao lado.
-  const buyboxKpi = result.buybox
-    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: buyboxHint || null, delta: null }
-    : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null };
-
   const stats = result.stats || {};
-  const priceNow = result.buybox?.price ?? result.currentPrice;
-  let priceHint = null;
-  if (priceNow != null && stats.avg90 != null && stats.avg90 > 0) {
-    const deltaPct = ((priceNow - stats.avg90) / stats.avg90) * 100;
-    priceHint = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(0)}% vs. média dos últimos 90 dias`;
-  }
-  // suggestedLowerPrice/competitivePriceThreshold só vêm preenchidos quando
-  // a Amazon SUPRIME a buybox por preço fora da faixa — o sinal mais direto
-  // que existe de "o preço de venda planejado está errado pra esse produto".
-  if (result.suggestedLowerPrice != null) {
-    priceHint = `${priceHint ? priceHint + ' · ' : ''}Amazon sugere baixar pra ${yalcaFormatCurrency(result.suggestedLowerPrice)} (buybox suprimida)`;
-  } else if (result.competitivePriceThreshold != null) {
-    priceHint = `${priceHint ? priceHint + ' · ' : ''}preço competitivo de referência: ${yalcaFormatCurrency(result.competitivePriceThreshold)}`;
-  }
-
-  // Vendas estimadas: monthlySold é dado direto da Amazon, mas a maioria dos
-  // produtos não tem esse valor — nesse caso usamos a contagem de quedas no
-  // ranking (que o próprio Keepa já calcula) como estimativa, deixando claro
-  // que é estimativa e não dado direto. deltaPct90MonthlySold (quando
-  // disponível) mostra se a demanda está crescendo ou murchando, não só a
-  // foto do mês — importante pra não comprar estoque de um produto em queda.
-  let vendasValue = '—';
-  let vendasHint = 'sem dado suficiente pra estimar';
-  if (result.monthlySold != null) {
-    vendasValue = result.monthlySold.toLocaleString('pt-BR');
-    vendasHint = 'dado direto da Amazon';
-  } else if (stats.salesRankDrops30 != null) {
-    vendasValue = `~${stats.salesRankDrops30.toLocaleString('pt-BR')}`;
-    vendasHint = 'estimativa por quedas no ranking (não é dado direto da Amazon)';
-  }
-  if (stats.deltaPct90MonthlySold != null) {
-    const trend = stats.deltaPct90MonthlySold;
-    vendasHint = `${trend >= 0 ? '📈' : '📉'} ${trend >= 0 ? '+' : ''}${trend}% vs. média de 90 dias · ${vendasHint}`;
-  }
-
-  const ofertasHintParts = [];
-  if (result.availabilityStatus) ofertasHintParts.push(result.availabilityStatus);
-  // Divisão FBA/FBM dá a real "temperatura" da concorrência — 10 ofertas
-  // FBA brigando por buybox é bem diferente de 10 FBM.
-  if (stats.offerCountFBA != null || stats.offerCountFBM != null) {
-    ofertasHintParts.push(`${stats.offerCountFBA ?? 0} FBA · ${stats.offerCountFBM ?? 0} FBM`);
-  }
-  // totalOfferCount (stats) é a métrica que realmente soma igual a
-  // offerCountFBA+FBM — o "offersCount" do produto mede outra coisa e podia
-  // aparecer inconsistente ao lado da divisão FBA/FBM (ex: "9" vs "2+5").
-  const ofertasAtivasValue = result.stats?.totalOfferCount ?? result.offersCount;
-
-  // Estoque: do vendedor da buybox quando existe, senão do mais barato
-  // (offers já vem ordenado por preço). Só fica disponível a partir de
-  // 2026-08-21, quando passamos a pedir stock=1 ao Keepa — antes disso
-  // essa coluna sempre voltava vazia.
-  const offersList = result.offers || [];
-  const buyboxOffer = result.buybox ? offersList.find(o => o.sellerId === result.buybox.seller) : null;
-  const stockRefOffer = buyboxOffer || offersList[0] || null;
-  const estoqueValue = stockRefOffer?.stock != null ? stockRefOffer.stock : '—';
-  const estoqueHint = stockRefOffer?.stock != null ? (buyboxOffer ? 'do vendedor da buybox' : 'do vendedor mais barato') : 'sem dado de estoque nessa consulta';
-
   const kpis = buildKeepaKpis(result);
   renderKpiGrid('keepaResultKpis', kpis);
 
@@ -514,8 +489,9 @@ function buildKeepaKpis(result) {
   if (stats.buyBoxIsUnqualified) buyboxWarnParts.push('vendedor não está "qualificado" pra buybox (preço fora da faixa aceitável)');
   if (stats.buyBoxIsMAP) buyboxWarnParts.push('preço sob política de MAP');
   const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
+  const buyboxSellerName = result.buybox?.seller ? KEEPA_SELLER_REPUTATION[result.buybox.seller]?.sellerName : null;
   const buyboxKpi = result.buybox
-    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: buyboxHint || null, delta: null }
+    ? { label: 'Buybox', value: yalcaEscapeHtml(buyboxSellerName || result.buybox.seller), hint: buyboxHint || null, delta: null }
     : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null };
 
   let vendasValue = '—';
@@ -559,6 +535,33 @@ function buildKeepaKpis(result) {
     { label: 'Preço médio (90 dias)', value: stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : '—', delta: null, hint: 'referência pra saber se o preço atual está alto ou baixo' },
     { label: 'Fora de estoque (90d)', value: stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : '—', delta: null, hint: stats.outOfStockPct90 == null ? 'sem dado suficiente' : (stats.outOfStockPct90 > 0 ? 'quanto do tempo o produto ficou indisponível' : 'sempre em estoque nos últimos 90 dias') },
   ];
+}
+
+// Mostra só as N primeiras linhas de uma tabela de vendedores, com um botão
+// "Ver mais"/"Ver menos" pra revelar o resto — evita uma lista de 20+
+// vendedores virando uma parede ilegível quando o cliente só quer ver
+// rapidamente quem são os principais concorrentes.
+const KEEPA_TABLE_PAGE_SIZE = 10;
+function yalcaPaginateSellerTable(tbody, rowsHtml, toggleId, itemLabel) {
+  const toggle = toggleId ? document.getElementById(toggleId) : null;
+  if (rowsHtml.length <= KEEPA_TABLE_PAGE_SIZE) {
+    tbody.innerHTML = rowsHtml.join('');
+    if (toggle) toggle.innerHTML = '';
+    return;
+  }
+  let expanded = false;
+  const remaining = rowsHtml.length - KEEPA_TABLE_PAGE_SIZE;
+  const moreLabel = `Ver mais ${remaining} ${itemLabel}${remaining > 1 ? 'es' : ''}`;
+  const render = () => { tbody.innerHTML = (expanded ? rowsHtml : rowsHtml.slice(0, KEEPA_TABLE_PAGE_SIZE)).join(''); };
+  render();
+  if (toggle) {
+    toggle.innerHTML = `<button type="button" class="table-view-toggle">${moreLabel}</button>`;
+    toggle.querySelector('button').addEventListener('click', () => {
+      expanded = !expanded;
+      render();
+      toggle.querySelector('button').textContent = expanded ? 'Ver menos' : moreLabel;
+    });
+  }
 }
 
 function buildKeepaPriceBadges(stats) {
@@ -639,8 +642,9 @@ function renderKeepaDetailPanel(result, elId) {
     row('Produto adulto', result.isAdultProduct === true ? '⚠️ Sim' : null),
   ].filter(Boolean).join('');
 
+  const buyboxSellerName = result.buybox?.seller ? KEEPA_SELLER_REPUTATION[result.buybox.seller]?.sellerName : null;
   const rightRows = [
-    row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'nenhum vendedor no momento'),
+    row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(buyboxSellerName || result.buybox.seller) : 'nenhum vendedor no momento'),
     row('Buy Box — preço', result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : null),
     row('Preço riscado (desconto ativo)', stats.savingBasis != null ? `${yalcaFormatCurrency(stats.savingBasis)}${stats.savingPct != null ? ` (-${stats.savingPct}%)` : ''}` : null),
     row('Preço de lista (MSRP)', result.listPrice != null ? yalcaFormatCurrency(result.listPrice) : null),
@@ -682,7 +686,7 @@ function renderKeepaDescription(result, containerId) {
   container.innerHTML = `<h4>Descrição do produto</h4>${descriptionHtml}${featuresHtml}`;
 }
 
-function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId) {
+function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId, toggleId) {
   const panel = document.getElementById(panelId || 'keepaBuyboxStatsPanel');
   const tbody = document.getElementById(bodyId || 'keepaBuyboxStatsBody');
   if (!buyBoxStats || buyBoxStats.length === 0) {
@@ -690,7 +694,7 @@ function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId) {
     return;
   }
   panel.style.display = '';
-  tbody.innerHTML = buyBoxStats.map(s => {
+  const rows = buyBoxStats.map(s => {
     const rep = s.sellerId ? KEEPA_SELLER_REPUTATION[s.sellerId] : null;
     const sellerLabel = rep && rep.sellerName
       ? `${yalcaEscapeHtml(rep.sellerName)}<br><span class="kpi-card__hint">${yalcaEscapeHtml(s.sellerId || '—')}</span>`
@@ -704,7 +708,8 @@ function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId) {
       <td data-label="Tipo">${tipoLabel}</td>
       <td data-label="Visto por último">${s.lastSeen ? yalcaFormatDate(s.lastSeen.slice(0, 10)) : '—'}</td>
     </tr>`;
-  }).join('');
+  });
+  yalcaPaginateSellerTable(tbody, rows, toggleId || 'keepaBuyboxStatsToggle', 'vendedor');
 }
 
 // Chamado sozinho a cada pesquisa nova — carrega a reputação dos
@@ -771,7 +776,7 @@ function renderKeepaCategoryRanks(ranks, panelId, listId) {
     </div>`).join('');
 }
 
-function renderKeepaOffersTable(offers, panelId, bodyId, withReputation) {
+function renderKeepaOffersTable(offers, panelId, bodyId, withReputation, toggleId) {
   const panel = document.getElementById(panelId || 'keepaOffersPanel');
   const tbody = document.getElementById(bodyId || 'keepaOffersBody');
   if (!offers || offers.length === 0) {
@@ -779,7 +784,7 @@ function renderKeepaOffersTable(offers, panelId, bodyId, withReputation) {
     return;
   }
   panel.style.display = '';
-  tbody.innerHTML = offers.map(o => {
+  const rows = offers.map(o => {
     const rep = o.sellerId ? KEEPA_SELLER_REPUTATION[o.sellerId] : null;
     const sellerLabel = o.isAmazon
       ? 'Amazon'
@@ -803,7 +808,8 @@ function renderKeepaOffersTable(offers, panelId, bodyId, withReputation) {
       <td data-label="Estoque" class="num">${o.stock != null ? o.stock : '—'}</td>
       ${withReputation ? `<td data-label="Reputação">${repLabel}</td>` : ''}
     </tr>`;
-  }).join('');
+  });
+  yalcaPaginateSellerTable(tbody, rows, toggleId || 'keepaOffersToggle', 'vendedor');
 }
 
 // Função central: busca a reputação de uma lista específica de vendedores,
