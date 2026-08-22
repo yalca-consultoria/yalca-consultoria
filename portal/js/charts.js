@@ -43,6 +43,16 @@ function yalcaEscapeHtml(str) {
   return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
 }
 
+// Seta de tendência (▲/▼ colorida) em vez de emoji (📈/📉) — pictogramas
+// de gráfico são Unicode mais recente e alguns navegadores/SO sem a fonte
+// de emoji completa mostram um ícone genérico de "glifo não encontrado" no
+// lugar (bug real reportado por um cliente, 2026-08-22). Seta simples é
+// suportada em qualquer fonte, em qualquer SO.
+function yalcaTrendArrow(value) {
+  const up = value >= 0;
+  return `<span style="color:${up ? 'var(--good)' : 'var(--critical)'}">${up ? '▲' : '▼'}</span>`;
+}
+
 // Ícone "i" com tooltip no hover/foco — usado ao lado de rótulos de KPI e
 // outros dados pra explicar o que aquele número significa, sem precisar de
 // texto permanente ocupando espaço na tela. Funciona também por teclado

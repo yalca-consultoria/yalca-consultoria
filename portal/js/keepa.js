@@ -124,7 +124,12 @@ function renderKeepaTracked() {
     let vendasLabel = '—';
     if (c?.monthly_sold != null) {
       const trend = c.delta_pct_90_monthly_sold;
-      vendasLabel = `${c.monthly_sold.toLocaleString('pt-BR')}${trend != null ? ` ${trend >= 0 ? '📈' : '📉'}` : ''}`;
+      // Seta simples (▲/▼) em vez de emoji (📈/📉) — o emoji de gráfico é
+      // um pictograma mais novo do Unicode que alguns navegadores/SO sem a
+      // fonte de emoji completa não têm glifo pra ele, e mostram um ícone
+      // genérico de "não encontrado" no lugar (bug real reportado pelo
+      // cliente, 2026-08-22). Seta é suportada em qualquer fonte.
+      vendasLabel = `${c.monthly_sold.toLocaleString('pt-BR')}${trend != null ? ` ${yalcaTrendArrow(trend)}` : ''}`;
     }
     const outOfStockLabel = c?.out_of_stock_pct_90 != null ? `${c.out_of_stock_pct_90}%` : '—';
     // total_offer_count é a contagem oficial (pode passar de 20 — o
@@ -505,7 +510,11 @@ function buildKeepaKpis(result) {
   }
   if (stats.deltaPct90MonthlySold != null) {
     const trend = stats.deltaPct90MonthlySold;
-    vendasHint = `${trend >= 0 ? '📈' : '📉'} ${trend >= 0 ? '+' : ''}${trend}% vs. média de 90 dias · ${vendasHint}`;
+    // Texto puro (sem HTML/emoji) — esse hint passa por yalcaEscapeHtml no
+    // render do KPI, então usa seta simples de texto (▲/▼), não o span
+    // colorido de yalcaTrendArrow (que seria escapado e apareceria como
+    // tag literal na tela).
+    vendasHint = `${trend >= 0 ? '▲' : '▼'} ${trend >= 0 ? '+' : ''}${trend}% vs. média de 90 dias · ${vendasHint}`;
   }
 
   const ofertasHintParts = [];
