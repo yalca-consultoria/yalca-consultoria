@@ -82,8 +82,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sellerIdForm').addEventListener('submit', saveSellerId);
   document.getElementById('sellerIdSyncBtn').addEventListener('click', syncSellerStorefront);
 
+  document.getElementById('keepaTokenRefreshBtn').addEventListener('click', loadKeepaTokenStatus);
+  loadKeepaTokenStatus();
+  // Atualiza sozinho enquanto a página estiver aberta — o endpoint é
+  // gratuito do lado do Keepa, então não tem custo em deixar rodando.
+  setInterval(loadKeepaTokenStatus, 30_000);
+
   await loadClients();
 });
+
+async function loadKeepaTokenStatus() {
+  const statusEl = document.getElementById('keepaTokenStatus');
+  try {
+    const result = await yalcaKeepaTokenStatus();
+    if (!result.ok) {
+      statusEl.textContent = result.message || 'Não foi possível consultar o saldo agora.';
+      statusEl.style.color = 'var(--warning)';
+      return;
+    }
+    statusEl.textContent = result.isMockData ? '⚠️ Modo de teste (mock) — números fictícios.' : `atualizado agora mesmo`;
+    statusEl.style.color = '';
+
+    const refillLabel = result.refillIn != null && result.refillIn > 0
+      ? `próximo token em ${Math.ceil(result.refillIn / 60)} min`
+      : (result.refillRate != null ? `recarrega ${result.refillRate}/min` : null);
+
+    renderKpiGrid('keepaTokenKpis', [
+      {
+        label: 'Saldo real (Keepa)', value: result.tokensLeft != null ? result.tokensLeft.toLocaleString('pt-BR') : '—',
+        delta: null, hint: result.tokensLeft != null && result.tokensLeft < 0 ? '⚠️ negativo — consultas vão falhar até recarregar' : (refillLabel || null),
+      },
+      { label: 'Taxa de recarga', value: result.refillRate != null ? `${result.refillRate}/min` : '—', delta: null, hint: null },
+      {
+        label: 'Cota própria usada hoje', value: result.spentToday != null ? `${result.spentToday} / ${result.dailyCap}` : '—',
+        delta: null, hint: 'limite interno do painel (separado do saldo real do Keepa)',
+      },
+    ]);
+  } catch (err) {
+    statusEl.textContent = 'Não foi possível consultar o saldo agora: ' + err.message;
+    statusEl.style.color = 'var(--critical)';
+  }
+}
 
 function initModals() {
   document.querySelectorAll('[data-close-modal]').forEach(btn => {

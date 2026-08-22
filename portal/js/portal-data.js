@@ -193,6 +193,11 @@ async function yalcaKeepaSellerLookup(sellerIds) {
 async function yalcaKeepaSyncStorefront(targetUserId) {
   return yalcaKeepaApiCall('/keepa-sync-storefront', { targetUserId });
 }
+// Só admin — saldo de tokens do Keepa em tempo real (endpoint gratuito do
+// lado do Keepa, não gasta cota nenhuma pra consultar).
+async function yalcaKeepaTokenStatus() {
+  return yalcaKeepaApiCall('/keepa-token-status', {});
+}
 // "Meus Anúncios" (cliente) lê a própria linha; admin lê qualquer uma —
 // RLS de keepa_seller_metrics já cobre os dois casos.
 async function yalcaFetchSellerMetrics(userId) {

@@ -44,6 +44,20 @@
     <div class="panel">
       <div class="panel__head">
         <div>
+          <h3>Saldo de tokens (Keepa)</h3>
+          <p>Consulta ao vivo — gratuita, não gasta cota. Atualiza sozinho a cada 30s enquanto esta página estiver aberta.</p>
+        </div>
+        <div class="panel__toolbar">
+          <button type="button" class="btn btn--ghost btn--sm" id="keepaTokenRefreshBtn">Atualizar agora</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="keepaTokenKpis"></div>
+      <p id="keepaTokenStatus" style="margin-top:10px; font-size:0.85rem;"></p>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <div>
           <h3>Assistente Yalca</h3>
           <p>IA rodando localmente na VPS — só você tem acesso a essa área. Respostas levam até 1 minuto.</p>
         </div>

@@ -12,10 +12,20 @@
 // aspas etc.) seria um risco real de escaping. fetch() + JSON já resolve
 // isso de graça.
 //
-// Deploy: copiar pra /root/keepa/refresh-keepa-cache.js na VPS, criar
-// /root/keepa/.env (chmod 600) com KEEPA_API_KEY, SUPABASE_SERVICE_ROLE_KEY,
-// SUPABASE_URL, e opcionalmente KEEPA_MOCK=true pra testar sem gastar token.
-// Crontab: 0 * * * * /usr/bin/node /root/keepa/refresh-keepa-cache.js >> /var/log/keepa-refresh.log 2>&1
+// Deploy real (atualizado 2026-08-22): dentro de
+// keepa-api.yalca.com.br/cron/, na mesma htdocs do server.js — usa o MESMO
+// .env do server.js (um diretório acima), pra não duplicar segredo em dois
+// arquivos que podem sair de sincronia. NÃO usa /root/keepa/.env (caminho
+// antigo de uma versão standalone anterior, órfão hoje — nenhuma crontab
+// aponta mais pra lá).
+// Crontab (usuário keepaapi): 0 * * * * /usr/bin/node /home/keepaapi/htdocs/keepa-api.yalca.com.br/cron/refresh-keepa-cache.js >> /home/keepaapi/logs/keepa-refresh.log 2>&1
+//
+// BUG REAL encontrado em 2026-08-22: esse comentário (e o código) ainda
+// apontava pro caminho antigo/standalone (/root/keepa/.env), então
+// `loadEnv(path.join(__dirname, '.env'))` procurava um `cron/.env` que
+// nunca existiu nesse deploy — a rodada agendada abortava toda hora antes
+// de logar qualquer coisa, silenciosamente (só aparecia no log de erro,
+// sem o "iniciando" de sempre). Corrigido pra ler o .env do diretório PAI.
 
 const fs = require('fs');
 const path = require('path');
@@ -33,7 +43,7 @@ function loadEnv(envPath) {
   return out;
 }
 
-const env = { ...loadEnv(path.join(__dirname, '.env')), ...process.env };
+const env = { ...loadEnv(path.join(__dirname, '..', '.env')), ...process.env };
 const SUPABASE_URL = env.SUPABASE_URL || 'https://api.yalca.com.br';
 const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const KEEPA_API_KEY = env.KEEPA_API_KEY;

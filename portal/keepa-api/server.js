@@ -493,6 +493,45 @@ async function handleKeepaSellerLookup(req, res) {
   sendJson(res, 200, { ok: true, sellers: result });
 }
 
+// Saldo de tokens do Keepa em tempo real — admin only. O endpoint /token
+// da Keepa é gratuito (não consome token nenhum pra consultar), então dá
+// pra chamar ao vivo toda vez sem custo, em vez de mostrar só o último
+// valor conhecido salvo no banco (que pode estar horas desatualizado).
+async function handleKeepaTokenStatus(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireAdmin(user.id, res))) return;
+
+  const [config, budget] = await Promise.all([
+    db.restGetOne('keepa_config', 'id=eq.1&select=daily_token_cap'),
+    db.restGetOne('keepa_token_budget', 'id=eq.1&select=*'),
+  ]);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const spentToday = budget?.spend_day === todayStr ? (budget?.tokens_spent_today ?? 0) : 0;
+  const dailyCap = config?.daily_token_cap ?? 200;
+
+  if (KEEPA_MOCK) {
+    sendJson(res, 200, { ok: true, tokensLeft: 999, refillIn: 0, refillRate: 5, dailyCap, spentToday, isMockData: true });
+    return;
+  }
+  if (!KEEPA_API_KEY) { sendJson(res, 500, { ok: false, reason: 'no_api_key', message: 'KEEPA_API_KEY não configurada no servidor.' }); return; }
+
+  try {
+    const kres = await fetch(`https://api.keepa.com/token?key=${KEEPA_API_KEY}`, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
+    const json = await kres.json();
+    if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+    sendJson(res, 200, {
+      ok: true,
+      tokensLeft: typeof json.tokensLeft === 'number' ? json.tokensLeft : null,
+      refillIn: typeof json.refillIn === 'number' ? json.refillIn : null,
+      refillRate: typeof json.refillRate === 'number' ? json.refillRate : null,
+      dailyCap, spentToday,
+    });
+  } catch (err) {
+    sendJson(res, 502, { ok: false, reason: 'keepa_error', message: 'Não foi possível consultar o saldo agora: ' + String(err.message || err) });
+  }
+}
+
 // Sincroniza a vitrine de um vendedor com "Meus Anúncios" de um cliente —
 // só admin (é quem cadastra o seller ID no client_profiles.amazon_seller_id
 // primeiro). storefront=1 no /seller não custa token por ASIN retornado
@@ -597,6 +636,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/keepa-search') { await handleKeepaSearch(req, res); return; }
     if (req.method === 'POST' && url === '/keepa-seller-lookup') { await handleKeepaSellerLookup(req, res); return; }
     if (req.method === 'POST' && url === '/keepa-sync-storefront') { await handleSyncSellerStorefront(req, res); return; }
+    if (req.method === 'POST' && url === '/keepa-token-status') { await handleKeepaTokenStatus(req, res); return; }
     if (req.method === 'GET' && url === '/health') { sendJson(res, 200, { ok: true }); return; }
     sendJson(res, 404, { ok: false, reason: 'not_found', message: 'Rota não encontrada.' });
   } catch (err) {
