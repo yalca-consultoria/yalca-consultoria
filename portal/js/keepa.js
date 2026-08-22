@@ -109,7 +109,7 @@ function renderKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
   if (!tbody) return;
   if (KEEPA_DATA.tracked.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja, ou adicione um ASIN avulso acima.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja no painel admin.</td></tr>';
     return;
   }
   tbody.innerHTML = KEEPA_DATA.tracked.map(t => {
@@ -153,18 +153,27 @@ function renderKeepaTracked() {
     // enorme e a tabela com aparência "quebrada". Trunca em 2 linhas
     // (.marketplace-cell__text strong no CSS) e mostra o resto no hover.
     const fullProductName = t.label || c?.title || t.asin;
+    // Placeholder (caixa/SVG, sem emoji) quando não tem foto ainda — mantém
+    // o alinhamento da coluna igual em toda a tabela, em vez de produtos
+    // com foto ficarem desalinhados dos sem foto.
+    const logoInner = c?.image_url
+      ? `<img src="${yalcaEscapeHtml(c.image_url)}" alt="" loading="lazy">`
+      : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`;
+    // ASIN entra como texto pequeno no rodapé do card do produto (não é
+    // mais coluna própria) — libera espaço horizontal pro nome completo
+    // aparecer, que é a informação que mais importa pra reconhecer o
+    // produto de relance.
     const productCell = `<div class="marketplace-cell">
-      ${c?.image_url ? `<span class="marketplace-cell__logo"><img src="${yalcaEscapeHtml(c.image_url)}" alt="" loading="lazy"></span>` : ''}
+      <span class="marketplace-cell__logo">${logoInner}</span>
       <div class="marketplace-cell__text">
         <strong title="${yalcaEscapeHtml(fullProductName)}">${yalcaEscapeHtml(fullProductName)}</strong>
-        <span class="marketplace-cell__plan">${variantParts.length ? yalcaEscapeHtml(variantParts.join(' · ')) + ' · ' : ''}${ageLabel}</span>
+        <span class="marketplace-cell__plan">${yalcaEscapeHtml(t.asin)}${variantParts.length ? ' · ' + yalcaEscapeHtml(variantParts.join(' · ')) : ''} · ${ageLabel}</span>
       </div>
     </div>`;
 
     return `
     <tr class="is-clickable-row" data-action="openTrackedDetail" data-asin="${yalcaEscapeHtml(t.asin)}" title="Ver detalhes completos">
       <td data-label="Produto">${productCell}</td>
-      <td data-label="ASIN">${yalcaEscapeHtml(t.asin)}</td>
       <td data-label="Preço" class="num">${priceLabel}</td>
       <td data-label="BSR" class="num">${bsrLabel}</td>
       <td data-label="Buybox">${buyboxLabel}</td>

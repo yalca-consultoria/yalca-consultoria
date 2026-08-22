@@ -852,6 +852,23 @@ body.portal-body {
   font-size: 0.88rem;
   min-width: 560px;
 }
+/* Tabela "Meus Anúncios" — larguras fixas por coluna (em vez do auto-layout
+   padrão do navegador), pra sempre sobrar espaço de verdade pro nome do
+   produto em vez de espremer ele contra colunas de número que raramente
+   têm valor (Ofertas/Fora de estoque ficam "—" na maioria dos produtos
+   ainda não atualizados). O ASIN saiu daqui e virou texto pequeno dentro
+   do próprio card do produto — não precisa mais de coluna própria. */
+@media (min-width: 641px) {
+  .keepa-tracked-table { table-layout: fixed; }
+  .keepa-tracked-table th:nth-child(1), .keepa-tracked-table td:nth-child(1) { width: 34%; }
+  .keepa-tracked-table th:nth-child(2), .keepa-tracked-table td:nth-child(2) { width: 12%; }
+  .keepa-tracked-table th:nth-child(3), .keepa-tracked-table td:nth-child(3) { width: 9%; }
+  .keepa-tracked-table th:nth-child(4), .keepa-tracked-table td:nth-child(4) { width: 15%; }
+  .keepa-tracked-table th:nth-child(5), .keepa-tracked-table td:nth-child(5) { width: 8%; }
+  .keepa-tracked-table th:nth-child(6), .keepa-tracked-table td:nth-child(6) { width: 12%; }
+  .keepa-tracked-table th:nth-child(7), .keepa-tracked-table td:nth-child(7) { width: 10%; }
+  .keepa-tracked-table th:nth-child(8), .keepa-tracked-table td:nth-child(8) { width: 64px; }
+}
 .data-table th {
   text-align: left;
   padding: 10px 14px;
