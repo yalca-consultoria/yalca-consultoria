@@ -498,11 +498,25 @@ async function main() {
 
   console.log(`${asins.length} ASIN(s) monitorados, ${queue.length} vencido(s) nesta rodada.`);
 
+  // Limite POR RODADA (distinto do limite diário) — sem isso, uma única
+  // execução horária podia gastar a cota do dia inteira de uma vez só (ex:
+  // 15 produtos vencidos ao mesmo tempo), deixando zero saldo pras
+  // pesquisas ao vivo do cliente no resto do dia. Com isso, "Meus Anúncios"
+  // vai carregando aos poucos ao longo das 24 rodadas do dia, sempre
+  // sobrando cota pra pesquisa.
+  const maxPerRun = config.max_tokens_per_cron_run ?? 20;
+  let spentThisRun = 0;
+
   let processed = 0;
   let alertsGenerated = 0;
   for (const item of queue) {
-    if (spentToday + (item.priority === 0 ? 5 : 1) > cap) {
+    const estCost = item.priority === 0 ? 5 : 1;
+    if (spentToday + estCost > cap) {
       console.log(`orçamento diário esgotado (${spentToday}/${cap}) — parando, ${queue.length - processed} ASIN(s) ficam pra próxima rodada.`);
+      break;
+    }
+    if (spentThisRun + estCost > maxPerRun) {
+      console.log(`limite desta rodada atingido (${spentThisRun}/${maxPerRun}) — parando, ${queue.length - processed} ASIN(s) ficam pra próxima rodada (reserva o resto da cota do dia pra pesquisas ao vivo).`);
       break;
     }
 
@@ -598,6 +612,7 @@ async function main() {
 
       const consumed = tokensConsumed ?? (item.priority === 0 ? 5 : 1);
       spentToday += consumed;
+      spentThisRun += consumed;
       lastKnownTokensLeft = tokensLeft;
       await restUpdate('keepa_token_budget', 'id=eq.1', {
         last_known_tokens_left: lastKnownTokensLeft,
@@ -617,7 +632,7 @@ async function main() {
     }
   }
 
-  console.log(`concluído: ${processed} ASIN(s) atualizados, ${alertsGenerated} alerta(s) gerados, ${spentToday} tokens gastos hoje (limite ${cap}).`);
+  console.log(`concluído: ${processed} ASIN(s) atualizados, ${alertsGenerated} alerta(s) gerados, ${spentThisRun} tokens gastos nesta rodada (limite ${maxPerRun}), ${spentToday} tokens gastos hoje (limite ${cap}).`);
 }
 
 main().catch(err => { console.error('erro fatal:', err); process.exit(1); });

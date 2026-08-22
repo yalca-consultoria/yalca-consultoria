@@ -408,17 +408,19 @@ function renderOverview() {
       delta: hasAnyData ? pctDelta(receitaAtual, receitaAnterior) : null,
       progress: hasAnyData ? progressOf(receitaAtual, receitaAnterior) : null,
       compareValue: hasAnyData ? `${yalcaFormatCurrency(receitaAnterior)} no período anterior` : null,
-      hint: hasAnyData ? null : 'cadastre lançamentos para ver aqui'
+      hint: hasAnyData ? null : 'cadastre lançamentos para ver aqui',
+      info: 'Soma de todas as receitas lançadas no período selecionado, comparado com o mesmo tamanho de período imediatamente anterior.'
     },
     {
       label: 'Lucro líquido', value: yalcaFormatCurrency(lucroAtual),
       delta: hasAnyData ? pctDelta(lucroAtual, lucroAnterior) : null,
       progress: hasAnyData ? progressOf(lucroAtual, lucroAnterior) : null,
-      compareValue: hasAnyData ? `${yalcaFormatCurrency(lucroAnterior)} no período anterior` : null
+      compareValue: hasAnyData ? `${yalcaFormatCurrency(lucroAnterior)} no período anterior` : null,
+      info: 'Faturamento menos todas as despesas lançadas no mesmo período.'
     },
-    { label: 'Margem líquida', value: hasAnyData ? `${margemAtual.toFixed(1)}%` : '—', hint: hasAnyData ? `Período anterior: ${margemAnterior.toFixed(1)}%` : 'Receita menos todos os custos' },
-    { label: 'Estoque em alerta', value: stockAlerts.length, hint: 'produtos baixos ou esgotados' },
-    { label: 'Saldo projetado (próx. mês)', value: yalcaFormatCurrency(nextMonthBalance.saldo), hint: yalcaMonthLabel(nextMonthBalance.key + '-01') }
+    { label: 'Margem líquida', value: hasAnyData ? `${margemAtual.toFixed(1)}%` : '—', hint: hasAnyData ? `Período anterior: ${margemAnterior.toFixed(1)}%` : 'Receita menos todos os custos', info: 'Lucro líquido dividido pelo faturamento, em %. Mostra quanto do que entra realmente sobra de lucro.' },
+    { label: 'Estoque em alerta', value: stockAlerts.length, hint: 'produtos baixos ou esgotados', info: 'Quantos produtos do Controle de Estoque estão marcados como "Baixo" ou "Esgotado" agora.' },
+    { label: 'Saldo projetado (próx. mês)', value: yalcaFormatCurrency(nextMonthBalance.saldo), hint: yalcaMonthLabel(nextMonthBalance.key + '-01'), info: 'Estimativa de quanto vai sobrar em caixa no próximo mês, baseada nos lançamentos recorrentes e planejados que você já cadastrou.' }
   ]);
 
   const chartEl = document.getElementById('overviewTrendChart');
@@ -514,7 +516,7 @@ function renderKpiGrid(containerId, kpis) {
     const hasCompareRow = hasDelta || k.compareValue;
     return `
     <div class="kpi-card">
-      <div class="kpi-card__label">${yalcaEscapeHtml(k.label)}</div>
+      <div class="kpi-card__label">${yalcaEscapeHtml(k.label)}${yalcaInfoIcon(k.info)}</div>
       <div class="kpi-card__value">${k.value}</div>
       ${k.progress !== undefined && k.progress !== null ? `
       <div class="kpi-card__progress">

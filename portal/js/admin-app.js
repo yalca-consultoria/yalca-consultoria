@@ -109,12 +109,12 @@ async function loadKeepaTokenStatus() {
     const saldoHint = result.tokensLeft != null && result.tokensLeft < 0 ? '⚠️ negativo — consultas vão falhar até recarregar' : (refillLabel || '');
 
     document.getElementById('keepaTokenKpis').innerHTML = [
-      { label: 'Saldo real (Keepa)', value: result.tokensLeft != null ? result.tokensLeft.toLocaleString('pt-BR') : '—', hint: saldoHint },
-      { label: 'Taxa de recarga', value: result.refillRate != null ? `${result.refillRate}/min` : '—', hint: '' },
-      { label: 'Cota própria usada hoje', value: result.spentToday != null ? `${result.spentToday} / ${result.dailyCap}` : '—', hint: 'limite interno do painel' },
+      { label: 'Saldo real (Keepa)', value: result.tokensLeft != null ? result.tokensLeft.toLocaleString('pt-BR') : '—', hint: saldoHint, info: 'Saldo de tokens que a própria Keepa mantém pra essa chave de API — compartilhado entre TODAS as consultas do painel (buscas de clientes, sincronização de vitrine, atualização automática de "Meus Anúncios"). Fica negativo quando se gasta mais rápido do que recarrega; volta ao normal sozinho.' },
+      { label: 'Taxa de recarga', value: result.refillRate != null ? `${result.refillRate}/min` : '—', hint: '', info: 'Quantos tokens a Keepa devolve por minuto, de forma automática e constante — não depende de nada que o painel faça.' },
+      { label: 'Cota própria usada hoje', value: result.spentToday != null ? `${result.spentToday} / ${result.dailyCap}` : '—', hint: 'limite interno do painel', info: 'Um limite próprio do painel (configurável), separado do saldo real acima — existe pra evitar que um único dia de uso gaste tudo de uma vez, mesmo que a Keepa ainda tenha saldo.' },
     ].map(k => `
     <div class="kpi-card">
-      <div class="kpi-card__label">${k.label}</div>
+      <div class="kpi-card__label">${k.label}${yalcaInfoIcon(k.info)}</div>
       <div class="kpi-card__value">${k.value}</div>
       ${k.hint ? `<div class="kpi-card__hint">${k.hint}</div>` : ''}
     </div>`).join('');
@@ -288,15 +288,15 @@ function renderKpis() {
   });
 
   document.getElementById('adminKpis').innerHTML = [
-    { label: 'Total de clientes', value: CLIENTS.length },
-    { label: 'Aguardando aprovação', value: pending },
-    { label: 'Aprovados', value: approved },
-    { label: 'Bloqueados', value: blocked },
-    { label: 'VGV total (período)', value: yalcaFormatCurrency(vgvTotal) },
-    { label: 'Lucro agregado (período)', value: yalcaFormatCurrency(lucroTotal) }
+    { label: 'Total de clientes', value: CLIENTS.length, info: 'Todos os clientes já cadastrados, em qualquer status (pendente, aprovado ou bloqueado).' },
+    { label: 'Aguardando aprovação', value: pending, info: 'Contas novas que se cadastraram mas ainda não foram liberadas — elas não conseguem ver nada até você aprovar.' },
+    { label: 'Aprovados', value: approved, info: 'Clientes com acesso liberado ao painel.' },
+    { label: 'Bloqueados', value: blocked, info: 'Clientes que perderam o acesso — não conseguem mais entrar no painel.' },
+    { label: 'VGV total (período)', value: yalcaFormatCurrency(vgvTotal), info: 'Soma do faturamento (receitas lançadas) de todos os clientes no período selecionado no filtro acima.' },
+    { label: 'Lucro agregado (período)', value: yalcaFormatCurrency(lucroTotal), info: 'Soma do lucro (receitas menos despesas) de todos os clientes no período selecionado.' }
   ].map(k => `
     <div class="kpi-card">
-      <div class="kpi-card__label">${k.label}</div>
+      <div class="kpi-card__label">${k.label}${yalcaInfoIcon(k.info)}</div>
       <div class="kpi-card__value">${k.value}</div>
     </div>`).join('');
 }
@@ -436,14 +436,14 @@ async function openClientDetail(userId) {
     const estoqueAlerta = clientProducts.filter(p => ['Esgotado', 'Baixo'].includes(yalcaStockStatus(p))).length;
 
     document.getElementById('clientDetailKpis').innerHTML = [
-      { label: 'Faturamento total', value: yalcaFormatCurrency(receitaTotal) },
-      { label: 'Lucro total', value: yalcaFormatCurrency(lucro) },
-      { label: 'Margem', value: receitaTotal > 0 ? margem.toFixed(1) + '%' : '—' },
-      { label: 'Produtos cadastrados', value: clientProducts.length },
-      { label: 'Estoque em alerta', value: estoqueAlerta }
+      { label: 'Faturamento total', value: yalcaFormatCurrency(receitaTotal), info: 'Soma de todas as receitas lançadas por esse cliente (todo o histórico, não só o período visto no gráfico abaixo).' },
+      { label: 'Lucro total', value: yalcaFormatCurrency(lucro), info: 'Faturamento menos despesas — o resultado líquido desse cliente.' },
+      { label: 'Margem', value: receitaTotal > 0 ? margem.toFixed(1) + '%' : '—', info: 'Lucro dividido pelo faturamento, em %. Mostra quanto do que entra vira lucro de verdade.' },
+      { label: 'Produtos cadastrados', value: clientProducts.length, info: 'Quantos produtos esse cliente já cadastrou no Controle de Estoque.' },
+      { label: 'Estoque em alerta', value: estoqueAlerta, info: 'Produtos marcados como "Esgotado" ou "Baixo" — candidatos a reposição.' }
     ].map(k => `
       <div class="kpi-card">
-        <div class="kpi-card__label">${k.label}</div>
+        <div class="kpi-card__label">${k.label}${yalcaInfoIcon(k.info)}</div>
         <div class="kpi-card__value">${k.value}</div>
       </div>`).join('');
 

@@ -292,14 +292,14 @@ function renderKeepaSellerMetrics() {
   document.getElementById('keepaSellerAmazonLink').href = `https://www.amazon.com.br/sp?seller=${encodeURIComponent(m.seller_id)}`;
 
   renderKpiGrid('keepaSellerMetricsKpis', [
-    { label: 'Classificação', value: m.current_rating != null ? `${m.current_rating}%` : '—', delta: null },
-    { label: 'Contagem de avaliações', value: m.current_rating_count != null ? m.current_rating_count.toLocaleString('pt-BR') : '—', delta: null },
-    { label: 'Listagens verificadas', value: m.total_storefront_asins != null ? m.total_storefront_asins : '—', delta: null },
-    { label: 'Tem FBA', value: m.has_fba ? 'Sim' : 'Não', delta: null },
-    { label: 'Posse da Buy Box (Novo)', value: m.buybox_new_ownership_pct != null ? `${m.buybox_new_ownership_pct}%` : '—', delta: null },
-    { label: 'Posse da Buy Box (Usado)', value: m.buybox_used_ownership_pct != null ? `${m.buybox_used_ownership_pct}%` : '—', delta: null },
-    { label: 'Média de concorrentes na Buy Box', value: m.avg_buybox_competitors != null ? Number(m.avg_buybox_competitors).toFixed(2) : '—', delta: null },
-    { label: 'Acompanhado desde', value: m.tracked_since ? yalcaFormatDate(m.tracked_since.slice(0, 10)) : '—', delta: null },
+    { label: 'Classificação', value: m.current_rating != null ? `${m.current_rating}%` : '—', delta: null, info: '% de avaliações positivas que a sua loja recebeu na Amazon.' },
+    { label: 'Contagem de avaliações', value: m.current_rating_count != null ? m.current_rating_count.toLocaleString('pt-BR') : '—', delta: null, info: 'Quantas avaliações de vendedor sua loja já recebeu no total.' },
+    { label: 'Listagens verificadas', value: m.total_storefront_asins != null ? m.total_storefront_asins : '—', delta: null, info: 'Quantos produtos diferentes sua loja tem anunciados na Amazon, segundo a última sincronização.' },
+    { label: 'Tem FBA', value: m.has_fba ? 'Sim' : 'Não', delta: null, info: 'Se a sua loja usa Fulfillment by Amazon (estoque guardado e enviado pela própria Amazon) em pelo menos um produto.' },
+    { label: 'Posse da Buy Box (Novo)', value: m.buybox_new_ownership_pct != null ? `${m.buybox_new_ownership_pct}%` : '—', delta: null, info: 'Em quantos % dos seus produtos (condição Novo) você está ganhando a buybox agora.' },
+    { label: 'Posse da Buy Box (Usado)', value: m.buybox_used_ownership_pct != null ? `${m.buybox_used_ownership_pct}%` : '—', delta: null, info: 'Em quantos % dos seus produtos (condição Usado) você está ganhando a buybox agora.' },
+    { label: 'Média de concorrentes na Buy Box', value: m.avg_buybox_competitors != null ? Number(m.avg_buybox_competitors).toFixed(2) : '—', delta: null, info: 'Em média, quantos outros vendedores disputam a buybox nos seus produtos — quanto maior, mais concorrida é a venda.' },
+    { label: 'Acompanhado desde', value: m.tracked_since ? yalcaFormatDate(m.tracked_since.slice(0, 10)) : '—', delta: null, info: 'Desde quando a Keepa tem histórico registrado da sua loja.' },
   ]);
 
   document.getElementById('keepaSellerLastSync').textContent = m.last_synced_at
@@ -522,18 +522,18 @@ function buildKeepaKpis(result) {
   const estoqueHint = stockRefOffer?.stock != null ? (buyboxOffer ? 'do vendedor da buybox' : 'do vendedor mais barato') : 'sem dado de estoque nessa consulta';
 
   return [
-    { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint },
-    buyboxKpi,
-    { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende' },
-    { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null },
-    { label: 'Ofertas ativas', value: ofertasAtivasValue != null ? ofertasAtivasValue : '—', delta: null, hint: ofertasHintParts.join(' · ') || null },
-    { label: 'Vendas estimadas/mês', value: vendasValue, delta: null, hint: vendasHint },
-    { label: 'Taxa de devolução', value: result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : '—', delta: null, hint: result.returnRate ? 'reportada pela Amazon — pesa na decisão de revender' : 'sem dado suficiente' },
-    { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto' },
-    { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem' },
-    { label: 'Estoque disponível', value: estoqueValue, delta: null, hint: estoqueHint },
-    { label: 'Preço médio (90 dias)', value: stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : '—', delta: null, hint: 'referência pra saber se o preço atual está alto ou baixo' },
-    { label: 'Fora de estoque (90d)', value: stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : '—', delta: null, hint: stats.outOfStockPct90 == null ? 'sem dado suficiente' : (stats.outOfStockPct90 > 0 ? 'quanto do tempo o produto ficou indisponível' : 'sempre em estoque nos últimos 90 dias') },
+    { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint, info: 'O preço que o comprador realmente paga na Amazon agora — a "caixa de compra" que a maioria dos pedidos passa por ela.' },
+    { ...buyboxKpi, info: 'Quem está vendendo com a buybox agora. Ganhar a buybox é o que mais importa pra vender de verdade — quem não tem ela quase não recebe pedido, mesmo anunciando o mesmo produto.' },
+    { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende', info: 'Posição do produto no ranking de vendas da categoria na Amazon. Quanto MENOR o número, mais o produto vende (é um ranking, não uma nota).' },
+    { label: 'Avaliação', value: result.rating != null ? `${result.rating.toFixed(1)} ★` : '—', delta: null, hint: result.reviewCount != null ? `${result.reviewCount} avaliações` : null, info: 'Nota média que os compradores deram ao produto (1 a 5 estrelas) e quantas avaliações existem no total.' },
+    { label: 'Ofertas ativas', value: ofertasAtivasValue != null ? ofertasAtivasValue : '—', delta: null, hint: ofertasHintParts.join(' · ') || null, info: 'Quantos vendedores diferentes estão anunciando esse mesmo produto agora — mais ofertas geralmente significa mais concorrência de preço.' },
+    { label: 'Vendas estimadas/mês', value: vendasValue, delta: null, hint: vendasHint, info: 'Quantas unidades esse produto vende por mês, aproximadamente. Quando a Amazon não informa o dado direto, é estimado pela frequência de quedas no ranking.' },
+    { label: 'Taxa de devolução', value: result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : '—', delta: null, hint: result.returnRate ? 'reportada pela Amazon — pesa na decisão de revender' : 'sem dado suficiente', info: 'Quantos compradores devolveram esse produto, segundo a própria Amazon. "Alta" é um sinal de risco pra quem for revender.' },
+    { label: 'Taxa de referência', value: result.referralFeePct != null ? `${result.referralFeePct.toFixed(1)}%` : '—', delta: null, hint: 'comissão real da Amazon nesse produto', info: 'A comissão (%) que a Amazon cobra sobre o valor de cada venda desse produto — varia por categoria.' },
+    { label: 'Taxa FBA (fulfillment)', value: result.fbaFeeTotal != null ? yalcaFormatCurrency(result.fbaFeeTotal) : '—', delta: null, hint: 'coleta + embalagem + armazenagem', info: 'Quanto a Amazon cobra pra separar, embalar e enviar esse produto quando ele está no estoque da Amazon (Fulfillment by Amazon).' },
+    { label: 'Estoque disponível', value: estoqueValue, delta: null, hint: estoqueHint, info: 'Quantas unidades o vendedor da buybox (ou o mais barato, se ninguém tiver a buybox) tem disponível agora.' },
+    { label: 'Preço médio (90 dias)', value: stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : '—', delta: null, hint: 'referência pra saber se o preço atual está alto ou baixo', info: 'Média do preço da buybox nos últimos 90 dias — serve de referência pra saber se o preço de hoje está caro ou barato comparado ao normal.' },
+    { label: 'Fora de estoque (90d)', value: stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : '—', delta: null, hint: stats.outOfStockPct90 == null ? 'sem dado suficiente' : (stats.outOfStockPct90 > 0 ? 'quanto do tempo o produto ficou indisponível' : 'sempre em estoque nos últimos 90 dias'), info: 'Quanto do tempo, nos últimos 90 dias, esse produto ficou sem nenhuma oferta disponível pra compra.' },
   ];
 }
 

@@ -606,6 +606,71 @@ body.portal-body {
 .kpi-card__delta.down { color: var(--critical); }
 .kpi-card__hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4; }
 
+/* ---------- Ícone "i" de explicação (hover/foco) ----------
+   Usado ao lado de rótulos de KPI e outros dados pra explicar o que o
+   número significa, sem ocupar espaço permanente na tela. Botão real (não
+   <span>) pra funcionar por teclado — :focus-visible ativa a bolha igual
+   ao :hover. Posicionamento por CSS puro (sem JS), com fallback de lado
+   pra não vazar pra fora da tela em cards perto da borda. */
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  padding: 0;
+  cursor: help;
+  flex-shrink: 0;
+}
+.info-tip__icon {
+  font-size: 0.66rem;
+  font-weight: 800;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+}
+.info-tip__bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  min-width: 180px;
+  max-width: 240px;
+  background: var(--p-surface-2, #1c2540);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+  box-shadow: var(--p-shadow-lg);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+  pointer-events: none;
+}
+.info-tip:hover .info-tip__bubble,
+.info-tip:focus-visible .info-tip__bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.info-tip:hover,
+.info-tip:focus-visible {
+  border-color: var(--primary-2);
+  color: var(--primary-2);
+}
+
 /* ---------- Barra de progresso do card (estilo Bling: mostra o quanto do
    período de comparação já foi atingido) ---------- */
 .kpi-card__progress {

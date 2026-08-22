@@ -43,6 +43,17 @@ function yalcaEscapeHtml(str) {
   return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
 }
 
+// Ícone "i" com tooltip no hover/foco — usado ao lado de rótulos de KPI e
+// outros dados pra explicar o que aquele número significa, sem precisar de
+// texto permanente ocupando espaço na tela. CSS puro (sem JS de
+// posicionamento), funciona também por teclado (foco no <button>) e em
+// touch (o toque já dá foco no elemento, que é o gatilho do CSS).
+// Compartilhado entre admin.html e dashboard.html (ambos carregam charts.js).
+function yalcaInfoIcon(text) {
+  if (!text) return '';
+  return `<button type="button" class="info-tip" tabindex="0" aria-label="Explicação: ${yalcaEscapeHtml(text)}"><span class="info-tip__icon">i</span><span class="info-tip__bubble">${yalcaEscapeHtml(text)}</span></button>`;
+}
+
 /* Trunca o rótulo pra caber na largura da barra sem colidir com o vizinho
    (ex: "Fornecedor" e "Taxa de Marketplace" grudados quando há muitas
    categorias). Estimativa de ~6.2px por caractere em fonte 13px — grosseira
