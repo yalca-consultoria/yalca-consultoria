@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://images-na.ssl-images-amazon.com https://m.media-amazon.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Painel do Cliente | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
@@ -858,9 +858,12 @@
 
 <!-- MODAL: detalhes completos de um anúncio monitorado -->
 <div class="modal-backdrop" id="keepaTrackedDetailModal">
-  <div class="modal modal--wide">
+  <div class="modal modal--wide modal--keepa-detail">
     <div class="modal__head">
-      <h3 id="keepaTrackedDetailTitle">—</h3>
+      <div style="display:flex; align-items:center; gap:14px; min-width:0;">
+        <img id="keepaTrackedDetailImage" src="" alt="" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:contain; background:var(--surface-2); flex-shrink:0;">
+        <h3 id="keepaTrackedDetailTitle" style="min-width:0;">—</h3>
+      </div>
       <button class="modal__close" data-close-modal="keepaTrackedDetailModal">×</button>
     </div>
     <div id="keepaTrackedDetailMockBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(250,178,25,0.14); border:1px solid rgba(250,178,25,0.4); color:var(--warning); font-size:0.88rem; font-weight:600;">

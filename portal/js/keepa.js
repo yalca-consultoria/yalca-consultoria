@@ -271,6 +271,10 @@ async function openKeepaTrackedDetail(asin) {
 function renderKeepaTrackedDetailModal(result, t) {
   document.getElementById('keepaTrackedDetailTitle').textContent = (t && t.label) || result.title || result.asin;
 
+  const imgEl = document.getElementById('keepaTrackedDetailImage');
+  if (result.imageUrl) { imgEl.src = result.imageUrl; imgEl.style.display = ''; }
+  else { imgEl.style.display = 'none'; imgEl.removeAttribute('src'); }
+
   const metaParts = [];
   if (result.brand) metaParts.push(result.brand);
   if (result.listedSince) metaParts.push(`no mercado desde ${yalcaFormatDate(result.listedSince.slice(0, 10))}`);

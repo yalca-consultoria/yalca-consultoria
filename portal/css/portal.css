@@ -1210,6 +1210,13 @@ body.portal-body {
   box-shadow: var(--p-shadow-lg);
 }
 .modal--wide { max-width: 920px; }
+/* Popup de detalhe do anúncio monitorado — tem gráficos e tabelas largas
+   (histórico de preço, ofertas), então fica apertado no tamanho padrão de
+   modal em telas de desktop. Mais largo e mais alto só pra esse popup
+   específico (os outros modais do site continuam do tamanho normal). */
+@media (min-width: 1200px) {
+  .modal--keepa-detail { max-width: 1140px; max-height: 94vh; }
+}
 
 .sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
 .sortable-th:hover { color: var(--text); }
