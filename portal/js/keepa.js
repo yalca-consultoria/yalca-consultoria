@@ -147,10 +147,16 @@ function renderKeepaTracked() {
     const ofertasLabel = c?.total_offer_count != null ? c.total_offer_count : '—';
 
     const variantParts = [c?.color, c?.size].filter(Boolean);
+    // Nome completo no title (tooltip nativo do navegador) — alguns títulos
+    // de produto (tudo em maiúsculas, sem pontuação) são bem longos e
+    // quebravam palavra por palavra numa coluna estreita, deixando a linha
+    // enorme e a tabela com aparência "quebrada". Trunca em 2 linhas
+    // (.marketplace-cell__text strong no CSS) e mostra o resto no hover.
+    const fullProductName = t.label || c?.title || t.asin;
     const productCell = `<div class="marketplace-cell">
       ${c?.image_url ? `<span class="marketplace-cell__logo"><img src="${yalcaEscapeHtml(c.image_url)}" alt="" loading="lazy"></span>` : ''}
       <div class="marketplace-cell__text">
-        <strong>${yalcaEscapeHtml(t.label || c?.title || t.asin)}</strong>
+        <strong title="${yalcaEscapeHtml(fullProductName)}">${yalcaEscapeHtml(fullProductName)}</strong>
         <span class="marketplace-cell__plan">${variantParts.length ? yalcaEscapeHtml(variantParts.join(' · ')) + ' · ' : ''}${ageLabel}</span>
       </div>
     </div>`;
