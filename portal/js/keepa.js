@@ -88,7 +88,16 @@ async function yalcaResolveSellerNames(sellerIds) {
     const batch = missing.slice(i, i + KEEPA_SELLER_LOOKUP_BATCH_SIZE);
     try {
       const result = await yalcaKeepaSellerLookup(batch);
-      if (result.ok) Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
+      // BUG REAL encontrado em 2026-08-22: quando pelo menos 1 vendedor do
+      // lote precisa de consulta ao vivo (não está em cache) e essa
+      // consulta falha (ex: sem saldo), o servidor responde com
+      // `ok:false` — mas AINDA ASSIM inclui em `sellers` os vendedores que
+      // já estavam em cache e foram resolvidos de graça. Antes, o código só
+      // aproveitava o resultado quando `result.ok` era true, descartando
+      // até os nomes já resolvidos (ex: os 25 mil importados da planilha)
+      // só porque UM vendedor do mesmo lote deu problema. Agora sempre
+      // aproveita o que veio em `sellers`, mesmo com ok:false.
+      if (result.sellers) Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
     } catch (err) {
       console.error('Keepa (nomes de vendedor):', err);
     }

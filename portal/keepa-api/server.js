@@ -469,9 +469,25 @@ async function handleKeepaSellerLookup(req, res) {
   }
 
   const nowIso = new Date().toISOString();
+  // BUG REAL encontrado em 2026-08-22: quando o lote tem uma MISTURA de
+  // vendedores encontrados e não encontrados na Keepa (comum e esperado —
+  // nem todo ID pedido existe de verdade), os objetos montados aqui tinham
+  // conjuntos de chaves DIFERENTES (o "não encontrado" só tinha 4 campos, o
+  // "encontrado" tinha 9) — o PostgREST recusa um upsert em lote assim
+  // ("All object keys must match", código PGRST102), e como essa chamada
+  // não estava dentro do try/catch de cima, o erro subia sem resposta
+  // nenhuma pro cliente (aparecia como falha de CORS no navegador, sintoma
+  // enganoso de uma exceção não tratada). Corrigido pra todo objeto ter
+  // sempre as MESMAS chaves (null nos campos que não se aplicam).
   const upsertRows = missing.map((id) => {
     const raw = sellersRaw[id];
-    if (!raw) return { seller_id: id, seller_name: null, fetched_at: nowIso, last_error: 'not_found_at_keepa' };
+    if (!raw) {
+      return {
+        seller_id: id, seller_name: null, current_rating: null, current_rating_count: null,
+        has_fba: null, rating_breakdown: null, tracked_since_raw: null,
+        total_storefront_asins: null, fetched_at: nowIso, last_error: 'not_found_at_keepa',
+      };
+    }
     const parsed = parseSeller(raw);
     result[id] = { sellerName: parsed.sellerName, currentRating: parsed.currentRating, currentRatingCount: parsed.currentRatingCount, hasFBA: parsed.hasFBA, totalStorefrontAsins: parsed.totalStorefrontAsins };
     return {
@@ -480,7 +496,14 @@ async function handleKeepaSellerLookup(req, res) {
       total_storefront_asins: parsed.totalStorefrontAsins, fetched_at: nowIso, last_error: null,
     };
   });
-  await db.restUpsert('keepa_seller_cache', upsertRows, 'seller_id');
+  try {
+    await db.restUpsert('keepa_seller_cache', upsertRows, 'seller_id');
+  } catch (err) {
+    // Não deixa um erro de escrita no cache derrubar a resposta inteira —
+    // os vendedores já resolvidos (result) ainda são úteis pro cliente
+    // mesmo que essa rodada não tenha conseguido salvar em cache.
+    console.error('keepa_seller_cache upsert falhou (não fatal):', err.message || err);
+  }
 
   const consumedForBudget = tokensConsumed ?? missing.length;
   await db.restUpdate('keepa_token_budget', 'id=eq.1', { last_known_tokens_left: tokensLeft, last_checked_at: nowIso, tokens_spent_today: spentToday + consumedForBudget, spend_day: todayStr });
