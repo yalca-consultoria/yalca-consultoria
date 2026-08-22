@@ -169,6 +169,8 @@ function formatResult(cache) {
     buyboxRotation90d: cache.buybox_rotation_90d ?? null,
     categoryRanks: cache.category_ranks ?? [],
     brand: cache.brand ?? null,
+    color: cache.color ?? null,
+    size: cache.size ?? null,
     listedSince: cache.listed_since ?? null,
     packageWeightKg: cache.package_weight_kg ?? null,
     packageDimensionsCm: cache.package_length_cm != null ? { length: cache.package_length_cm, width: cache.package_width_cm, height: cache.package_height_cm } : null,
@@ -183,6 +185,7 @@ function formatResult(cache) {
       totalOfferCount: cache.total_offer_count ?? null,
       deltaPct90MonthlySold: cache.delta_pct_90_monthly_sold ?? null,
       buyBoxIsUnqualified: cache.buybox_is_unqualified ?? null, buyBoxIsMAP: cache.buybox_is_map ?? null,
+      savingBasis: cache.saving_basis ?? null, savingPct: cache.saving_pct ?? null,
     },
     returnRate: cache.return_rate ?? null,
     isRedirectAsin: cache.is_redirect_asin ?? false,
@@ -211,7 +214,7 @@ function buildCacheRow(asin, parsed, nowIso) {
     fba_pick_pack_fee: parsed.fbaFees?.pickAndPack ?? null, fba_pick_pack_fee_tax: parsed.fbaFees?.pickAndPackTax ?? null,
     fba_storage_fee: parsed.fbaFees?.storage ?? null, fba_storage_fee_tax: parsed.fbaFees?.storageTax ?? null,
     offers: parsed.offers, buybox_rotation_90d: parsed.buyboxRotation90d, category_ranks: parsed.categoryRanks,
-    bsr_history: parsed.bsrHistory, brand: parsed.brand, listed_since: parsed.listedSince,
+    bsr_history: parsed.bsrHistory, brand: parsed.brand, color: parsed.color, size: parsed.size, listed_since: parsed.listedSince,
     package_weight_kg: parsed.packageWeightKg,
     package_length_cm: parsed.packageDimensionsCm?.length ?? null, package_width_cm: parsed.packageDimensionsCm?.width ?? null, package_height_cm: parsed.packageDimensionsCm?.height ?? null,
     price_avg_30: parsed.stats?.avg30 ?? null, price_avg_90: parsed.stats?.avg90 ?? null, price_avg_180: parsed.stats?.avg180 ?? null,
@@ -224,6 +227,7 @@ function buildCacheRow(asin, parsed, nowIso) {
     total_offer_count: parsed.stats?.totalOfferCount ?? null,
     delta_pct_90_monthly_sold: parsed.stats?.deltaPct90MonthlySold ?? null,
     buybox_is_unqualified: parsed.stats?.buyBoxIsUnqualified ?? null, buybox_is_map: parsed.stats?.buyBoxIsMAP ?? null,
+    saving_basis: parsed.stats?.savingBasis ?? null, saving_pct: parsed.stats?.savingPct ?? null,
     return_rate: parsed.returnRate ?? null,
     is_redirect_asin: parsed.isRedirectAsin ?? false,
     parent_asin: parsed.parentAsin ?? null,
@@ -541,15 +545,20 @@ async function handleSyncSellerStorefront(req, res) {
 
   // Só ADICIONA ASINs novos da vitrine, respeitando o teto configurado —
   // não mexe em ASINs que o cliente/admin já tinha adicionado manualmente.
+  // dedupe (Set) antes de tudo: um ASIN repetido dentro do próprio
+  // asinList faria o INSERT em lote falhar por chave duplicada
+  // (user_id, asin) — bug real reproduzido testando com dados de mock,
+  // mas a mesma defesa vale contra qualquer duplicata vinda do Keepa real.
+  const uniqueAsinList = [...new Set(parsed.asinList)];
   const capAsins = config?.max_tracked_asins_per_client ?? 15;
   const existing = await db.restGet('keepa_tracked_asins', `user_id=eq.${targetUserId}&active=eq.true&select=asin`);
   const existingSet = new Set((existing ?? []).map((r) => r.asin));
   const room = Math.max(0, capAsins - existingSet.size);
-  const toAdd = parsed.asinList.filter((a) => !existingSet.has(a)).slice(0, room);
+  const toAdd = uniqueAsinList.filter((a) => !existingSet.has(a)).slice(0, room);
   if (toAdd.length > 0) {
     await db.restInsert('keepa_tracked_asins', toAdd.map((asin) => ({ user_id: targetUserId, asin, label: '', own_seller_name: sellerId })));
   }
-  const totalNewFromStorefront = parsed.asinList.filter((a) => !existingSet.has(a)).length;
+  const totalNewFromStorefront = uniqueAsinList.filter((a) => !existingSet.has(a)).length;
 
   await db.restUpdate('keepa_token_budget', 'id=eq.1', { last_known_tokens_left: tokensLeft, last_checked_at: nowIso, tokens_spent_today: spentToday + (tokensConsumed ?? ESTIMATED_STOREFRONT_COST), spend_day: todayStr });
   await db.restInsert('keepa_token_usage_log', [{

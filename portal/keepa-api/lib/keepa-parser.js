@@ -161,6 +161,10 @@ function parseStats(stats) {
     // condição/critério do Keepa) e pode não somar igual, o que parecia
     // inconsistente na tela ("9 ofertas" vs "2 FBA + 5 FBM").
     totalOfferCount: typeof stats.totalOfferCount === 'number' ? stats.totalOfferCount : null,
+    // Preço "riscado" (de/por) — quando presente, é o sinal mais direto de
+    // que o produto está com desconto ativo na Amazon nesse momento.
+    savingBasis: centsToReais(stats.buyBoxSavingBasis),
+    savingPct: typeof stats.buyBoxSavingPercentage === 'number' ? stats.buyBoxSavingPercentage : null,
     // % de variação do "vendido/mês" atual vs a média de 90 dias — sinal de
     // tendência (produto crescendo ou murchando), não só a foto do mês.
     deltaPct90MonthlySold: typeof stats.deltaPercent90_monthlySold === 'number' ? stats.deltaPercent90_monthlySold : null,
@@ -227,6 +231,8 @@ function parseKeepaProduct(p) {
     categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
     stats: parseStats(p.stats),
     brand: typeof p.brand === 'string' ? p.brand : null,
+    color: typeof p.color === 'string' ? p.color : null,
+    size: typeof p.size === 'string' ? p.size : null,
     listedSince: typeof p.listedSince === 'number' && p.listedSince > 0 ? keepaTimeToIso(p.listedSince) : null,
     packageWeightKg: gToKg(p.packageWeight),
     packageDimensionsCm: (p.packageLength > 0 && p.packageWidth > 0 && p.packageHeight > 0)

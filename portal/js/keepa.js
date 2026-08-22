@@ -69,12 +69,17 @@ function renderKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
   if (!tbody) return;
   if (KEEPA_DATA.tracked.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja, ou adicione um ASIN avulso acima.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja, ou adicione um ASIN avulso acima.</td></tr>';
     return;
   }
   tbody.innerHTML = KEEPA_DATA.tracked.map(t => {
     const c = KEEPA_DATA.cache[t.asin];
-    const priceLabel = c && c.current_price != null ? yalcaFormatCurrency(c.current_price) : '—';
+    // Preço riscado/desconto ativo (quando a Amazon está com promoção
+    // rodando nesse produto agora) — sinal de oportunidade ou de queda de
+    // margem, dependendo de quem está com a buybox.
+    const priceLabel = c && c.current_price != null
+      ? `${yalcaFormatCurrency(c.current_price)}${c.saving_pct ? ` <span class="badge badge--ok" style="margin-left:4px;">-${c.saving_pct}%</span>` : ''}`
+      : '—';
     const bsrLabel = c && c.bsr != null ? c.bsr.toLocaleString('pt-BR') : '—';
     const isOwnBuybox = c && c.buybox_seller && t.own_seller_name && c.buybox_seller === t.own_seller_name;
     const buyboxLabel = c && c.buybox_seller
@@ -90,10 +95,18 @@ function renderKeepaTracked() {
       vendasLabel = `${c.monthly_sold.toLocaleString('pt-BR')}${trend != null ? ` ${trend >= 0 ? '📈' : '📉'}` : ''}`;
     }
     const outOfStockLabel = c?.out_of_stock_pct_90 != null ? `${c.out_of_stock_pct_90}%` : '—';
+    // total_offer_count é a contagem oficial (pode passar de 20 — o
+    // parâmetro offers=20 só limita quantas ofertas detalhadas a gente
+    // recebe, não o total real de concorrentes vendendo esse produto).
+    const ofertasLabel = c?.total_offer_count != null ? c.total_offer_count : '—';
 
+    const variantParts = [c?.color, c?.size].filter(Boolean);
     const productCell = `<div class="marketplace-cell">
       ${c?.image_url ? `<span class="marketplace-cell__logo"><img src="${yalcaEscapeHtml(c.image_url)}" alt="" loading="lazy"></span>` : ''}
-      <div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(t.label || c?.title || t.asin)}</strong>${ageLabel ? `<span class="marketplace-cell__plan">${ageLabel}</span>` : ''}</div>
+      <div class="marketplace-cell__text">
+        <strong>${yalcaEscapeHtml(t.label || c?.title || t.asin)}</strong>
+        <span class="marketplace-cell__plan">${variantParts.length ? yalcaEscapeHtml(variantParts.join(' · ')) + ' · ' : ''}${ageLabel}</span>
+      </div>
     </div>`;
 
     return `
@@ -103,9 +116,11 @@ function renderKeepaTracked() {
       <td data-label="Preço" class="num">${priceLabel}</td>
       <td data-label="BSR" class="num">${bsrLabel}</td>
       <td data-label="Buybox">${buyboxLabel}</td>
+      <td data-label="Ofertas" class="num">${ofertasLabel}</td>
       <td data-label="Comprado/mês" class="num">${vendasLabel}</td>
       <td data-label="Fora de estoque (90d)" class="num">${outOfStockLabel}</td>
       <td class="row-actions">
+        <a class="icon-btn" title="Ver na Amazon" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">↗</a>
         <button class="icon-btn" title="Parar de monitorar" data-action="deleteTrackedAsin" data-id="${t.id}">🗑</button>
       </td>
     </tr>`;
@@ -458,6 +473,8 @@ function renderKeepaDetailPanel(result) {
   const leftRows = [
     row('Categoria', result.categoryBreadcrumb?.length ? yalcaEscapeHtml(result.categoryBreadcrumb.join(' › ')) : null),
     row('Marca', result.brand),
+    row('Cor', result.color),
+    row('Tamanho', result.size),
     row('ASIN', result.asin),
     row('EAN', result.ean),
     row('Avaliação', result.rating != null ? `${result.rating.toFixed(1)} ★ (${result.reviewCount ?? 0} avaliações)` : null),
@@ -472,12 +489,13 @@ function renderKeepaDetailPanel(result) {
   const rightRows = [
     row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'nenhum vendedor no momento'),
     row('Buy Box — preço', result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : null),
+    row('Preço riscado (desconto ativo)', stats.savingBasis != null ? `${yalcaFormatCurrency(stats.savingBasis)}${stats.savingPct != null ? ` (-${stats.savingPct}%)` : ''}` : null),
     row('Buy Box — média 90d', stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : null),
     row('Buy Box — menor já registrado', stats.lowestEver?.price != null ? `${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}` : null),
     row('Buy Box — maior já registrado', stats.highestEver?.price != null ? `${yalcaFormatCurrency(stats.highestEver.price)} em ${yalcaFormatDate(stats.highestEver.date.slice(0, 10))}` : null),
     row('Vendedor mais barato FBA', cheapestByFulfillment(true)),
     row('Vendedor mais barato FBM', cheapestByFulfillment(false)),
-    row('Contagem total de ofertas', result.offersCount != null ? String(result.offersCount) : null),
+    row('Contagem total de ofertas', (stats.totalOfferCount ?? result.offersCount) != null ? String(stats.totalOfferCount ?? result.offersCount) : null),
     row('Ofertas FBA / FBM', (stats.offerCountFBA != null || stats.offerCountFBM != null) ? `${stats.offerCountFBA ?? 0} / ${stats.offerCountFBM ?? 0}` : null),
     row('Fora de estoque (90d)', stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : null),
   ].filter(Boolean).join('');

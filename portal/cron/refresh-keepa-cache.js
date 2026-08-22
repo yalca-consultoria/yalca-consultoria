@@ -235,6 +235,9 @@ function parseStats(stats) {
     deltaPct90MonthlySold: typeof stats.deltaPercent90_monthlySold === 'number' ? stats.deltaPercent90_monthlySold : null,
     buyBoxIsUnqualified: typeof stats.buyBoxIsUnqualified === 'boolean' ? stats.buyBoxIsUnqualified : null,
     buyBoxIsMAP: typeof stats.buyBoxIsMAP === 'boolean' ? stats.buyBoxIsMAP : null,
+    totalOfferCount: typeof stats.totalOfferCount === 'number' ? stats.totalOfferCount : null,
+    savingBasis: centsToReais(stats.buyBoxSavingBasis),
+    savingPct: typeof stats.buyBoxSavingPercentage === 'number' ? stats.buyBoxSavingPercentage : null,
   };
 }
 const RETURN_RATE_LABELS = { 1: 'baixa', 2: 'alta' };
@@ -287,6 +290,8 @@ function parseKeepaProduct(p) {
     categoryRanks: parseCategoryRanks(p.salesRanks, p.salesRankReference, p.categoryTree, category),
     stats: parseStats(p.stats),
     brand: typeof p.brand === 'string' ? p.brand : null,
+    color: typeof p.color === 'string' ? p.color : null,
+    size: typeof p.size === 'string' ? p.size : null,
     listedSince: typeof p.listedSince === 'number' && p.listedSince > 0 ? keepaTimeToIso(p.listedSince) : null,
     packageWeightKg: gToKg(p.packageWeight),
     packageDimensionsCm: (p.packageLength > 0 && p.packageWidth > 0 && p.packageHeight > 0)
@@ -503,6 +508,8 @@ async function main() {
         category_ranks: parsed.categoryRanks,
         bsr_history: parsed.bsrHistory,
         brand: parsed.brand,
+        color: parsed.color,
+        size: parsed.size,
         listed_since: parsed.listedSince,
         package_weight_kg: parsed.packageWeightKg,
         package_length_cm: parsed.packageDimensionsCm?.length ?? null,
@@ -526,6 +533,9 @@ async function main() {
         delta_pct_90_monthly_sold: parsed.stats?.deltaPct90MonthlySold ?? null,
         buybox_is_unqualified: parsed.stats?.buyBoxIsUnqualified ?? null,
         buybox_is_map: parsed.stats?.buyBoxIsMAP ?? null,
+        total_offer_count: parsed.stats?.totalOfferCount ?? null,
+        saving_basis: parsed.stats?.savingBasis ?? null,
+        saving_pct: parsed.stats?.savingPct ?? null,
         return_rate: parsed.returnRate ?? null,
         is_redirect_asin: parsed.isRedirectAsin ?? false,
         parent_asin: parsed.parentAsin ?? null,
