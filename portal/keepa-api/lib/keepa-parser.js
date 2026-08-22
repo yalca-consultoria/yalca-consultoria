@@ -74,6 +74,26 @@ function parseOffers(offers) {
   return parsed;
 }
 
+// BUG REAL encontrado em 2026-08-22 (usuário relatou "nunca aparece o nome
+// do vendedor/buybox" mesmo depois de resolver os nomes de vendedor — a
+// causa não era falta de resolução de nome, era isto): `buyBoxSellerId` e
+// `buyBoxPrice` NÃO EXISTEM como campos escalares no Product do Keepa
+// (confirmado no struct oficial, github.com/keepacom/api_backend,
+// Product.java) — só existe `buyBoxSellerIdHistory` (histórico, pares
+// [tempo, sellerId]). Ler `p.buyBoxSellerId` sempre voltava undefined, daí
+// a buybox nunca tinha vendedor pra resolver nome nenhum. O preço "sempre
+// certo" mascarava o mesmo bug: `currentPrice` já tinha fallback pra
+// New/Amazon quando buyboxPrice vinha nulo, então ninguém notou visualmente.
+function lastBuyboxSellerFromHistory(history) {
+  let flat = [];
+  if (typeof history === 'string' && history.length > 0) flat = history.split(',');
+  else if (Array.isArray(history)) flat = history;
+  else return null;
+  if (flat.length < 2) return null;
+  const seller = String(flat[flat.length - 1]);
+  return seller && seller !== 'undefined' ? seller : null;
+}
+
 function computeBuyboxRotation(history, windowDays) {
   let flat = [];
   if (typeof history === 'string' && history.length > 0) flat = history.split(',');
@@ -186,7 +206,11 @@ function parseKeepaProduct(p) {
   const bsrHistory = extractCsvSeries(p.csv, 3, false);
   const ratingHistory = extractCsvSeries(p.csv, 16, false);
   const reviewCountHistory = extractCsvSeries(p.csv, 17, false);
-  const buyboxPrice = centsToReais(p.buyBoxPrice);
+  // Vendedor e preço da buybox vêm do histórico (ver nota em
+  // lastBuyboxSellerFromHistory) — não de campos escalares que não existem.
+  const buyboxSellerId = lastBuyboxSellerFromHistory(p.buyBoxSellerIdHistory);
+  const buyboxOfferMatch = buyboxSellerId && Array.isArray(p.offers) ? p.offers.find(o => o.sellerId === buyboxSellerId) : null;
+  const buyboxPrice = lastValue(priceHistoryBuyBox);
   const currentPrice = buyboxPrice ?? lastValue(priceHistoryNew) ?? lastValue(priceHistoryAmazon);
   // Três séries separadas (Amazon/outros vendedores/buybox) — necessário
   // pro gráfico multi-série (cada linha com sua própria cor/significado,
@@ -216,8 +240,8 @@ function parseKeepaProduct(p) {
     category,
     rating: lastValue(ratingHistory) !== null ? lastValue(ratingHistory) / 10 : null,
     reviewCount: lastValue(reviewCountHistory),
-    buyboxSeller: p.buyBoxSellerId ?? null,
-    buyboxIsAmazon: !!p.buyBoxIsAmazon,
+    buyboxSeller: buyboxSellerId,
+    buyboxIsAmazon: buyboxOfferMatch ? !!buyboxOfferMatch.isAmazon : false,
     buyboxPrice,
     offersCount: typeof p.offersCount === 'number' ? p.offersCount : (Array.isArray(p.offers) ? p.offers.length : null),
     availabilityStatus: AVAILABILITY_LABELS[String(p.availabilityAmazon)] ?? null,
@@ -287,9 +311,11 @@ function mockKeepaResponse(asin) {
   return {
     asin,
     title: `Produto de teste (mock) ${asin}`,
-    buyBoxSellerId: seller,
-    buyBoxIsAmazon: false,
-    buyBoxPrice: 12990,
+    // De propósito SEM buyBoxSellerId/buyBoxPrice escalares — a resposta
+    // real do Keepa nunca tem esses campos (só buyBoxSellerIdHistory +
+    // csv[18]), e um mock com campos que não existem de verdade já mascarou
+    // um bug real (visto em produção em 2026-08-22) sem que nenhum teste
+    // local com mock pegasse.
     offersCount: 4,
     availabilityAmazon: 0,
     categoryTree: [{ catId: 100, name: 'Categoria Mock' }],
