@@ -163,6 +163,16 @@ function parseOffers(offers) {
   return parsed;
 }
 
+// BUG REAL encontrado em 2026-08-22 (imagem do produto nunca era salva):
+// o campo real da Keepa é `p.images` (array de objetos {l, m, variant}),
+// não `p.imagesCSV` (que nem existe). Prioriza a imagem MAIN.
+function extractImageUrl(images) {
+  if (!Array.isArray(images) || images.length === 0) return null;
+  const main = images.find((i) => i?.variant === 'MAIN') || images[0];
+  const filename = main?.l || main?.m;
+  return filename ? `https://m.media-amazon.com/images/I/${filename}` : null;
+}
+
 // BUG REAL encontrado em 2026-08-22: `buyBoxSellerId`/`buyBoxPrice` não
 // existem como campos escalares no Product do Keepa (confirmado no struct
 // oficial, github.com/keepacom/api_backend) — só `buyBoxSellerIdHistory`
@@ -298,6 +308,7 @@ function parseKeepaProduct(p) {
   } : null;
   return {
     title: p.title ?? null,
+    imageUrl: extractImageUrl(p.images),
     currentPrice,
     bsr: lastValue(bsrHistory),
     category,
@@ -358,6 +369,7 @@ function mockKeepaResponse(asin) {
     offersCount: 3,
     availabilityAmazon: 0,
     categoryTree: [{ catId: 100, name: 'Categoria Mock' }],
+    images: [{ l: '51fF3DqLqVL.jpg', lH: 1000, lW: 1000, m: '41biBcvkhhL.jpg', mH: 500, mW: 500, variant: 'MAIN' }],
     monthlySold: 200,
     referralFeePercentage: 15.0,
     fbaFees: { pickAndPackFee: 605, pickAndPackFeeTax: 0, storageFee: 40, storageFeeTax: 0 },
@@ -549,6 +561,7 @@ async function main() {
       await restUpsert('keepa_asin_cache', [{
         asin,
         title: parsed.title,
+        image_url: parsed.imageUrl,
         current_price: parsed.currentPrice,
         bsr: parsed.bsr,
         category: parsed.category,

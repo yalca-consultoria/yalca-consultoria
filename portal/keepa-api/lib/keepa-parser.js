@@ -199,6 +199,21 @@ const RETURN_RATE_LABELS = { 1: 'baixa', 2: 'alta' };
 function mmToCm(mm) { return (mm === null || mm === undefined || mm <= 0) ? null : Math.round((mm / 10) * 10) / 10; }
 function gToKg(g) { return (g === null || g === undefined || g <= 0) ? null : Math.round((g / 1000) * 100) / 100; }
 
+// BUG REAL encontrado em 2026-08-22 (usuário pediu a imagem no popup, e ela
+// nunca aparecia): o código lia `p.imagesCSV` como se fosse um array de
+// nomes de arquivo separados por vírgula — esse campo não existe na
+// resposta real da Keepa. O campo de verdade é `p.images`, um ARRAY DE
+// OBJETOS ({l: nomeGrande, m: nomeMédio, variant: "MAIN"|"PT02"|...}).
+// Prioriza a imagem MAIN (capa do anúncio); cai pra primeira do array se
+// não tiver MAIN marcada. m.media-amazon.com é o CDN atual de imagens da
+// Amazon (images-na.ssl-images-amazon.com é o domínio legado).
+function extractImageUrl(images) {
+  if (!Array.isArray(images) || images.length === 0) return null;
+  const main = images.find((i) => i?.variant === 'MAIN') || images[0];
+  const filename = main?.l || main?.m;
+  return filename ? `https://m.media-amazon.com/images/I/${filename}` : null;
+}
+
 function parseKeepaProduct(p) {
   const priceHistoryNew = extractCsvSeries(p.csv, 1, true);
   const priceHistoryAmazon = extractCsvSeries(p.csv, 0, true);
@@ -232,9 +247,7 @@ function parseKeepaProduct(p) {
   } : null;
   return {
     title: p.title ?? null,
-    imageUrl: Array.isArray(p.imagesCSV) && p.imagesCSV.length > 0
-      ? `https://images-na.ssl-images-amazon.com/images/I/${String(p.imagesCSV).split(",")[0]}`
-      : null,
+    imageUrl: extractImageUrl(p.images),
     currentPrice,
     bsr: lastValue(bsrHistory),
     category,
@@ -319,7 +332,7 @@ function mockKeepaResponse(asin) {
     offersCount: 4,
     availabilityAmazon: 0,
     categoryTree: [{ catId: 100, name: 'Categoria Mock' }],
-    imagesCSV: '',
+    images: [{ l: '51fF3DqLqVL.jpg', lH: 1000, lW: 1000, m: '41biBcvkhhL.jpg', mH: 500, mW: 500, variant: 'MAIN' }],
     monthlySold: 340,
     referralFeePercentage: 15.0,
     fbaFees: { pickAndPackFee: 605, pickAndPackFeeTax: 0, storageFee: 40, storageFeeTax: 0 },
