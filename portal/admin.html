@@ -100,6 +100,7 @@
               <th class="num sortable-th" data-sort="lucro">Lucro <span class="sort-arrow">▾</span></th>
               <th class="num sortable-th" data-sort="margem">Margem <span class="sort-arrow">▾</span></th>
               <th class="num sortable-th" data-sort="produtos">Produtos <span class="sort-arrow">▾</span></th>
+              <th>Seller ID (Amazon)</th>
               <th class="sortable-th" data-sort="created_at">Cadastro <span class="sort-arrow">▾</span></th>
               <th class="sortable-th" data-sort="status">Status <span class="sort-arrow">▾</span></th>
               <th></th>
@@ -182,6 +183,32 @@
         <button type="button" class="btn btn--ghost btn--sm" data-close-modal="notesModal">Cancelar</button>
         <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
       </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: seller ID (Amazon) do cliente -->
+<div class="modal-backdrop" id="sellerIdModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3>Seller ID (Amazon)</h3>
+      <button class="modal__close" data-close-modal="sellerIdModal">×</button>
+    </div>
+    <form id="sellerIdForm">
+      <input type="hidden" id="sellerIdUserId">
+      <div class="field">
+        <label for="sellerIdInput">Código do vendedor na Amazon (ex: A2L77EE7U53NWQ)</label>
+        <input type="text" id="sellerIdInput" placeholder="Cole o seller ID da loja do cliente">
+        <p class="kpi-card__hint">Alimenta a página "Meus Anúncios" do cliente — a vitrine inteira do vendedor é sincronizada automaticamente com o Keepa a partir daqui.</p>
+      </div>
+      <div class="modal__actions" style="justify-content:space-between;">
+        <button type="button" class="btn btn--ghost btn--sm" id="sellerIdSyncBtn" style="display:none;">Sincronizar vitrine agora</button>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn btn--ghost btn--sm" data-close-modal="sellerIdModal">Fechar</button>
+          <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
+        </div>
+      </div>
+      <p id="sellerIdSyncStatus" style="margin-top:10px; font-size:0.85rem;"></p>
     </form>
   </div>
 </div>

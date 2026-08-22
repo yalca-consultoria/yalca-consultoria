@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { action, id, status } = btn.dataset;
     if (action === 'openClientDetail') openClientDetail(id);
     else if (action === 'openNotes') openNotes(id);
+    else if (action === 'openSellerId') openSellerId(id);
     else if (action === 'updateClientStatus') updateClientStatus(id, status);
     else if (action === 'deleteClient') deleteClient(id);
   });
@@ -78,6 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initModals();
   document.getElementById('notesForm').addEventListener('submit', saveNotes);
+  document.getElementById('sellerIdForm').addEventListener('submit', saveSellerId);
+  document.getElementById('sellerIdSyncBtn').addEventListener('click', syncSellerStorefront);
 
   await loadClients();
 });
@@ -311,7 +314,7 @@ function renderClientsTable() {
 
   const tbody = document.getElementById('clientsTableBody');
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="alert-empty">Nenhum cliente encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="alert-empty">Nenhum cliente encontrado.</td></tr>';
     return;
   }
 
@@ -332,6 +335,11 @@ function renderClientsTable() {
       <td class="num ${m.lucro < 0 ? 'text-critical' : ''}">${yalcaFormatCurrency(m.lucro)}</td>
       <td class="num ${margemClass}">${m.receita > 0 ? m.margem.toFixed(1) + '%' : '—'}</td>
       <td class="num">${m.produtos}</td>
+      <td>
+        <button class="icon-btn" title="Cadastrar/editar seller ID" data-action="openSellerId" data-id="${c.user_id}" style="width:auto; padding:0 10px; font-size:0.78rem;">
+          ${c.amazon_seller_id ? yalcaEscapeHtmlSafe(c.amazon_seller_id) : '+ cadastrar'}
+        </button>
+      </td>
       <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
       <td>${badge[c.status] || c.status}</td>
       <td class="row-actions">
@@ -462,6 +470,66 @@ async function saveNotes(e) {
     await loadClients();
   } catch (err) {
     alert('Não foi possível salvar a observação: ' + err.message);
+  }
+}
+
+/* ============================================================
+   SELLER ID (Amazon) — alimenta "Meus Anúncios" do cliente
+   ============================================================ */
+function openSellerId(userId) {
+  const profile = CLIENTS.find(c => c.user_id === userId);
+  if (!profile) return;
+  document.getElementById('sellerIdUserId').value = userId;
+  document.getElementById('sellerIdInput').value = profile.amazon_seller_id || '';
+  document.getElementById('sellerIdSyncStatus').textContent = '';
+  document.getElementById('sellerIdSyncBtn').style.display = profile.amazon_seller_id ? '' : 'none';
+  openModal('sellerIdModal');
+}
+
+async function saveSellerId(e) {
+  e.preventDefault();
+  const userId = document.getElementById('sellerIdUserId').value;
+  const sellerId = document.getElementById('sellerIdInput').value.trim();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true; submitBtn.textContent = 'Salvando...';
+  try {
+    const { error } = await supabaseClient.from('client_profiles').update({ amazon_seller_id: sellerId || null }).eq('user_id', userId);
+    if (error) throw new Error(error.message);
+    await logAdminAction('set_seller_id', userId, { sellerId });
+    document.getElementById('sellerIdSyncBtn').style.display = sellerId ? '' : 'none';
+    await loadClients();
+    document.getElementById('sellerIdSyncStatus').textContent = 'Salvo. ' + (sellerId ? 'Clique em "Sincronizar vitrine agora" pra puxar os produtos.' : '');
+    document.getElementById('sellerIdSyncStatus').style.color = 'var(--good)';
+  } catch (err) {
+    alert('Não foi possível salvar: ' + err.message);
+  } finally {
+    submitBtn.disabled = false; submitBtn.textContent = 'Salvar';
+  }
+}
+
+// Chama o backend (keepa-api) pra buscar a vitrine inteira do vendedor e
+// popular keepa_tracked_asins do cliente — custo baixo (~1-2 tokens),
+// mas ainda sujeito à mesma cota compartilhada do resto do Keepa.
+async function syncSellerStorefront() {
+  const userId = document.getElementById('sellerIdUserId').value;
+  const statusEl = document.getElementById('sellerIdSyncStatus');
+  const btn = document.getElementById('sellerIdSyncBtn');
+  btn.disabled = true; btn.textContent = 'Sincronizando...';
+  statusEl.textContent = '';
+  try {
+    const result = await yalcaKeepaSyncStorefront(userId);
+    if (!result.ok) {
+      statusEl.textContent = result.message || 'Não foi possível sincronizar agora.';
+      statusEl.style.color = 'var(--warning)';
+      return;
+    }
+    statusEl.style.color = 'var(--good)';
+    statusEl.textContent = `Vitrine de "${result.sellerName}" sincronizada — ${result.totalStorefrontAsins ?? '?'} produtos encontrados, ${result.asinsAdded} novo(s) adicionado(s) ao monitoramento${result.asinsSkippedCap > 0 ? ` (${result.asinsSkippedCap} não couberam no limite configurado — ajuste em keepa_config.max_tracked_asins_per_client)` : ''}.`;
+  } catch (err) {
+    statusEl.style.color = 'var(--critical)';
+    statusEl.textContent = 'Não foi possível sincronizar: ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sincronizar vitrine agora';
   }
 }
 

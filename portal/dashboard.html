@@ -342,6 +342,20 @@
         </div>
 
         <div class="keepa-tabpanel is-active" data-keepa-panel="anuncios">
+          <div class="panel" id="keepaSellerMetricsPanel" style="display:none;">
+            <div class="panel__head">
+              <div>
+                <h3 id="keepaSellerName">—</h3>
+                <p id="keepaSellerMeta" class="kpi-card__hint"></p>
+              </div>
+              <div class="panel__toolbar">
+                <a id="keepaSellerAmazonLink" href="#" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Ver na Amazon ↗</a>
+              </div>
+            </div>
+            <div class="kpi-grid" id="keepaSellerMetricsKpis"></div>
+            <p id="keepaSellerLastSync" class="kpi-card__hint" style="margin-top:12px;"></p>
+          </div>
+
           <div class="panel">
             <div class="panel__head"><div><h3>Alertas recentes</h3></div></div>
             <div class="alert-list" id="keepaAlerts"></div>
@@ -350,8 +364,8 @@
           <div class="panel">
             <div class="panel__head">
               <div>
-                <h3>ASINs monitorados</h3>
-                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia.</p>
+                <h3>Produtos monitorados</h3>
+                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia. A Yalca cadastra o seller ID da sua loja pra popular essa lista sozinha a partir da sua vitrine na Amazon — o campo abaixo é só pra adicionar um produto avulso que não seja seu.</p>
               </div>
               <div class="panel__toolbar">
                 <input type="text" class="search-input" id="keepaNewAsin" maxlength="10" placeholder="ASIN (ex: B0EXAMPLE1)" style="min-width:160px;">
@@ -362,7 +376,7 @@
             <div class="table-scroll">
               <table class="data-table data-table--cards">
                 <thead>
-                  <tr><th>ASIN</th><th>Apelido</th><th class="num">Preço</th><th class="num">BSR</th><th>Buybox</th><th>Avaliação</th><th></th></tr>
+                  <tr><th>Produto</th><th>ASIN</th><th class="num">Preço</th><th class="num">BSR</th><th>Buybox</th><th class="num">Comprado/mês</th><th class="num">Fora de estoque (90d)</th><th></th></tr>
                 </thead>
                 <tbody id="keepaTrackedBody"></tbody>
               </table>

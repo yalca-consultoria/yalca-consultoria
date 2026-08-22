@@ -83,6 +83,7 @@ function renderAll() {
   recalcPricing();
   renderResetButtonLabel();
   renderSettingsForm();
+  renderKeepaSellerMetrics();
   renderKeepaTracked();
   renderKeepaAlerts();
 }

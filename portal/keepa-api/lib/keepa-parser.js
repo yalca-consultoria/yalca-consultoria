@@ -361,6 +361,41 @@ function parseSeller(s) {
   };
 }
 
+// Parser mais rico que parseSeller, usado só na sincronização de vitrine
+// (/keepa-sync-storefront) — inclui o catálogo de ASINs e as métricas de
+// desempenho (posse de buybox, concorrentes médios, endereço comercial)
+// que a busca de reputação simples (parseSeller) não precisa.
+function parseSellerStorefront(s) {
+  const addressParts = Array.isArray(s.address) ? s.address.filter(Boolean) : [];
+  return {
+    sellerId: s.sellerId ?? null,
+    sellerName: s.sellerName ?? null,
+    businessName: typeof s.businessName === 'string' ? s.businessName : null,
+    address: addressParts.length > 0 ? addressParts.join(', ') : null,
+    tradeNumber: typeof s.tradeNumber === 'string' ? s.tradeNumber : null,
+    currentRating: typeof s.currentRating === 'number' ? s.currentRating : null,
+    currentRatingCount: typeof s.currentRatingCount === 'number' ? s.currentRatingCount : null,
+    hasFBA: !!s.hasFBA,
+    buyBoxNewOwnershipPct: typeof s.buyBoxNewOwnershipRate === 'number' ? s.buyBoxNewOwnershipRate : null,
+    buyBoxUsedOwnershipPct: typeof s.buyBoxUsedOwnershipRate === 'number' ? s.buyBoxUsedOwnershipRate : null,
+    avgBuyBoxCompetitors: typeof s.avgBuyBoxCompetitors === 'number' ? s.avgBuyBoxCompetitors : null,
+    trackedSince: typeof s.trackedSince === 'number' && s.trackedSince > 0 ? keepaTimeToIso(s.trackedSince) : null,
+    totalStorefrontAsins: Array.isArray(s.totalStorefrontAsins) && typeof s.totalStorefrontAsins[1] === 'number' ? s.totalStorefrontAsins[1] : null,
+    // asinList vem "mais recente primeiro" segundo a doc oficial — já é a
+    // ordem que faz sentido pra sincronizar (produtos ativos/vistos
+    // recentemente entram primeiro se o catálogo for maior que o limite).
+    asinList: Array.isArray(s.asinList) ? s.asinList.filter(a => typeof a === 'string' && /^[A-Z0-9]{10}$/.test(a)) : [],
+    categoryStats: Array.isArray(s.sellerCategoryStatistics) ? s.sellerCategoryStatistics.map(c => ({
+      category: c.categoryName ?? null, listingsPct: c.listingsPercent ?? null,
+      amazonListingsPct: c.amazonListingsPercent ?? null, avgSalesRank30: c.avgSalesRank30 ?? null,
+    })) : [],
+    brandStats: Array.isArray(s.sellerBrandStatistics) ? s.sellerBrandStatistics.map(b => ({
+      brand: b.brandName ?? null, listingsPct: b.listingsPercent ?? null,
+      amazonListingsPct: b.amazonListingsPercent ?? null, avgSalesRank30: b.avgSalesRank30 ?? null,
+    })) : [],
+  };
+}
+
 function mockSellerResponse(sellerIds) {
   const sellers = {};
   sellerIds.forEach((id, i) => {
@@ -379,10 +414,31 @@ function mockSellerResponse(sellerIds) {
   return { sellers, tokensLeft: 999, tokensConsumed: 0 };
 }
 
+function mockSellerStorefrontResponse(sellerId) {
+  const now = nowKeepaTime();
+  const mockAsins = ['B0MOCKSTORE1', 'B0MOCKSTORE2', 'B0MOCKSTORE3'].map(a => a.padEnd(10, '0').slice(0, 10));
+  return {
+    seller: {
+      sellerId, sellerName: 'Loja Mock', businessName: 'Loja Mock LTDA',
+      address: ['Rua Exemplo, 123', 'São Paulo', 'SP', '01000000', 'BR'],
+      tradeNumber: '00.000.000/0001-00',
+      currentRating: 95, currentRatingCount: 1200, hasFBA: true,
+      buyBoxNewOwnershipRate: 62, buyBoxUsedOwnershipRate: 0, avgBuyBoxCompetitors: 2.4,
+      trackedSince: now - 60 * 24 * 200,
+      totalStorefrontAsins: [now, mockAsins.length],
+      asinList: mockAsins,
+      sellerCategoryStatistics: [{ categoryName: 'Categoria Mock', listingsPercent: 100, amazonListingsPercent: 20, avgSalesRank30: 5000 }],
+      sellerBrandStatistics: [{ brandName: 'Marca Mock', listingsPercent: 100, amazonListingsPercent: 20, avgSalesRank30: 5000 }],
+    },
+    tokensLeft: 999, tokensConsumed: 0,
+  };
+}
+
 module.exports = {
   keepaTimeToIso, nowKeepaTime, centsToReais, extractCsvSeries, lastValue,
   AVAILABILITY_LABELS, CONDITION_LABELS, CSV_TYPE_BUYBOX_SHIPPING,
   parseOffers, computeBuyboxRotation, parseCategoryRanks, parseBuyBoxStats, parseStats,
   mmToCm, gToKg, parseKeepaProduct, mockKeepaResponse,
   normalizeSellersResponse, parseSeller, mockSellerResponse,
+  parseSellerStorefront, mockSellerStorefrontResponse,
 };

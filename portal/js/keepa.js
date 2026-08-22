@@ -5,7 +5,7 @@
    charts.js.
    ========================================= */
 
-let KEEPA_DATA = { tracked: [], cache: {}, alerts: [] };
+let KEEPA_DATA = { tracked: [], cache: {}, alerts: [], sellerMetrics: null };
 let LAST_KEEPA_SEARCH_RESULT = null;
 // Reputação de vendedor já buscada nesta sessão — mantida entre pesquisas
 // (um vendedor já visto fica "de graça" o resto da sessão). O cache de
@@ -53,12 +53,15 @@ function initKeepaSection() {
 async function reloadKeepaData() {
   const tracked = await yalcaFetchTrackedAsins();
   const asins = [...new Set(tracked.map(t => t.asin))];
-  const [cacheRows, alerts] = await Promise.all([
+  const [cacheRows, alerts, sellerMetrics] = await Promise.all([
     yalcaFetchKeepaCache(asins),
-    yalcaFetchKeepaAlerts(asins, 10)
+    yalcaFetchKeepaAlerts(asins, 10),
+    // Só existe depois que um admin cadastra o seller ID e sincroniza a
+    // vitrine pelo menos uma vez — null até lá, tratado no render.
+    YALCA_PROFILE ? yalcaFetchSellerMetrics(YALCA_PROFILE.user_id).catch(() => null) : Promise.resolve(null),
   ]);
   const cacheByAsin = Object.fromEntries(cacheRows.map(c => [c.asin, c]));
-  KEEPA_DATA = { tracked, cache: cacheByAsin, alerts };
+  KEEPA_DATA = { tracked, cache: cacheByAsin, alerts, sellerMetrics };
 }
 
 /* ---------- "Meus Anúncios" ---------- */
@@ -66,7 +69,7 @@ function renderKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
   if (!tbody) return;
   if (KEEPA_DATA.tracked.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="alert-empty">Nenhum ASIN monitorado ainda. Adicione um acima pra começar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja, ou adicione um ASIN avulso acima.</td></tr>';
     return;
   }
   tbody.innerHTML = KEEPA_DATA.tracked.map(t => {
@@ -77,24 +80,65 @@ function renderKeepaTracked() {
     const buyboxLabel = c && c.buybox_seller
       ? (isOwnBuybox ? '<span class="badge badge--ativo">Você</span>' : yalcaEscapeHtml(c.buybox_seller))
       : (c ? '<span class="text-muted-num">ninguém</span>' : '—');
-    const ratingLabel = c && c.rating != null ? `${c.rating.toFixed(1)} ★ (${c.review_count ?? 0})` : '—';
     const ageLabel = c && c.cheap_data_updated_at
       ? `atualizado ${yalcaKeepaRelativeAge(c.cheap_data_updated_at)}`
       : 'aguardando primeira atualização';
+
+    let vendasLabel = '—';
+    if (c?.monthly_sold != null) {
+      const trend = c.delta_pct_90_monthly_sold;
+      vendasLabel = `${c.monthly_sold.toLocaleString('pt-BR')}${trend != null ? ` ${trend >= 0 ? '📈' : '📉'}` : ''}`;
+    }
+    const outOfStockLabel = c?.out_of_stock_pct_90 != null ? `${c.out_of_stock_pct_90}%` : '—';
+
+    const productCell = `<div class="marketplace-cell">
+      ${c?.image_url ? `<span class="marketplace-cell__logo"><img src="${yalcaEscapeHtml(c.image_url)}" alt="" loading="lazy"></span>` : ''}
+      <div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(t.label || c?.title || t.asin)}</strong>${ageLabel ? `<span class="marketplace-cell__plan">${ageLabel}</span>` : ''}</div>
+    </div>`;
+
     return `
     <tr>
+      <td data-label="Produto">${productCell}</td>
       <td data-label="ASIN">${yalcaEscapeHtml(t.asin)}</td>
-      <td data-label="Apelido">${yalcaEscapeHtml(t.label || '—')}</td>
-      <td data-label="Preço">${priceLabel}</td>
+      <td data-label="Preço" class="num">${priceLabel}</td>
       <td data-label="BSR" class="num">${bsrLabel}</td>
       <td data-label="Buybox">${buyboxLabel}</td>
-      <td data-label="Avaliação">${ratingLabel}</td>
+      <td data-label="Comprado/mês" class="num">${vendasLabel}</td>
+      <td data-label="Fora de estoque (90d)" class="num">${outOfStockLabel}</td>
       <td class="row-actions">
-        <span class="kpi-card__hint" style="margin-right:8px;">${ageLabel}</span>
         <button class="icon-btn" title="Parar de monitorar" data-action="deleteTrackedAsin" data-id="${t.id}">🗑</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+// "Desempenho do vendedor" — só aparece depois que um admin cadastra o
+// seller ID e sincroniza a vitrine pelo menos uma vez.
+function renderKeepaSellerMetrics() {
+  const panel = document.getElementById('keepaSellerMetricsPanel');
+  if (!panel) return;
+  const m = KEEPA_DATA.sellerMetrics;
+  if (!m) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  document.getElementById('keepaSellerName').textContent = m.seller_name || m.business_name || m.seller_id;
+  document.getElementById('keepaSellerMeta').textContent = [m.business_name, m.address, m.trade_number].filter(Boolean).join(' · ');
+  document.getElementById('keepaSellerAmazonLink').href = `https://www.amazon.com.br/sp?seller=${encodeURIComponent(m.seller_id)}`;
+
+  renderKpiGrid('keepaSellerMetricsKpis', [
+    { label: 'Classificação', value: m.current_rating != null ? `${m.current_rating}%` : '—', delta: null },
+    { label: 'Contagem de avaliações', value: m.current_rating_count != null ? m.current_rating_count.toLocaleString('pt-BR') : '—', delta: null },
+    { label: 'Listagens verificadas', value: m.total_storefront_asins != null ? m.total_storefront_asins : '—', delta: null },
+    { label: 'Tem FBA', value: m.has_fba ? 'Sim' : 'Não', delta: null },
+    { label: 'Posse da Buy Box (Novo)', value: m.buybox_new_ownership_pct != null ? `${m.buybox_new_ownership_pct}%` : '—', delta: null },
+    { label: 'Posse da Buy Box (Usado)', value: m.buybox_used_ownership_pct != null ? `${m.buybox_used_ownership_pct}%` : '—', delta: null },
+    { label: 'Média de concorrentes na Buy Box', value: m.avg_buybox_competitors != null ? Number(m.avg_buybox_competitors).toFixed(2) : '—', delta: null },
+    { label: 'Acompanhado desde', value: m.tracked_since ? yalcaFormatDate(m.tracked_since.slice(0, 10)) : '—', delta: null },
+  ]);
+
+  document.getElementById('keepaSellerLastSync').textContent = m.last_synced_at
+    ? `Vitrine sincronizada ${yalcaKeepaMinutesLabel(Math.round((Date.now() - new Date(m.last_synced_at).getTime()) / 60000))}`
+    : '';
 }
 
 function yalcaKeepaRelativeAge(iso) {

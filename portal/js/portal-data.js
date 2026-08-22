@@ -194,6 +194,17 @@ async function yalcaKeepaSearch(query) {
 async function yalcaKeepaSellerLookup(sellerIds) {
   return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });
 }
+// Só admin pode chamar (o backend confere) — sincroniza a vitrine do
+// vendedor cadastrado em client_profiles.amazon_seller_id pra dentro de
+// keepa_tracked_asins do cliente.
+async function yalcaKeepaSyncStorefront(targetUserId) {
+  return yalcaKeepaApiCall('/keepa-sync-storefront', { targetUserId });
+}
+// "Meus Anúncios" (cliente) lê a própria linha; admin lê qualquer uma —
+// RLS de keepa_seller_metrics já cobre os dois casos.
+async function yalcaFetchSellerMetrics(userId) {
+  return yalcaCheck(await supabaseClient.from('keepa_seller_metrics').select('*').eq('user_id', userId).maybeSingle());
+}
 
 // IA (assistente/diagnóstico/suporte) — mesmo padrão do keepa-api, API Node
 // própria rodando o Ollama local. Respostas demoram 20-70s (CPU, sem GPU),

@@ -27,6 +27,7 @@ const { makeAuthClient } = require('./lib/auth');
 const {
   parseKeepaProduct, mockKeepaResponse,
   normalizeSellersResponse, parseSeller, mockSellerResponse,
+  parseSellerStorefront, mockSellerStorefrontResponse,
 } = require('./lib/keepa-parser');
 
 function loadEnv(envPath) {
@@ -120,6 +121,12 @@ async function requireUser(req, res) {
   const user = await authClient.getUserFromToken(token);
   if (!user) { sendJson(res, 401, { ok: false, reason: 'unauthenticated', message: 'Sessão inválida. Faça login novamente.' }); return null; }
   return user;
+}
+
+async function requireAdmin(userId, res) {
+  const adminRow = await db.restGetOne('admins', `user_id=eq.${userId}&select=user_id`);
+  if (!adminRow) { sendJson(res, 403, { ok: false, reason: 'forbidden', message: 'Acesso restrito a administradores.' }); return false; }
+  return true;
 }
 
 async function requireApprovedClient(userId, res) {
@@ -464,12 +471,105 @@ async function handleKeepaSellerLookup(req, res) {
   sendJson(res, 200, { ok: true, sellers: result });
 }
 
+// Sincroniza a vitrine de um vendedor com "Meus Anúncios" de um cliente —
+// só admin (é quem cadastra o seller ID no client_profiles.amazon_seller_id
+// primeiro). storefront=1 no /seller não custa token por ASIN retornado
+// (só o custo normal de um lookup de vendedor, ~1-2 tokens) — é o jeito
+// barato de descobrir TODOS os produtos do vendedor de uma vez, sem
+// precisar que o cliente cadastre ASIN por ASIN.
+async function handleSyncSellerStorefront(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireAdmin(user.id, res))) return;
+
+  let body;
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  const targetUserId = typeof body.targetUserId === 'string' ? body.targetUserId.trim() : '';
+  if (!targetUserId) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Cliente não informado.' }); return; }
+
+  const profile = await db.restGetOne('client_profiles', `user_id=eq.${targetUserId}&select=amazon_seller_id`);
+  const sellerId = profile?.amazon_seller_id;
+  if (!sellerId) { sendJson(res, 400, { ok: false, reason: 'no_seller_id', message: 'Esse cliente ainda não tem um seller ID da Amazon cadastrado.' }); return; }
+
+  const config = await db.restGetOne('keepa_config', 'id=eq.1&select=*');
+  const budget = await db.restGetOne('keepa_token_budget', 'id=eq.1&select=*');
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const spentToday = budget?.spend_day === todayStr ? (budget?.tokens_spent_today ?? 0) : 0;
+  const cap = config?.daily_token_cap ?? 200;
+  const ESTIMATED_STOREFRONT_COST = 2;
+  if (spentToday + ESTIMATED_STOREFRONT_COST > cap) {
+    sendJson(res, 200, { ok: false, reason: 'no_budget', message: 'Sem cota de consultas disponível hoje. Tente novamente amanhã.' });
+    return;
+  }
+
+  let parsed, tokensLeft = null, tokensConsumed = null;
+  try {
+    let rawSeller;
+    if (KEEPA_MOCK) {
+      const mock = mockSellerStorefrontResponse(sellerId);
+      rawSeller = mock.seller; tokensLeft = mock.tokensLeft; tokensConsumed = mock.tokensConsumed;
+    } else {
+      if (!KEEPA_API_KEY) throw new Error('KEEPA_API_KEY não configurada no ambiente do servidor');
+      const url = `https://api.keepa.com/seller?key=${KEEPA_API_KEY}&domain=12&seller=${encodeURIComponent(sellerId)}&storefront=1`;
+      const kres = await fetch(url, { signal: AbortSignal.timeout(KEEPA_FETCH_TIMEOUT_MS) });
+      const json = await kres.json();
+      if (json.error) throw new Error(`Keepa: ${json.error.message ?? JSON.stringify(json.error)}`);
+      tokensLeft = typeof json.tokensLeft === 'number' ? json.tokensLeft : null;
+      tokensConsumed = typeof json.tokensConsumed === 'number' ? json.tokensConsumed : null;
+      const sellersMap = normalizeSellersResponse(json);
+      rawSeller = sellersMap[sellerId];
+      if (!rawSeller) throw new Error('Vendedor não encontrado no Keepa para esse seller ID — confirme se está correto.');
+    }
+    parsed = parseSellerStorefront(rawSeller);
+  } catch (err) {
+    await db.restInsert('keepa_token_usage_log', [{ triggered_by: 'seller_storefront_sync', user_id: targetUserId, success: false, error_message: String(err.message || err) }]);
+    sendJson(res, 502, { ok: false, reason: 'keepa_error', message: String(err.message || err) });
+    return;
+  }
+
+  const nowIso = new Date().toISOString();
+  await db.restUpsert('keepa_seller_metrics', [{
+    user_id: targetUserId, seller_id: sellerId, seller_name: parsed.sellerName,
+    business_name: parsed.businessName, address: parsed.address, trade_number: parsed.tradeNumber,
+    current_rating: parsed.currentRating, current_rating_count: parsed.currentRatingCount,
+    has_fba: parsed.hasFBA, buybox_new_ownership_pct: parsed.buyBoxNewOwnershipPct,
+    buybox_used_ownership_pct: parsed.buyBoxUsedOwnershipPct, avg_buybox_competitors: parsed.avgBuyBoxCompetitors,
+    tracked_since: parsed.trackedSince, total_storefront_asins: parsed.totalStorefrontAsins,
+    category_stats: parsed.categoryStats, brand_stats: parsed.brandStats,
+    last_synced_at: nowIso, last_error: null,
+  }], 'user_id');
+
+  // Só ADICIONA ASINs novos da vitrine, respeitando o teto configurado —
+  // não mexe em ASINs que o cliente/admin já tinha adicionado manualmente.
+  const capAsins = config?.max_tracked_asins_per_client ?? 15;
+  const existing = await db.restGet('keepa_tracked_asins', `user_id=eq.${targetUserId}&active=eq.true&select=asin`);
+  const existingSet = new Set((existing ?? []).map((r) => r.asin));
+  const room = Math.max(0, capAsins - existingSet.size);
+  const toAdd = parsed.asinList.filter((a) => !existingSet.has(a)).slice(0, room);
+  if (toAdd.length > 0) {
+    await db.restInsert('keepa_tracked_asins', toAdd.map((asin) => ({ user_id: targetUserId, asin, label: '', own_seller_name: sellerId })));
+  }
+  const totalNewFromStorefront = parsed.asinList.filter((a) => !existingSet.has(a)).length;
+
+  await db.restUpdate('keepa_token_budget', 'id=eq.1', { last_known_tokens_left: tokensLeft, last_checked_at: nowIso, tokens_spent_today: spentToday + (tokensConsumed ?? ESTIMATED_STOREFRONT_COST), spend_day: todayStr });
+  await db.restInsert('keepa_token_usage_log', [{
+    triggered_by: 'seller_storefront_sync', user_id: targetUserId,
+    tokens_after: tokensLeft, tokens_consumed: tokensConsumed ?? ESTIMATED_STOREFRONT_COST, success: true,
+  }]);
+
+  sendJson(res, 200, {
+    ok: true, sellerName: parsed.sellerName, totalStorefrontAsins: parsed.totalStorefrontAsins,
+    asinsAdded: toAdd.length, asinsSkippedCap: Math.max(0, totalNewFromStorefront - toAdd.length),
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') { sendJson(res, 204, null); return; }
     const url = req.url.split('?')[0];
     if (req.method === 'POST' && url === '/keepa-search') { await handleKeepaSearch(req, res); return; }
     if (req.method === 'POST' && url === '/keepa-seller-lookup') { await handleKeepaSellerLookup(req, res); return; }
+    if (req.method === 'POST' && url === '/keepa-sync-storefront') { await handleSyncSellerStorefront(req, res); return; }
     if (req.method === 'GET' && url === '/health') { sendJson(res, 200, { ok: true }); return; }
     sendJson(res, 404, { ok: false, reason: 'not_found', message: 'Rota não encontrada.' });
   } catch (err) {
