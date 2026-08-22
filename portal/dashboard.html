@@ -407,6 +407,15 @@
                 <p id="keepaResultConfidence" style="margin-top:8px;"></p>
               </div>
             </div>
+
+            <!-- Posição por categoria logo no topo — é a primeira coisa que
+                 dá contexto pro resto dos números (rank/BSR/vendas) que vêm
+                 a seguir. -->
+            <div id="keepaCategoryRanksPanel" style="display:none; margin-bottom:20px;">
+              <h4 style="margin-bottom:10px;">Posição por categoria</h4>
+              <div class="alert-list" id="keepaCategoryRanksList"></div>
+            </div>
+
             <div class="kpi-grid" id="keepaResultKpis"></div>
             <div id="keepaPriceBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
 
@@ -443,11 +452,6 @@
               </table>
             </div>
             <div id="keepaBuyboxStatsToggle" style="margin-top:8px;"></div>
-          </div>
-
-          <div class="panel" id="keepaCategoryRanksPanel" style="display:none;">
-            <div class="panel__head"><div><h3>Posição por categoria</h3></div></div>
-            <div class="alert-list" id="keepaCategoryRanksList"></div>
           </div>
 
           <div class="panel" id="keepaOffersPanel" style="display:none;">
@@ -868,6 +872,13 @@
     <p id="keepaTrackedDetailMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
     <p id="keepaTrackedDetailConfidence" style="margin-top:8px;"></p>
 
+    <!-- Posição por categoria logo no topo — dá contexto pro resto dos
+         números (rank/BSR/vendas) que vêm a seguir. -->
+    <div id="keepaTrackedDetailRanksWrap" style="display:none; margin-top:14px;">
+      <h4 style="margin-bottom:10px;">Posição por categoria</h4>
+      <div class="alert-list" id="keepaTrackedDetailRanksList"></div>
+    </div>
+
     <div class="kpi-grid" id="keepaTrackedDetailKpis" style="margin-top:14px;"></div>
     <div id="keepaTrackedDetailBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
 
@@ -893,11 +904,6 @@
         </table>
       </div>
       <div id="keepaTrackedDetailBuyboxToggle" style="margin-top:8px;"></div>
-    </div>
-
-    <div id="keepaTrackedDetailRanksWrap" style="display:none; margin-top:24px;">
-      <h4>Posição por categoria</h4>
-      <div class="alert-list" id="keepaTrackedDetailRanksList"></div>
     </div>
 
     <div id="keepaTrackedDetailOffersWrap" style="display:none; margin-top:24px;">
