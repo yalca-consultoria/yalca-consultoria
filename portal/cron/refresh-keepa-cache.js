@@ -406,7 +406,19 @@ async function callKeepa(asin) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   const json = await res.json();
   if (json.error) throw new Error(`Keepa: ${json.error.message || JSON.stringify(json.error)}`);
-  if (!json.products || !json.products[0]) throw new Error('Produto não encontrado no Keepa.');
+  if (!json.products || !json.products[0]) {
+    // BUG REAL encontrado em 2026-08-22: quando a cota de tokens da Keepa
+    // está negativa/baixa, a resposta vem sem a chave "products" — isso
+    // NÃO significa que o produto não existe, mas o log antigo dizia
+    // "produto não encontrado", que parecia bug de código (o usuário
+    // reportou "deve haver algum bug" olhando exatamente esse log). Mensagem
+    // corrigida pra deixar claro que é falta de cota, não ASIN inválido.
+    const tokensLeft = typeof json.tokensLeft === 'number' ? json.tokensLeft : null;
+    if (tokensLeft !== null && tokensLeft <= 0) {
+      throw new Error(`sem cota de tokens no momento (tokensLeft=${tokensLeft}) — não é ASIN inválido, tenta de novo quando a cota recompor.`);
+    }
+    throw new Error('Keepa não retornou dado nenhum pra esse ASIN nesta tentativa (pode ser cota baixa) — tenta de novo na próxima rodada.');
+  }
   return { product: json.products[0], tokensLeft: json.tokensLeft ?? null, tokensConsumed: json.tokensConsumed ?? null };
 }
 
