@@ -103,10 +103,10 @@
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
         <span class="portal-nav__label">Assistente IA</span>
       </button>
-      <button class="portal-nav__item" data-section="configuracoes">
+      <a class="portal-nav__item" href="configuracoes.html">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="portal-nav__label">Configurações</span>
-      </button>
+      </a>
     </nav>
 
     <div class="portal-sidebar__footer">
@@ -681,47 +681,6 @@
             </form>
             <p id="suporteChatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
           </div>
-        </div>
-      </section>
-
-      <!-- ===================== CONFIGURAÇÕES ===================== -->
-      <section class="portal-section" data-section="configuracoes">
-        <div class="section-intro">
-          <p>Esses dados alimentam os cálculos de margem em "Gestão de Marketplaces" e a projeção em "Fluxo de Caixa".</p>
-        </div>
-
-        <div class="panel">
-          <div class="panel__head"><div><h3>Dados da loja</h3></div></div>
-          <form id="settingsForm" style="display:flex; flex-direction:column; gap:16px; max-width:560px;">
-            <div class="field">
-              <label for="setClientName">Nome da loja</label>
-              <input type="text" id="setClientName" required>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="setCashBalance">Saldo atual em caixa (R$)</label>
-                <input type="number" id="setCashBalance" step="0.01" required>
-              </div>
-              <div class="field">
-                <label for="setTaxPct">Imposto padrão (%)</label>
-                <input type="number" id="setTaxPct" step="0.1" min="0" required>
-              </div>
-            </div>
-            <div class="field">
-              <label for="setShipping">Frete médio padrão (R$)</label>
-              <input type="number" id="setShipping" step="0.01" min="0" required>
-            </div>
-
-            <div>
-              <label style="font-size:0.82rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:10px;">
-                Taxa de cada marketplace (usada na Gestão de Marketplaces)
-              </label>
-              <div class="field-row" id="settingsFeeFields"></div>
-            </div>
-
-            <button type="submit" class="btn btn--primary btn--sm" style="align-self:flex-start;">Salvar configurações</button>
-            <p class="form-success" id="settingsSuccess">Configurações salvas com sucesso! ✅</p>
-          </form>
         </div>
       </section>
 

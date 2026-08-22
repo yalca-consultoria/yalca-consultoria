@@ -82,7 +82,6 @@ function renderAll() {
   renderFluxoCaixa();
   recalcPricing();
   renderResetButtonLabel();
-  renderSettingsForm();
   renderKeepaSellerMetrics();
   renderKeepaTracked();
   renderKeepaAlerts();
@@ -92,7 +91,11 @@ function renderAll() {
    NAVEGAÇÃO
    ============================================================ */
 function initSidebarNav() {
-  const items = document.querySelectorAll('.portal-nav__item');
+  // Só os itens que ainda trocam de SEÇÃO dentro desta página (têm
+  // data-section) — itens que viraram link de verdade pra outra página
+  // (ex: Configurações, que já saiu daqui) são <a> normais, o navegador
+  // cuida da navegação sozinho.
+  const items = document.querySelectorAll('.portal-nav__item[data-section]');
   const sections = document.querySelectorAll('.portal-section');
   const title = document.getElementById('sectionTitle');
   const sidebar = document.getElementById('portalSidebar');
@@ -120,12 +123,25 @@ function initSidebarNav() {
     if (returnFocus) toggle.focus();
   }
 
+  function activateSection(target) {
+    const item = [...items].find(i => i.dataset.section === target);
+    if (!item) return false;
+    items.forEach(i => i.classList.toggle('is-active', i === item));
+    sections.forEach(s => s.classList.toggle('is-active', s.dataset.section === target));
+    title.textContent = item.querySelector('.portal-nav__label').textContent;
+    return true;
+  }
+
+  // Outras páginas (ex: configuracoes.html) linkam de volta pra uma seção
+  // específica via #hash (dashboard.html#financeiro) — sem isso, chegar de
+  // outra página sempre caía na Visão Geral (seção padrão), ignorando o
+  // item de menu que a pessoa realmente clicou.
+  if (location.hash) activateSection(location.hash.slice(1));
+
   items.forEach(item => {
     item.addEventListener('click', () => {
       const target = item.dataset.section;
-      items.forEach(i => i.classList.toggle('is-active', i === item));
-      sections.forEach(s => s.classList.toggle('is-active', s.dataset.section === target));
-      title.textContent = item.querySelector('.portal-nav__label').textContent;
+      activateSection(target);
       if (isMobileDrawer()) closeSidebar();
       if (sidebar.classList.contains('is-collapsed')) {
         const group = item.closest('.portal-nav__group');
@@ -1500,53 +1516,6 @@ async function deletePlannedRow(id) {
   }
 }
 
-/* ============================================================
-   CONFIGURAÇÕES
-   ============================================================ */
-function renderSettingsForm() {
-  document.getElementById('setClientName').value = DATA.settings.clientName;
-  document.getElementById('setCashBalance').value = DATA.settings.cashBalance;
-  document.getElementById('setTaxPct').value = DATA.settings.defaultTaxPct;
-  document.getElementById('setShipping').value = DATA.settings.defaultShippingCost;
-
-  const feeFields = document.getElementById('settingsFeeFields');
-  feeFields.innerHTML = MARKETPLACES.map(mk => `
-    <div class="field">
-      <label for="setFee_${mk.replace(/\s/g, '')}">${mk} (%)</label>
-      <input type="number" id="setFee_${mk.replace(/\s/g, '')}" min="0" step="0.1" value="${DATA.settings.marketplaceFees[mk] ?? 0}" data-mk="${mk}">
-    </div>`).join('');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('settingsForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const successMsg = document.getElementById('settingsSuccess');
-    successMsg.classList.remove('is-visible');
-
-    const marketplaceFees = {};
-    document.querySelectorAll('#settingsFeeFields input').forEach(input => {
-      marketplaceFees[input.dataset.mk] = parseFloat(input.value) || 0;
-    });
-
-    const patch = {
-      client_name: document.getElementById('setClientName').value,
-      cash_balance: parseFloat(document.getElementById('setCashBalance').value) || 0,
-      default_tax_pct: parseFloat(document.getElementById('setTaxPct').value) || 0,
-      default_shipping_cost: parseFloat(document.getElementById('setShipping').value) || 0,
-      marketplace_fees: marketplaceFees
-    };
-
-    submitBtn.disabled = true; submitBtn.textContent = 'Salvando...';
-    try {
-      await yalcaUpdateSettings(patch);
-      await reloadAndRenderAll();
-      successMsg.classList.add('is-visible');
-      setTimeout(() => successMsg.classList.remove('is-visible'), 4000);
-    } catch (err) {
-      alert('Não foi possível salvar as configurações: ' + err.message);
-    } finally {
-      submitBtn.disabled = false; submitBtn.textContent = 'Salvar configurações';
-    }
-  });
-});
+/* Configurações saiu daqui — virou página própria (configuracoes.html +
+   js/configuracoes-app.js), primeira página separada do antigo SPA único
+   (pedido do cliente, 2026-08-22). */
