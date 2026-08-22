@@ -367,6 +367,15 @@ function parseSeller(s) {
 // que a busca de reputação simples (parseSeller) não precisa.
 function parseSellerStorefront(s) {
   const addressParts = Array.isArray(s.address) ? s.address.filter(Boolean) : [];
+  const asinList = Array.isArray(s.asinList) ? s.asinList.filter(a => typeof a === 'string' && /^[A-Z0-9]{10}$/.test(a)) : [];
+  // totalStorefrontAsins às vezes vem vazio/ausente na resposta real do
+  // Keepa (visto em produção em 2026-08-22 — a doc descreve o formato
+  // [timestamp, contagem], mas nem todo vendedor tem esse metadado
+  // calculado) — nesse caso o tamanho real do asinList que RECEBEMOS é
+  // uma contagem tão confiável quanto, e evita mostrar "?" pro admin.
+  const totalStorefrontAsins = Array.isArray(s.totalStorefrontAsins) && typeof s.totalStorefrontAsins[1] === 'number'
+    ? s.totalStorefrontAsins[1]
+    : (asinList.length > 0 ? asinList.length : null);
   return {
     sellerId: s.sellerId ?? null,
     sellerName: s.sellerName ?? null,
@@ -380,11 +389,11 @@ function parseSellerStorefront(s) {
     buyBoxUsedOwnershipPct: typeof s.buyBoxUsedOwnershipRate === 'number' ? s.buyBoxUsedOwnershipRate : null,
     avgBuyBoxCompetitors: typeof s.avgBuyBoxCompetitors === 'number' ? s.avgBuyBoxCompetitors : null,
     trackedSince: typeof s.trackedSince === 'number' && s.trackedSince > 0 ? keepaTimeToIso(s.trackedSince) : null,
-    totalStorefrontAsins: Array.isArray(s.totalStorefrontAsins) && typeof s.totalStorefrontAsins[1] === 'number' ? s.totalStorefrontAsins[1] : null,
+    totalStorefrontAsins,
     // asinList vem "mais recente primeiro" segundo a doc oficial — já é a
     // ordem que faz sentido pra sincronizar (produtos ativos/vistos
     // recentemente entram primeiro se o catálogo for maior que o limite).
-    asinList: Array.isArray(s.asinList) ? s.asinList.filter(a => typeof a === 'string' && /^[A-Z0-9]{10}$/.test(a)) : [],
+    asinList,
     categoryStats: Array.isArray(s.sellerCategoryStatistics) ? s.sellerCategoryStatistics.map(c => ({
       category: c.categoryName ?? null, listingsPct: c.listingsPercent ?? null,
       amazonListingsPct: c.amazonListingsPercent ?? null, avgSalesRank30: c.avgSalesRank30 ?? null,
@@ -416,7 +425,11 @@ function mockSellerResponse(sellerIds) {
 
 function mockSellerStorefrontResponse(sellerId) {
   const now = nowKeepaTime();
-  const mockAsins = ['B0MOCKSTORE1', 'B0MOCKSTORE2', 'B0MOCKSTORE3'].map(a => a.padEnd(10, '0').slice(0, 10));
+  // Exatamente 10 caracteres cada, únicos entre si — um bug real aqui
+  // (strings de 12 chars cortadas pra 10 todas colapsando pro mesmo
+  // valor) só apareceu ao testar de ponta a ponta com Playwright, mas
+  // seria idêntico com qualquer duplicata vinda de verdade do Keepa.
+  const mockAsins = ['B0MOCK0001', 'B0MOCK0002', 'B0MOCK0003'];
   return {
     seller: {
       sellerId, sellerName: 'Loja Mock', businessName: 'Loja Mock LTDA',
