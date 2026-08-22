@@ -853,6 +853,63 @@
   </div>
 </div>
 
+<!-- MODAL: detalhes completos de um anúncio monitorado -->
+<div class="modal-backdrop" id="keepaTrackedDetailModal">
+  <div class="modal modal--wide">
+    <div class="modal__head">
+      <h3 id="keepaTrackedDetailTitle">—</h3>
+      <button class="modal__close" data-close-modal="keepaTrackedDetailModal">×</button>
+    </div>
+    <div id="keepaTrackedDetailMockBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(250,178,25,0.14); border:1px solid rgba(250,178,25,0.4); color:var(--warning); font-size:0.88rem; font-weight:600;">
+      ⚠️ Modo de teste — estes números são fictícios, não refletem o produto real.
+    </div>
+    <div id="keepaTrackedDetailRedirectBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(208,59,59,0.14); border:1px solid rgba(208,59,59,0.4); color:var(--critical); font-size:0.88rem; font-weight:600;">
+      ⛔ Este ASIN foi redirecionado pela Amazon (anúncio fundido ou descontinuado) — não compre estoque pra revender especificamente nele, pode não existir mais como está aqui.
+    </div>
+    <p id="keepaTrackedDetailMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
+    <p id="keepaTrackedDetailConfidence" style="margin-top:8px;"></p>
+
+    <div class="kpi-grid" id="keepaTrackedDetailKpis" style="margin-top:14px;"></div>
+    <div id="keepaTrackedDetailBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+    <h4 style="margin-top:24px;">Histórico de preço</h4>
+    <div id="keepaTrackedDetailPriceChart" style="margin-top:10px;"></div>
+
+    <div id="keepaTrackedDetailRankWrap" style="display:none;">
+      <h4 style="margin-top:24px;">Histórico de ranking (BSR)</h4>
+      <div id="keepaTrackedDetailRankChart" style="margin-top:10px;"></div>
+    </div>
+
+    <h4 style="margin-top:24px;">Detalhes do produto</h4>
+    <div class="keepa-detail-grid" id="keepaTrackedDetailDetails" style="margin-top:10px;"></div>
+
+    <div id="keepaTrackedDetailBuyboxWrap" style="display:none; margin-top:24px;">
+      <h4>Quem domina a buybox</h4>
+      <div class="table-scroll">
+        <table class="data-table data-table--cards">
+          <thead><tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr></thead>
+          <tbody id="keepaTrackedDetailBuyboxBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="keepaTrackedDetailRanksWrap" style="display:none; margin-top:24px;">
+      <h4>Posição por categoria</h4>
+      <div class="alert-list" id="keepaTrackedDetailRanksList"></div>
+    </div>
+
+    <div id="keepaTrackedDetailOffersWrap" style="display:none; margin-top:24px;">
+      <h4>Quem está vendendo</h4>
+      <div class="table-scroll">
+        <table class="data-table data-table--cards">
+          <thead><tr><th>Vendedor</th><th class="num">Preço</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th></tr></thead>
+          <tbody id="keepaTrackedDetailOffersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.min.js?v=7bfbb18"></script>
 <script src="js/portal-data.min.js?v=7bfbb18"></script>

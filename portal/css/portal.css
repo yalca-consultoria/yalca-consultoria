@@ -816,6 +816,7 @@ body.portal-body {
 .data-table tbody tr:hover { background: var(--p-primary-soft); }
 .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .row-actions { display: flex; gap: 6px; align-items: center; }
+.data-table tbody tr.is-clickable-row { cursor: pointer; }
 
 /* ---------- Célula de marketplace (logo + nome + plano) ---------- */
 .marketplace-cell {

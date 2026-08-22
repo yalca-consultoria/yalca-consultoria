@@ -38,8 +38,10 @@ function initKeepaSection() {
   document.getElementById('keepaAddAsinBtn').addEventListener('click', handleAddTrackedAsin);
 
   document.getElementById('keepaTrackedBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="deleteTrackedAsin"]');
-    if (btn) handleDeleteTrackedAsin(btn.dataset.id);
+    const delBtn = e.target.closest('[data-action="deleteTrackedAsin"]');
+    if (delBtn) { handleDeleteTrackedAsin(delBtn.dataset.id); return; }
+    const row = e.target.closest('[data-action="openTrackedDetail"]');
+    if (row) openKeepaTrackedDetail(row.dataset.asin);
   });
 
   document.getElementById('keepaSearchForm').addEventListener('submit', handleKeepaSearchSubmit);
@@ -110,7 +112,7 @@ function renderKeepaTracked() {
     </div>`;
 
     return `
-    <tr>
+    <tr class="is-clickable-row" data-action="openTrackedDetail" data-asin="${yalcaEscapeHtml(t.asin)}" title="Ver detalhes completos">
       <td data-label="Produto">${productCell}</td>
       <td data-label="ASIN">${yalcaEscapeHtml(t.asin)}</td>
       <td data-label="Preço" class="num">${priceLabel}</td>
@@ -120,11 +122,106 @@ function renderKeepaTracked() {
       <td data-label="Comprado/mês" class="num">${vendasLabel}</td>
       <td data-label="Fora de estoque (90d)" class="num">${outOfStockLabel}</td>
       <td class="row-actions">
-        <a class="icon-btn" title="Ver na Amazon" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">↗</a>
-        <button class="icon-btn" title="Parar de monitorar" data-action="deleteTrackedAsin" data-id="${t.id}">🗑</button>
+        <a class="icon-btn" title="Ver na Amazon" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">↗</a>
+        <button class="icon-btn" title="Parar de monitorar" data-action="deleteTrackedAsin" data-id="${t.id}" onclick="event.stopPropagation()">🗑</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+// Converte uma linha crua de keepa_asin_cache (colunas snake_case, vindas
+// direto do Supabase) no mesmo "shape" camelCase que o resultado de uma
+// busca ao vivo usa — espelha o formatResult() do keepa-api/server.js, só
+// que do lado do cliente, pra poder reaproveitar os mesmos renderizadores
+// (KPIs, gráficos, tabelas) no modal de detalhe de um anúncio monitorado.
+function yalcaCacheRowToResult(c) {
+  return {
+    asin: c.asin, title: c.title, imageUrl: c.image_url, currentPrice: c.current_price, bsr: c.bsr,
+    category: c.category, rating: c.rating, reviewCount: c.review_count,
+    buybox: c.buybox_seller ? { seller: c.buybox_seller, isAmazon: c.buybox_is_amazon, price: c.buybox_price } : null,
+    offersCount: c.offers_count, availabilityStatus: c.availability_status,
+    priceHistory: c.price_history ?? { amazon: [], new: [], buybox: [] },
+    bsrHistory: c.bsr_history ?? [],
+    monthlySold: c.monthly_sold ?? null,
+    referralFeePct: c.referral_fee_pct ?? null,
+    fbaFeeTotal: [c.fba_pick_pack_fee, c.fba_pick_pack_fee_tax, c.fba_storage_fee, c.fba_storage_fee_tax]
+      .filter((v) => typeof v === 'number')
+      .reduce((sum, v) => (sum ?? 0) + v, null),
+    offers: c.offers ?? [],
+    buyboxRotation90d: c.buybox_rotation_90d ?? null,
+    categoryRanks: c.category_ranks ?? [],
+    brand: c.brand ?? null, color: c.color ?? null, size: c.size ?? null,
+    listedSince: c.listed_since ?? null,
+    packageWeightKg: c.package_weight_kg ?? null,
+    packageDimensionsCm: c.package_length_cm != null ? { length: c.package_length_cm, width: c.package_width_cm, height: c.package_height_cm } : null,
+    stats: {
+      avg30: c.price_avg_30 ?? null, avg90: c.price_avg_90 ?? null, avg180: c.price_avg_180 ?? null,
+      lowestEver: c.price_lowest_ever ?? null, highestEver: c.price_highest_ever ?? null,
+      isLowestEver: c.is_lowest_ever ?? null, isLowest90d: c.is_lowest_90d ?? null,
+      outOfStockPct30: c.out_of_stock_pct_30 ?? null, outOfStockPct90: c.out_of_stock_pct_90 ?? null,
+      salesRankDrops30: c.sales_rank_drops_30 ?? null, salesRankDrops90: c.sales_rank_drops_90 ?? null, salesRankDrops180: c.sales_rank_drops_180 ?? null,
+      buyBoxStats: c.buybox_stats ?? [],
+      offerCountFBA: c.offer_count_fba ?? null, offerCountFBM: c.offer_count_fbm ?? null,
+      totalOfferCount: c.total_offer_count ?? null,
+      deltaPct90MonthlySold: c.delta_pct_90_monthly_sold ?? null,
+      buyBoxIsUnqualified: c.buybox_is_unqualified ?? null, buyBoxIsMAP: c.buybox_is_map ?? null,
+      savingBasis: c.saving_basis ?? null, savingPct: c.saving_pct ?? null,
+    },
+    returnRate: c.return_rate ?? null,
+    isRedirectAsin: c.is_redirect_asin ?? false,
+    parentAsin: c.parent_asin ?? null,
+    variationsCount: c.variations_count ?? null,
+    competitivePriceThreshold: c.competitive_price_threshold ?? null,
+    suggestedLowerPrice: c.suggested_lower_price ?? null,
+    categoryBreadcrumb: c.category_breadcrumb ?? [],
+    ean: c.ean ?? null,
+    cheapDataAgeMinutes: c.cheap_data_updated_at ? Math.round((Date.now() - new Date(c.cheap_data_updated_at).getTime()) / 60000) : null,
+    isMockData: typeof c.last_synced_by === 'string' && c.last_synced_by.endsWith('_mock'),
+  };
+}
+
+// Abre o modal de detalhe completo de um anúncio monitorado a partir dos
+// dados já em cache (sem gastar token novo — é a mesma leitura já feita
+// pra montar a tabela "Meus Anúncios", só que exibida por inteiro).
+function openKeepaTrackedDetail(asin) {
+  const t = KEEPA_DATA.tracked.find(x => x.asin === asin);
+  const c = KEEPA_DATA.cache[asin];
+  if (!c) {
+    alert('Ainda sem dados desse anúncio — aguarde a próxima atualização automática (roda de hora em hora).');
+    return;
+  }
+  const result = yalcaCacheRowToResult(c);
+  renderKeepaTrackedDetailModal(result, t);
+  openModal('keepaTrackedDetailModal');
+}
+
+function renderKeepaTrackedDetailModal(result, t) {
+  document.getElementById('keepaTrackedDetailTitle').textContent = (t && t.label) || result.title || result.asin;
+
+  const metaParts = [];
+  if (result.brand) metaParts.push(result.brand);
+  if (result.listedSince) metaParts.push(`no mercado desde ${yalcaFormatDate(result.listedSince.slice(0, 10))}`);
+  if (result.packageDimensionsCm) metaParts.push(`${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm${result.packageWeightKg ? `, ${result.packageWeightKg}kg` : ''}`);
+  if (result.variationsCount) metaParts.push(`${result.variationsCount} variações (cor/tamanho)`);
+  document.getElementById('keepaTrackedDetailMeta').textContent = metaParts.join(' · ');
+
+  document.getElementById('keepaTrackedDetailMockBanner').style.display = result.isMockData ? '' : 'none';
+  document.getElementById('keepaTrackedDetailRedirectBanner').style.display = result.isRedirectAsin ? '' : 'none';
+
+  document.getElementById('keepaTrackedDetailConfidence').textContent =
+    result.cheapDataAgeMinutes != null ? `atualizado ${yalcaKeepaMinutesLabel(result.cheapDataAgeMinutes)}` : '';
+
+  renderKpiGrid('keepaTrackedDetailKpis', buildKeepaKpis(result));
+  document.getElementById('keepaTrackedDetailBadges').innerHTML = buildKeepaPriceBadges(result.stats || {});
+
+  renderKeepaPriceCharts(result, 'keepaTrackedDetailPriceChart', 'keepaTrackedDetailRankWrap', 'keepaTrackedDetailRankChart');
+
+  renderKeepaDetailPanel(result, 'keepaTrackedDetailDetails');
+
+  const stats = result.stats || {};
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody');
+  renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaTrackedDetailRanksWrap', 'keepaTrackedDetailRanksList');
+  renderKeepaOffersTable(result.offers || [], 'keepaTrackedDetailOffersWrap', 'keepaTrackedDetailOffersBody', false);
 }
 
 // "Desempenho do vendedor" — só aparece depois que um admin cadastra o
@@ -389,7 +486,77 @@ function renderKeepaSearchResult(result) {
   const estoqueValue = stockRefOffer?.stock != null ? stockRefOffer.stock : '—';
   const estoqueHint = stockRefOffer?.stock != null ? (buyboxOffer ? 'do vendedor da buybox' : 'do vendedor mais barato') : 'sem dado de estoque nessa consulta';
 
-  const kpis = [
+  const kpis = buildKeepaKpis(result);
+  renderKpiGrid('keepaResultKpis', kpis);
+
+  document.getElementById('keepaPriceBadges').innerHTML = buildKeepaPriceBadges(stats);
+
+  renderKeepaPriceCharts(result, 'keepaPriceHistoryChart', 'keepaRankHistoryWrap', 'keepaRankHistoryChart');
+
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaBuyboxStatsPanel', 'keepaBuyboxStatsBody');
+  renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaCategoryRanksPanel', 'keepaCategoryRanksList');
+  renderKeepaOffersTable(result.offers || [], 'keepaOffersPanel', 'keepaOffersBody', true);
+  renderKeepaDetailPanel(result, 'keepaResultDetails');
+  autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
+}
+
+// Monta a lista de KPIs a partir de um `result` (mesmo shape vindo da busca
+// ao vivo OU convertido de uma linha de cache via yalcaCacheRowToResult) —
+// compartilhado entre o painel de pesquisa e o modal de detalhe de anúncio
+// monitorado, pra não duplicar a mesma conta em dois lugares.
+function buildKeepaKpis(result) {
+  const stats = result.stats || {};
+  const priceNow = result.buybox?.price ?? result.currentPrice;
+  let priceHint = null;
+  if (priceNow != null && stats.avg90 != null && stats.avg90 > 0) {
+    const deltaPct = ((priceNow - stats.avg90) / stats.avg90) * 100;
+    priceHint = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(0)}% vs. média dos últimos 90 dias`;
+  }
+  if (result.suggestedLowerPrice != null) {
+    priceHint = `${priceHint ? priceHint + ' · ' : ''}Amazon sugere baixar pra ${yalcaFormatCurrency(result.suggestedLowerPrice)} (buybox suprimida)`;
+  } else if (result.competitivePriceThreshold != null) {
+    priceHint = `${priceHint ? priceHint + ' · ' : ''}preço competitivo de referência: ${yalcaFormatCurrency(result.competitivePriceThreshold)}`;
+  }
+
+  const rotationHint = result.buyboxRotation90d != null
+    ? (result.buyboxRotation90d === 0 ? 'buybox estável nos últimos 90 dias' : `trocou de dono ${result.buyboxRotation90d}x nos últimos 90 dias`)
+    : null;
+  const buyboxWarnParts = [];
+  if (stats.buyBoxIsUnqualified) buyboxWarnParts.push('vendedor não está "qualificado" pra buybox (preço fora da faixa aceitável)');
+  if (stats.buyBoxIsMAP) buyboxWarnParts.push('preço sob política de MAP');
+  const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
+  const buyboxKpi = result.buybox
+    ? { label: 'Buybox', value: yalcaEscapeHtml(result.buybox.seller), hint: buyboxHint || null, delta: null }
+    : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null };
+
+  let vendasValue = '—';
+  let vendasHint = 'sem dado suficiente pra estimar';
+  if (result.monthlySold != null) {
+    vendasValue = result.monthlySold.toLocaleString('pt-BR');
+    vendasHint = 'dado direto da Amazon';
+  } else if (stats.salesRankDrops30 != null) {
+    vendasValue = `~${stats.salesRankDrops30.toLocaleString('pt-BR')}`;
+    vendasHint = 'estimativa por quedas no ranking (não é dado direto da Amazon)';
+  }
+  if (stats.deltaPct90MonthlySold != null) {
+    const trend = stats.deltaPct90MonthlySold;
+    vendasHint = `${trend >= 0 ? '📈' : '📉'} ${trend >= 0 ? '+' : ''}${trend}% vs. média de 90 dias · ${vendasHint}`;
+  }
+
+  const ofertasHintParts = [];
+  if (result.availabilityStatus) ofertasHintParts.push(result.availabilityStatus);
+  if (stats.offerCountFBA != null || stats.offerCountFBM != null) {
+    ofertasHintParts.push(`${stats.offerCountFBA ?? 0} FBA · ${stats.offerCountFBM ?? 0} FBM`);
+  }
+  const ofertasAtivasValue = stats.totalOfferCount ?? result.offersCount;
+
+  const offersList = result.offers || [];
+  const buyboxOffer = result.buybox ? offersList.find(o => o.sellerId === result.buybox.seller) : null;
+  const stockRefOffer = buyboxOffer || offersList[0] || null;
+  const estoqueValue = stockRefOffer?.stock != null ? stockRefOffer.stock : '—';
+  const estoqueHint = stockRefOffer?.stock != null ? (buyboxOffer ? 'do vendedor da buybox' : 'do vendedor mais barato') : 'sem dado de estoque nessa consulta';
+
+  return [
     { label: 'Preço da buybox', value: priceNow != null ? yalcaFormatCurrency(priceNow) : '—', delta: null, hint: priceHint },
     buyboxKpi,
     { label: 'BSR (ranking)', value: result.bsr != null ? result.bsr.toLocaleString('pt-BR') : '—', delta: null, hint: 'quanto menor, mais vende' },
@@ -403,23 +570,23 @@ function renderKeepaSearchResult(result) {
     { label: 'Preço médio (90 dias)', value: stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : '—', delta: null, hint: 'referência pra saber se o preço atual está alto ou baixo' },
     { label: 'Fora de estoque (90d)', value: stats.outOfStockPct90 != null ? `${stats.outOfStockPct90}%` : '—', delta: null, hint: stats.outOfStockPct90 == null ? 'sem dado suficiente' : (stats.outOfStockPct90 > 0 ? 'quanto do tempo o produto ficou indisponível' : 'sempre em estoque nos últimos 90 dias') },
   ];
-  renderKpiGrid('keepaResultKpis', kpis);
+}
 
-  const badgesEl = document.getElementById('keepaPriceBadges');
+function buildKeepaPriceBadges(stats) {
   const badges = [];
   if (stats.isLowestEver) badges.push('<span class="badge badge--ok">🔥 Menor preço histórico</span>');
   else if (stats.isLowest90d) badges.push('<span class="badge badge--ok">Menor preço em 90 dias</span>');
   if (stats.lowestEver?.price != null) badges.push(`<span class="kpi-card__hint">menor já registrado: ${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}</span>`);
-  badgesEl.innerHTML = badges.join('');
+  return badges.join('');
+}
 
-  // Gráfico de preço: três séries separadas (mesma linguagem de cores que o
-  // Keepa usa de verdade — laranja=Amazon, azul=outros vendedores, magenta=
-  // buybox) em vez de uma linha genérica única.
-  const priceChartContainer = document.getElementById('keepaPriceHistoryChart');
+// Gráfico de preço: três séries separadas (mesma linguagem de cores que o
+// Keepa usa de verdade — laranja=Amazon, azul=outros vendedores, magenta=
+// buybox) em vez de uma linha genérica única. Ranking (BSR) fica num
+// gráfico SEPARADO (escalas incompatíveis — nunca eixo duplo).
+function renderKeepaPriceCharts(result, priceChartId, rankWrapId, rankChartId) {
+  const priceChartContainer = document.getElementById(priceChartId);
   const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
-  // Buybox primeiro: é a referência mais importante pra decisão (o preço
-  // que o comprador realmente paga), e é a série que o gráfico preenche
-  // por baixo — mesmo destaque visual que o Keepa dá a ela.
   const priceSeries = [];
   if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ date: p.date, value: p.value })) });
   if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ date: p.date, value: p.value })) });
@@ -430,12 +597,8 @@ function renderKeepaSearchResult(result) {
     priceChartContainer.innerHTML = '<p class="alert-empty">Sem histórico de preço suficiente pra mostrar o gráfico ainda.</p>';
   }
 
-  // Ranking (BSR) fica num gráfico SEPARADO do preço (não no mesmo eixo) —
-  // a escala das duas séries é completamente diferente (reais vs. posição
-  // no ranking, que pode estar na casa dos milhões), então combinar as duas
-  // num único eixo esconde uma das duas linhas. Ver dataviz: nunca eixo duplo.
-  const rankWrap = document.getElementById('keepaRankHistoryWrap');
-  const rankChartContainer = document.getElementById('keepaRankHistoryChart');
+  const rankWrap = document.getElementById(rankWrapId);
+  const rankChartContainer = document.getElementById(rankChartId);
   if (result.bsrHistory && result.bsrHistory.length > 1) {
     rankWrap.style.display = '';
     yalcaRenderLineChart(rankChartContainer, {
@@ -445,20 +608,14 @@ function renderKeepaSearchResult(result) {
   } else {
     rankWrap.style.display = 'none';
   }
-
-  renderKeepaBuyboxStatsTable(stats.buyBoxStats || []);
-  renderKeepaCategoryRanks(result.categoryRanks || []);
-  renderKeepaOffersTable(result.offers || []);
-  renderKeepaDetailPanel(result);
-  autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
 }
 
 // Painel "Detalhes do produto" — reúne num único lugar, em formato
 // chave/valor de duas colunas, tudo que já buscamos mas ficava espalhado
 // entre KPIs/badges/tabelas — mesma ideia da aba "Data" do Keepa, que
 // concentra todos os detalhes cadastrais e de preço num só lugar.
-function renderKeepaDetailPanel(result) {
-  const el = document.getElementById('keepaResultDetails');
+function renderKeepaDetailPanel(result, elId) {
+  const el = document.getElementById(elId || 'keepaResultDetails');
   const stats = result.stats || {};
 
   const cheapestByFulfillment = (isFBA) => {
@@ -505,9 +662,9 @@ function renderKeepaDetailPanel(result) {
     <div class="keepa-detail-col">${rightRows}</div>`;
 }
 
-function renderKeepaBuyboxStatsTable(buyBoxStats) {
-  const panel = document.getElementById('keepaBuyboxStatsPanel');
-  const tbody = document.getElementById('keepaBuyboxStatsBody');
+function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId) {
+  const panel = document.getElementById(panelId || 'keepaBuyboxStatsPanel');
+  const tbody = document.getElementById(bodyId || 'keepaBuyboxStatsBody');
   if (!buyBoxStats || buyBoxStats.length === 0) {
     panel.style.display = 'none';
     return;
@@ -579,9 +736,9 @@ function updateSellerRepButtonState(allSellerIds) {
   }
 }
 
-function renderKeepaCategoryRanks(ranks) {
-  const panel = document.getElementById('keepaCategoryRanksPanel');
-  const list = document.getElementById('keepaCategoryRanksList');
+function renderKeepaCategoryRanks(ranks, panelId, listId) {
+  const panel = document.getElementById(panelId || 'keepaCategoryRanksPanel');
+  const list = document.getElementById(listId || 'keepaCategoryRanksList');
   if (!ranks || ranks.length === 0) {
     panel.style.display = 'none';
     return;
@@ -594,9 +751,9 @@ function renderKeepaCategoryRanks(ranks) {
     </div>`).join('');
 }
 
-function renderKeepaOffersTable(offers) {
-  const panel = document.getElementById('keepaOffersPanel');
-  const tbody = document.getElementById('keepaOffersBody');
+function renderKeepaOffersTable(offers, panelId, bodyId, withReputation) {
+  const panel = document.getElementById(panelId || 'keepaOffersPanel');
+  const tbody = document.getElementById(bodyId || 'keepaOffersBody');
   if (!offers || offers.length === 0) {
     panel.style.display = 'none';
     return;
@@ -624,7 +781,7 @@ function renderKeepaOffersTable(offers) {
       <td data-label="Condição">${yalcaEscapeHtml(o.condition || '—')}</td>
       <td data-label="Tipo">${tipoLabel}</td>
       <td data-label="Estoque" class="num">${o.stock != null ? o.stock : '—'}</td>
-      <td data-label="Reputação">${repLabel}</td>
+      ${withReputation ? `<td data-label="Reputação">${repLabel}</td>` : ''}
     </tr>`;
   }).join('');
 }
