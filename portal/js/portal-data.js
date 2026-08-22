@@ -139,13 +139,6 @@ async function yalcaDeletePlannedEntry(id) {
 async function yalcaFetchTrackedAsins() {
   return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').select('*').eq('active', true).order('created_at')) || [];
 }
-async function yalcaAddTrackedAsin({ asin, label, ownSellerName }) {
-  return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').insert({
-    asin: asin.toUpperCase(),
-    label: label || '',
-    own_seller_name: ownSellerName || ''
-  }).select().single());
-}
 async function yalcaDeleteTrackedAsin(id) {
   return yalcaCheck(await supabaseClient.from('keepa_tracked_asins').delete().eq('id', id));
 }

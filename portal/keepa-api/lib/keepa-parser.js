@@ -259,6 +259,25 @@ function parseKeepaProduct(p) {
     suggestedLowerPrice: centsToReais(p.suggestedLowerPrice),
     categoryBreadcrumb,
     ean: Array.isArray(p.eanList) && p.eanList.length > 0 ? p.eanList[0] : null,
+    // --- Campos identificados na exportação completa do Keepa (arquivo do
+    // cliente, "Grupo Fenelon", 2026-08-22) que faltavam: conteúdo
+    // descritivo, ficha técnica (fabricante/modelo), e sinalizadores de
+    // risco logístico (bateria/produto adulto) — todos já vêm no mesmo
+    // request de sempre, sem custo extra de token. ---
+    description: typeof p.description === 'string' ? p.description : null,
+    features: Array.isArray(p.features) ? p.features.filter(f => typeof f === 'string' && f.trim()) : [],
+    manufacturer: typeof p.manufacturer === 'string' ? p.manufacturer : null,
+    model: typeof p.model === 'string' ? p.model : null,
+    numberOfItems: typeof p.numberOfItems === 'number' ? p.numberOfItems : null,
+    // Preço de lista (MSRP) — referência de desconto diferente da média de
+    // 90 dias: é o preço "de fábrica" que a própria Amazon exibe riscado.
+    listPrice: lastValue(extractCsvSeries(p.csv, 4, true)),
+    // Baterias: exige embalagem/rotulagem especial e pode limitar frete
+    // aéreo/FBA em alguns modais — risco logístico real na hora de decidir
+    // importar/estocar.
+    batteriesRequired: typeof p.batteriesRequired === 'boolean' ? p.batteriesRequired : null,
+    batteriesIncluded: typeof p.batteriesIncluded === 'boolean' ? p.batteriesIncluded : null,
+    isAdultProduct: typeof p.isAdultProduct === 'boolean' ? p.isAdultProduct : null,
   };
 }
 

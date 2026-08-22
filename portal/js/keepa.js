@@ -35,8 +35,6 @@ function initKeepaTabs() {
 function initKeepaSection() {
   initKeepaTabs();
 
-  document.getElementById('keepaAddAsinBtn').addEventListener('click', handleAddTrackedAsin);
-
   document.getElementById('keepaTrackedBody').addEventListener('click', (e) => {
     const delBtn = e.target.closest('[data-action="deleteTrackedAsin"]');
     if (delBtn) { handleDeleteTrackedAsin(delBtn.dataset.id); return; }
@@ -175,6 +173,15 @@ function yalcaCacheRowToResult(c) {
     suggestedLowerPrice: c.suggested_lower_price ?? null,
     categoryBreadcrumb: c.category_breadcrumb ?? [],
     ean: c.ean ?? null,
+    description: c.description ?? null,
+    features: c.features ?? [],
+    manufacturer: c.manufacturer ?? null,
+    model: c.model ?? null,
+    numberOfItems: c.number_of_items ?? null,
+    listPrice: c.list_price ?? null,
+    batteriesRequired: c.batteries_required ?? null,
+    batteriesIncluded: c.batteries_included ?? null,
+    isAdultProduct: c.is_adult_product ?? null,
     cheapDataAgeMinutes: c.cheap_data_updated_at ? Math.round((Date.now() - new Date(c.cheap_data_updated_at).getTime()) / 60000) : null,
     isMockData: typeof c.last_synced_by === 'string' && c.last_synced_by.endsWith('_mock'),
   };
@@ -217,6 +224,7 @@ function renderKeepaTrackedDetailModal(result, t) {
   renderKeepaPriceCharts(result, 'keepaTrackedDetailPriceChart', 'keepaTrackedDetailRankWrap', 'keepaTrackedDetailRankChart');
 
   renderKeepaDetailPanel(result, 'keepaTrackedDetailDetails');
+  renderKeepaDescription(result, 'keepaTrackedDetailDescription');
 
   const stats = result.stats || {};
   renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody');
@@ -290,27 +298,7 @@ function renderKeepaAlerts() {
   renderAlertList(container, formatted);
 }
 
-/* ---------- Adicionar / remover ASIN monitorado ---------- */
-async function handleAddTrackedAsin() {
-  const asinInput = document.getElementById('keepaNewAsin');
-  const labelInput = document.getElementById('keepaNewAsinLabel');
-  const asin = asinInput.value.trim().toUpperCase();
-  if (!/^[A-Z0-9]{10}$/.test(asin)) {
-    alert('ASIN inválido — deve ter 10 letras/números (ex: B0EXAMPLE1).');
-    return;
-  }
-  try {
-    await yalcaAddTrackedAsin({ asin, label: labelInput.value.trim() });
-    asinInput.value = '';
-    labelInput.value = '';
-    await reloadKeepaData();
-    renderKeepaTracked();
-    renderKeepaAlerts();
-  } catch (err) {
-    alert('Não foi possível adicionar: ' + err.message);
-  }
-}
-
+/* ---------- Remover ASIN monitorado ---------- */
 async function handleDeleteTrackedAsin(id) {
   if (!confirm('Parar de monitorar este ASIN?')) return;
   try {
@@ -497,6 +485,7 @@ function renderKeepaSearchResult(result) {
   renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaCategoryRanksPanel', 'keepaCategoryRanksList');
   renderKeepaOffersTable(result.offers || [], 'keepaOffersPanel', 'keepaOffersBody', true);
   renderKeepaDetailPanel(result, 'keepaResultDetails');
+  renderKeepaDescription(result, 'keepaResultDescription');
   autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
 }
 
@@ -630,6 +619,8 @@ function renderKeepaDetailPanel(result, elId) {
   const leftRows = [
     row('Categoria', result.categoryBreadcrumb?.length ? yalcaEscapeHtml(result.categoryBreadcrumb.join(' › ')) : null),
     row('Marca', result.brand),
+    row('Fabricante', result.manufacturer && result.manufacturer !== result.brand ? result.manufacturer : null),
+    row('Modelo', result.model),
     row('Cor', result.color),
     row('Tamanho', result.size),
     row('ASIN', result.asin),
@@ -637,16 +628,22 @@ function renderKeepaDetailPanel(result, elId) {
     row('Avaliação', result.rating != null ? `${result.rating.toFixed(1)} ★ (${result.reviewCount ?? 0} avaliações)` : null),
     row('Comprado no último mês', result.monthlySold != null ? `${result.monthlySold.toLocaleString('pt-BR')}+` : null),
     row('Listado desde', result.listedSince ? yalcaFormatDate(result.listedSince.slice(0, 10)) : null),
+    row('Número de itens', result.numberOfItems),
     row('Dimensões do pacote', result.packageDimensionsCm ? `${result.packageDimensionsCm.length}×${result.packageDimensionsCm.width}×${result.packageDimensionsCm.height}cm` : null),
     row('Peso do pacote', result.packageWeightKg != null ? `${result.packageWeightKg}kg` : null),
     row('Variações', result.variationsCount ? `${result.variationsCount} (cor/tamanho)` : null),
     row('Taxa de devolução', result.returnRate ? (result.returnRate === 'alta' ? '⚠️ Alta' : 'Baixa') : null),
+    // Sinais de risco logístico/regulatório — pesam na decisão de comprar
+    // estoque pra revender (embalagem/frete especial, restrição de venda).
+    row('Requer baterias', result.batteriesRequired === true ? `⚠️ Sim${result.batteriesIncluded === false ? ' (não inclusas)' : ''}` : (result.batteriesRequired === false ? 'Não' : null)),
+    row('Produto adulto', result.isAdultProduct === true ? '⚠️ Sim' : null),
   ].filter(Boolean).join('');
 
   const rightRows = [
     row('Buy Box — vendedor', result.buybox ? yalcaEscapeHtml(result.buybox.seller) : 'nenhum vendedor no momento'),
     row('Buy Box — preço', result.buybox?.price != null ? yalcaFormatCurrency(result.buybox.price) : null),
     row('Preço riscado (desconto ativo)', stats.savingBasis != null ? `${yalcaFormatCurrency(stats.savingBasis)}${stats.savingPct != null ? ` (-${stats.savingPct}%)` : ''}` : null),
+    row('Preço de lista (MSRP)', result.listPrice != null ? yalcaFormatCurrency(result.listPrice) : null),
     row('Buy Box — média 90d', stats.avg90 != null ? yalcaFormatCurrency(stats.avg90) : null),
     row('Buy Box — menor já registrado', stats.lowestEver?.price != null ? `${yalcaFormatCurrency(stats.lowestEver.price)} em ${yalcaFormatDate(stats.lowestEver.date.slice(0, 10))}` : null),
     row('Buy Box — maior já registrado', stats.highestEver?.price != null ? `${yalcaFormatCurrency(stats.highestEver.price)} em ${yalcaFormatDate(stats.highestEver.date.slice(0, 10))}` : null),
@@ -660,6 +657,29 @@ function renderKeepaDetailPanel(result, elId) {
   el.innerHTML = `
     <div class="keepa-detail-col">${leftRows}</div>
     <div class="keepa-detail-col">${rightRows}</div>`;
+}
+
+// Descrição e bullets do anúncio — conteúdo de marketing/ficha técnica que
+// o cliente vê na própria página de produto da Amazon, útil pra avaliar o
+// produto antes de decidir comprar estoque pra revender.
+function renderKeepaDescription(result, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const hasDescription = !!(result.description && result.description.trim());
+  const hasFeatures = Array.isArray(result.features) && result.features.length > 0;
+  if (!hasDescription && !hasFeatures) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
+  const featuresHtml = hasFeatures
+    ? `<ul style="margin:10px 0 0; padding-left:20px;">${result.features.map(f => `<li>${yalcaEscapeHtml(f)}</li>`).join('')}</ul>`
+    : '';
+  const descriptionHtml = hasDescription
+    ? `<p style="white-space:pre-line; margin-top:10px;">${yalcaEscapeHtml(result.description)}</p>`
+    : '';
+  container.innerHTML = `<h4>Descrição do produto</h4>${descriptionHtml}${featuresHtml}`;
 }
 
 function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId) {

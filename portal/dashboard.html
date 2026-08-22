@@ -365,12 +365,7 @@
             <div class="panel__head">
               <div>
                 <h3>Produtos monitorados</h3>
-                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia. A Yalca cadastra o seller ID da sua loja pra popular essa lista sozinha a partir da sua vitrine na Amazon — o campo abaixo é só pra adicionar um produto avulso que não seja seu.</p>
-              </div>
-              <div class="panel__toolbar">
-                <input type="text" class="search-input" id="keepaNewAsin" maxlength="10" placeholder="ASIN (ex: B0EXAMPLE1)" style="min-width:160px;">
-                <input type="text" class="search-input" id="keepaNewAsinLabel" placeholder="Apelido (opcional)">
-                <button type="button" class="btn btn--primary btn--sm" id="keepaAddAsinBtn">＋ Monitorar</button>
+                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia. A Yalca cadastra o seller ID da sua loja no painel admin e essa lista é populada e atualizada automaticamente a partir da sua vitrine na Amazon.</p>
               </div>
             </div>
             <div class="table-scroll">
@@ -426,6 +421,8 @@
 
             <h4 style="margin-top:24px;">Detalhes do produto</h4>
             <div class="keepa-detail-grid" id="keepaResultDetails" style="margin-top:10px;"></div>
+
+            <div id="keepaResultDescription" style="display:none; margin-top:24px;"></div>
 
             <button type="button" class="table-view-toggle" id="keepaUseInPricingBtn" style="margin-top:16px;">Usar este preço na Calculadora de Preço →</button>
           </div>
@@ -882,6 +879,8 @@
 
     <h4 style="margin-top:24px;">Detalhes do produto</h4>
     <div class="keepa-detail-grid" id="keepaTrackedDetailDetails" style="margin-top:10px;"></div>
+
+    <div id="keepaTrackedDetailDescription" style="display:none; margin-top:24px;"></div>
 
     <div id="keepaTrackedDetailBuyboxWrap" style="display:none; margin-top:24px;">
       <h4>Quem domina a buybox</h4>
