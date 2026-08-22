@@ -609,9 +609,10 @@ body.portal-body {
 /* ---------- Ícone "i" de explicação (hover/foco) ----------
    Usado ao lado de rótulos de KPI e outros dados pra explicar o que o
    número significa, sem ocupar espaço permanente na tela. Botão real (não
-   <span>) pra funcionar por teclado — :focus-visible ativa a bolha igual
-   ao :hover. Posicionamento por CSS puro (sem JS), com fallback de lado
-   pra não vazar pra fora da tela em cards perto da borda. */
+   <span>) pra funcionar por teclado. A bolha de texto (.yalca-tooltip)
+   NÃO fica dentro deste elemento — é reposicionada via JS num único nó
+   fixado no <body>, porque quase todo .kpi-card tem overflow:hidden e
+   cortava a bolha pela metade quando ela tentava vazar do card. */
 .info-tip {
   position: relative;
   display: inline-flex;
@@ -635,16 +636,20 @@ body.portal-body {
   font-family: Georgia, 'Times New Roman', serif;
   line-height: 1;
 }
-.info-tip__bubble {
-  position: absolute;
-  left: 50%;
-  /* Abre pra BAIXO (não pra cima) — muitos KPIs com essa dica ficam perto
-     do topo da página, e abrir pra cima cortava a bolha na borda da
-     janela. Pra baixo sempre tem espaço de sobra abaixo do card. */
-  top: calc(100% + 8px);
-  transform: translateX(-50%) translateY(-4px);
+.info-tip:hover,
+.info-tip:focus-visible {
+  border-color: var(--primary-2);
+  color: var(--primary-2);
+}
+
+/* Bolha do tooltip — nó único, fixo na janela (não dentro de nenhum card),
+   posicionado via JS (yalcaShowTooltipFor em charts.js) pra sempre ficar
+   por cima e por fora de qualquer overflow:hidden. */
+.yalca-tooltip {
+  display: none;
+  position: fixed;
   min-width: 180px;
-  max-width: 240px;
+  max-width: 260px;
   background: var(--p-surface-2, #1c2540);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -656,22 +661,8 @@ body.portal-body {
   letter-spacing: normal;
   color: var(--text);
   box-shadow: var(--p-shadow-lg);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  z-index: 20;
+  z-index: 500;
   pointer-events: none;
-}
-.info-tip:hover .info-tip__bubble,
-.info-tip:focus-visible .info-tip__bubble {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-.info-tip:hover,
-.info-tip:focus-visible {
-  border-color: var(--primary-2);
-  color: var(--primary-2);
 }
 
 /* ---------- Barra de progresso do card (estilo Bling: mostra o quanto do

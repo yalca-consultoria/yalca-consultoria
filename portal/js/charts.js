@@ -45,13 +45,93 @@ function yalcaEscapeHtml(str) {
 
 // Ícone "i" com tooltip no hover/foco — usado ao lado de rótulos de KPI e
 // outros dados pra explicar o que aquele número significa, sem precisar de
-// texto permanente ocupando espaço na tela. CSS puro (sem JS de
-// posicionamento), funciona também por teclado (foco no <button>) e em
-// touch (o toque já dá foco no elemento, que é o gatilho do CSS).
+// texto permanente ocupando espaço na tela. Funciona também por teclado
+// (foco no <button>) e em touch (o toque já dá foco no elemento).
+//
+// A bolha de texto NÃO fica dentro do card (esse é justamente o problema
+// que ela resolve): quase todo .kpi-card tem `overflow:hidden` (necessário
+// pra a barra de progresso e o texto não vazarem visualmente), o que
+// cortava a bolha pela metade quando ela era um filho posicionado dentro
+// do ícone. Em vez disso, existe UM elemento de tooltip só (#yalcaTooltip),
+// fixado direto no <body> e reposicionado via JS a cada hover/foco — assim
+// ele sempre aparece por cima e por fora de qualquer card, com overflow
+// escondido ou não.
 // Compartilhado entre admin.html e dashboard.html (ambos carregam charts.js).
 function yalcaInfoIcon(text) {
   if (!text) return '';
-  return `<button type="button" class="info-tip" tabindex="0" aria-label="Explicação: ${yalcaEscapeHtml(text)}"><span class="info-tip__icon">i</span><span class="info-tip__bubble">${yalcaEscapeHtml(text)}</span></button>`;
+  return `<button type="button" class="info-tip" data-tip="${yalcaEscapeHtml(text)}" tabindex="0" aria-label="Explicação: ${yalcaEscapeHtml(text)}"><span class="info-tip__icon">i</span></button>`;
+}
+
+// Wiring do tooltip flutuante — delegado no document (funciona pra ícones
+// que ainda nem existem no DOM na hora em que esse script carrega, já que
+// os KPIs são renderizados depois via JS). Chamado uma vez, guardado atrás
+// de uma flag pra não duplicar listener se esse arquivo for reexecutado.
+if (!window.__yalcaTooltipWired) {
+  window.__yalcaTooltipWired = true;
+
+  function yalcaGetTooltipEl() {
+    let el = document.getElementById('yalcaTooltip');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'yalcaTooltip';
+      el.className = 'yalca-tooltip';
+      el.setAttribute('role', 'tooltip');
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function yalcaShowTooltipFor(trigger) {
+    const text = trigger.dataset.tip;
+    if (!text) return;
+    const tip = yalcaGetTooltipEl();
+    tip.textContent = text;
+    tip.style.visibility = 'hidden';
+    tip.style.display = 'block';
+
+    const rect = trigger.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    const margin = 8;
+
+    // Verticalmente: embaixo do ícone por padrão, vira pra cima só se não
+    // couber embaixo (perto do rodapé da tela).
+    let top = rect.bottom + margin;
+    if (top + tipRect.height > window.innerHeight - margin) {
+      top = rect.top - tipRect.height - margin;
+    }
+    // Horizontalmente: centralizado no ícone, mas sem vazar pras bordas
+    // esquerda/direita da janela.
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - tipRect.width - margin));
+
+    tip.style.top = `${Math.max(margin, top)}px`;
+    tip.style.left = `${left}px`;
+    tip.style.visibility = 'visible';
+  }
+
+  function yalcaHideTooltip() {
+    const tip = document.getElementById('yalcaTooltip');
+    if (tip) tip.style.display = 'none';
+  }
+
+  document.addEventListener('mouseover', (e) => {
+    const trigger = e.target.closest('.info-tip');
+    if (trigger) yalcaShowTooltipFor(trigger);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (e.target.closest('.info-tip')) yalcaHideTooltip();
+  });
+  document.addEventListener('focusin', (e) => {
+    const trigger = e.target.closest('.info-tip');
+    if (trigger) yalcaShowTooltipFor(trigger);
+  });
+  document.addEventListener('focusout', (e) => {
+    if (e.target.closest('.info-tip')) yalcaHideTooltip();
+  });
+  // Rolar a página com o tooltip aberto deixaria ele "flutuando" longe do
+  // ícone (posição é calculada uma vez em coordenadas de viewport) — mais
+  // simples e seguro é só escondê-lo.
+  document.addEventListener('scroll', yalcaHideTooltip, true);
 }
 
 /* Trunca o rótulo pra caber na largura da barra sem colidir com o vizinho
