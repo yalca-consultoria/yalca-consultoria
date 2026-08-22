@@ -860,14 +860,14 @@ body.portal-body {
    do próprio card do produto — não precisa mais de coluna própria. */
 @media (min-width: 641px) {
   .keepa-tracked-table { table-layout: fixed; }
-  .keepa-tracked-table th:nth-child(1), .keepa-tracked-table td:nth-child(1) { width: 34%; }
-  .keepa-tracked-table th:nth-child(2), .keepa-tracked-table td:nth-child(2) { width: 12%; }
-  .keepa-tracked-table th:nth-child(3), .keepa-tracked-table td:nth-child(3) { width: 9%; }
-  .keepa-tracked-table th:nth-child(4), .keepa-tracked-table td:nth-child(4) { width: 15%; }
+  .keepa-tracked-table th:nth-child(1), .keepa-tracked-table td:nth-child(1) { width: 30%; }
+  .keepa-tracked-table th:nth-child(2), .keepa-tracked-table td:nth-child(2) { width: 11%; }
+  .keepa-tracked-table th:nth-child(3), .keepa-tracked-table td:nth-child(3) { width: 8%; }
+  .keepa-tracked-table th:nth-child(4), .keepa-tracked-table td:nth-child(4) { width: 14%; }
   .keepa-tracked-table th:nth-child(5), .keepa-tracked-table td:nth-child(5) { width: 8%; }
-  .keepa-tracked-table th:nth-child(6), .keepa-tracked-table td:nth-child(6) { width: 12%; }
+  .keepa-tracked-table th:nth-child(6), .keepa-tracked-table td:nth-child(6) { width: 11%; }
   .keepa-tracked-table th:nth-child(7), .keepa-tracked-table td:nth-child(7) { width: 10%; }
-  .keepa-tracked-table th:nth-child(8), .keepa-tracked-table td:nth-child(8) { width: 64px; }
+  .keepa-tracked-table th:nth-child(8), .keepa-tracked-table td:nth-child(8) { width: 8%; }
 }
 .data-table th {
   text-align: left;
