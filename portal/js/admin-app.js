@@ -106,18 +106,18 @@ async function loadKeepaTokenStatus() {
     const refillLabel = result.refillIn != null && result.refillIn > 0
       ? `próximo token em ${Math.ceil(result.refillIn / 60)} min`
       : (result.refillRate != null ? `recarrega ${result.refillRate}/min` : null);
+    const saldoHint = result.tokensLeft != null && result.tokensLeft < 0 ? '⚠️ negativo — consultas vão falhar até recarregar' : (refillLabel || '');
 
-    renderKpiGrid('keepaTokenKpis', [
-      {
-        label: 'Saldo real (Keepa)', value: result.tokensLeft != null ? result.tokensLeft.toLocaleString('pt-BR') : '—',
-        delta: null, hint: result.tokensLeft != null && result.tokensLeft < 0 ? '⚠️ negativo — consultas vão falhar até recarregar' : (refillLabel || null),
-      },
-      { label: 'Taxa de recarga', value: result.refillRate != null ? `${result.refillRate}/min` : '—', delta: null, hint: null },
-      {
-        label: 'Cota própria usada hoje', value: result.spentToday != null ? `${result.spentToday} / ${result.dailyCap}` : '—',
-        delta: null, hint: 'limite interno do painel (separado do saldo real do Keepa)',
-      },
-    ]);
+    document.getElementById('keepaTokenKpis').innerHTML = [
+      { label: 'Saldo real (Keepa)', value: result.tokensLeft != null ? result.tokensLeft.toLocaleString('pt-BR') : '—', hint: saldoHint },
+      { label: 'Taxa de recarga', value: result.refillRate != null ? `${result.refillRate}/min` : '—', hint: '' },
+      { label: 'Cota própria usada hoje', value: result.spentToday != null ? `${result.spentToday} / ${result.dailyCap}` : '—', hint: 'limite interno do painel' },
+    ].map(k => `
+    <div class="kpi-card">
+      <div class="kpi-card__label">${k.label}</div>
+      <div class="kpi-card__value">${k.value}</div>
+      ${k.hint ? `<div class="kpi-card__hint">${k.hint}</div>` : ''}
+    </div>`).join('');
   } catch (err) {
     statusEl.textContent = 'Não foi possível consultar o saldo agora: ' + err.message;
     statusEl.style.color = 'var(--critical)';
