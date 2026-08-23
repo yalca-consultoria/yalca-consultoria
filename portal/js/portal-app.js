@@ -51,18 +51,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   initModals();
   bindGlobalActions();
   initOverviewPeriodFilter();
-  initKeepaSection();
 
   await reloadAndRenderAll();
 });
 
 async function reloadAndRenderAll() {
   try {
-    const [data] = await Promise.all([
-      yalcaFetchAll(YALCA_PROFILE),
-      reloadKeepaData().catch(err => { console.error('Keepa:', err); }) // não trava o resto do painel se essa parte falhar
-    ]);
-    DATA = data;
+    DATA = await yalcaFetchAll(YALCA_PROFILE);
     renderAll();
   } catch (err) {
     console.error(err);
@@ -74,9 +69,6 @@ function renderAll() {
   renderClientName();
   renderOverview();
   renderResetButtonLabel();
-  renderKeepaSellerMetrics();
-  renderKeepaTracked();
-  renderKeepaAlerts();
 }
 
 /* ============================================================

@@ -902,7 +902,10 @@ function yalcaKeepaMinutesLabel(minutes) {
   return `há ${Math.floor(hours / 24)}d`;
 }
 
-/* ---------- Ponte com a Calculadora de Preço ---------- */
+/* ---------- Ponte com a Calculadora de Preço ----------
+   Keepa e Precificação são páginas separadas agora — a "ponte" precisa
+   ser uma navegação de verdade. O preço viaja via sessionStorage e
+   precificacao-app.js consome (e limpa) essa chave ao carregar. */
 function useKeepaResultInPricingCalculator() {
   if (!LAST_KEEPA_SEARCH_RESULT) return;
   const price = LAST_KEEPA_SEARCH_RESULT.buybox?.price ?? LAST_KEEPA_SEARCH_RESULT.currentPrice;
@@ -910,8 +913,7 @@ function useKeepaResultInPricingCalculator() {
     alert('Esse produto não tem preço disponível pra usar na calculadora.');
     return;
   }
-  document.getElementById('pManualPrice').value = price;
-  document.querySelector('.portal-nav__item[data-section="precificacao"]').click();
-  selectVariantForDetail('amazon_fba');
-  recalcPricing();
+  sessionStorage.setItem('yalcaPricingManualPrice', price);
+  sessionStorage.setItem('yalcaPricingFocusVariant', 'amazon_fba');
+  window.location.href = 'precificacao.html';
 }

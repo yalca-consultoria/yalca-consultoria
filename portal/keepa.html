@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://images-na.ssl-images-amazon.com https://m.media-amazon.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Compras & Concorrência | Yalca Consultoria</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../css/style.min.css">
+<link rel="stylesheet" href="css/portal.min.css?v=902604f">
+</head>
+<body class="portal-body">
+
+<div class="demo-banner">
+  Seus dados ficam salvos na sua conta Yalca. Use <strong>"Carregar dados de exemplo"</strong> no menu lateral para conhecer as ferramentas antes de cadastrar dados reais.
+</div>
+
+<!-- Tela: conta aguardando aprovação -->
+<div class="login-screen" id="pendingScreen" style="display:none;">
+  <div class="login-card" style="text-align:center;">
+    <a href="../index.html" class="logo">Yalca<span>.</span></a>
+    <h1 style="margin-top:18px;">Acesso em análise</h1>
+    <p class="login-sub">Sua conta foi criada com sucesso. Assim que a equipe Yalca aprovar seu acesso, as ferramentas ficam disponíveis automaticamente aqui.</p>
+    <button class="btn btn--ghost btn--sm" id="pendingLogoutBtn" style="margin-top:8px;">Sair</button>
+  </div>
+</div>
+
+<!-- Tela: acesso bloqueado -->
+<div class="login-screen" id="blockedScreen" style="display:none;">
+  <div class="login-card" style="text-align:center;">
+    <a href="../index.html" class="logo">Yalca<span>.</span></a>
+    <h1 style="margin-top:18px;">Acesso bloqueado</h1>
+    <p class="login-sub">Seu acesso a esta área foi bloqueado pela Yalca. Fale com a equipe para regularizar a situação.</p>
+    <button class="btn btn--ghost btn--sm" id="blockedLogoutBtn" style="margin-top:8px;">Sair</button>
+  </div>
+</div>
+
+<div class="portal-shell" id="portalShell" style="display:none;">
+
+  <div class="portal-sidebar-scrim" id="portalSidebarScrim"></div>
+
+  <!-- SIDEBAR (igual em todas as páginas — ver nota em portal-shell.js) -->
+  <aside class="portal-sidebar" id="portalSidebar">
+    <button type="button" class="portal-sidebar__collapse-btn" id="portalSidebarCollapseBtn" aria-label="Recolher menu" aria-expanded="true">‹</button>
+    <div class="portal-sidebar__brand">
+      <a href="../index.html" class="logo">Yalca<span>.</span></a>
+    </div>
+
+    <nav class="portal-nav" id="portalNav">
+      <a class="portal-nav__item" href="dashboard.html">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/></svg>
+        <span class="portal-nav__label">Visão Geral</span>
+      </a>
+
+      <div class="portal-nav__group is-open">
+        <button type="button" class="portal-nav__group-heading" data-group="financeiro" aria-expanded="true">
+          <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.5-1.5-2-3-2s-3 .8-3 2c0 3 6 1.5 6 4.5 0 1.5-1.5 2-3 2s-3-.5-3-2"/></svg>
+          <span class="portal-nav__label">Financeiro</span>
+          <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="portal-nav__group-items">
+          <a class="portal-nav__item" href="financeiro.html">
+            <span class="portal-nav__label">Receitas e despesas</span>
+          </a>
+          <a class="portal-nav__item" href="fluxocaixa.html">
+            <span class="portal-nav__label">Fluxo de Caixa</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="portal-nav__group is-open">
+        <button type="button" class="portal-nav__group-heading" data-group="marketplaces" aria-expanded="true">
+          <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M4 9v10h16V9"/></svg>
+          <span class="portal-nav__label">Marketplaces</span>
+          <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="portal-nav__group-items">
+          <a class="portal-nav__item" href="marketplaces.html">
+            <span class="portal-nav__label">Gestão de Marketplaces</span>
+          </a>
+          <a class="portal-nav__item is-active" href="keepa.html">
+            <span class="portal-nav__label">Compras &amp; Concorrência</span>
+          </a>
+          <a class="portal-nav__item" href="precificacao.html">
+            <span class="portal-nav__label">Calculadora de Preço</span>
+          </a>
+          <a class="portal-nav__item" href="estoque.html">
+            <span class="portal-nav__label">Controle de Estoque</span>
+          </a>
+        </div>
+      </div>
+
+      <a class="portal-nav__item" href="assistente.html">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
+        <span class="portal-nav__label">Assistente IA</span>
+      </a>
+      <a class="portal-nav__item" href="configuracoes.html">
+        <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="portal-nav__label">Configurações</span>
+      </a>
+    </nav>
+
+    <div class="portal-sidebar__footer">
+      <div class="portal-user">
+        <div class="portal-user__avatar">LD</div>
+        <div>
+          <div class="portal-user__name" id="clientNameLabel">Loja Demonstração</div>
+          <div class="portal-user__role">Cliente Yalca</div>
+        </div>
+      </div>
+      <button class="reset-demo" id="resetDemoBtn" style="width:100%; margin-bottom:8px;">↺ Restaurar dados de exemplo</button>
+      <button class="btn btn--ghost btn--sm btn--block" id="logoutBtn">Sair</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="portal-main">
+    <header class="portal-topbar">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
+        <div>
+          <span class="portal-topbar__eyebrow">Painel do Cliente</span>
+          <h2>Compras &amp; Concorrência</h2>
+        </div>
+      </div>
+    </header>
+
+    <div class="portal-content">
+      <section class="portal-section is-active">
+        <div class="section-intro">
+          <p>Acompanhe os produtos que você já vende (atualizados automaticamente) ou pesquise um produto novo pra decidir se vale comprar pra revenda.</p>
+        </div>
+
+        <div class="keepa-tabs" role="tablist">
+          <button type="button" class="keepa-tab is-active" data-keepa-tab="anuncios" role="tab">Meus Anúncios</button>
+          <button type="button" class="keepa-tab" data-keepa-tab="pesquisar" role="tab">Pesquisar Produto</button>
+        </div>
+
+        <div class="keepa-tabpanel is-active" data-keepa-panel="anuncios">
+          <div class="panel" id="keepaSellerMetricsPanel" style="display:none;">
+            <div class="panel__head">
+              <div>
+                <h3 id="keepaSellerName">—</h3>
+                <p id="keepaSellerMeta" class="kpi-card__hint"></p>
+              </div>
+              <div class="panel__toolbar">
+                <a id="keepaSellerAmazonLink" href="#" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Ver na Amazon ↗</a>
+              </div>
+            </div>
+            <div class="kpi-grid" id="keepaSellerMetricsKpis"></div>
+            <p id="keepaSellerLastSync" class="kpi-card__hint" style="margin-top:12px;"></p>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><div><h3>Alertas recentes</h3></div></div>
+            <div class="alert-list" id="keepaAlerts"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Produtos monitorados</h3>
+                <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia. A Yalca cadastra o seller ID da sua loja no painel admin e essa lista é populada e atualizada automaticamente a partir da sua vitrine na Amazon.</p>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table data-table--cards keepa-tracked-table">
+                <thead>
+                  <tr><th>Produto</th><th class="num">Preço</th><th class="num">BSR</th><th>Buybox</th><th class="num">Ofertas</th><th class="num">Comprado/mês</th><th class="num">Fora de estoque (90d)</th><th></th></tr>
+                </thead>
+                <tbody id="keepaTrackedBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="keepa-tabpanel" data-keepa-panel="pesquisar">
+          <div class="panel">
+            <div class="panel__head"><div><h3>Pesquisar um produto pra comprar e revender</h3><p>Veja quem já vende, a que preço, e a margem estimada se você entrar nesse produto.</p></div></div>
+            <form id="keepaSearchForm" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+              <div class="field" style="flex:1; min-width:200px;">
+                <label for="keepaSearchAsin">ASIN, link da Amazon ou código de barras (EAN)</label>
+                <input type="text" id="keepaSearchAsin" maxlength="200" placeholder="Ex: B0EXAMPLE1, um link de amazon.com.br ou o EAN do produto" required>
+              </div>
+              <button type="submit" class="btn btn--primary btn--sm">Pesquisar</button>
+            </form>
+            <p id="keepaSearchQuota" class="kpi-card__hint" style="margin-top:10px;">As pesquisas têm um limite diário pra preservar a capacidade de consulta.</p>
+            <p id="keepaSearchStatus" style="margin-top:6px; font-size:0.88rem;"></p>
+          </div>
+
+          <div class="panel panel--highlight" id="keepaSearchResultPanel" style="display:none;">
+            <div id="keepaMockBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(250,178,25,0.14); border:1px solid rgba(250,178,25,0.4); color:var(--warning); font-size:0.88rem; font-weight:600;">
+              ⚠️ Modo de teste — estes números são fictícios, não refletem o produto real. Confirme com a Yalca se a fonte de dados está temporariamente indisponível.
+            </div>
+            <div id="keepaRedirectBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(208,59,59,0.14); border:1px solid rgba(208,59,59,0.4); color:var(--critical); font-size:0.88rem; font-weight:600;">
+              ⛔ Este ASIN foi redirecionado pela Amazon (anúncio fundido ou descontinuado) — não compre estoque pra revender especificamente nele, pode não existir mais como está aqui.
+            </div>
+            <div class="panel__head">
+              <div>
+                <h3 id="keepaResultTitle">—</h3>
+                <p id="keepaResultMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
+                <p id="keepaResultConfidence" style="margin-top:8px;"></p>
+              </div>
+            </div>
+
+            <!-- Posição por categoria logo no topo — é a primeira coisa que
+                 dá contexto pro resto dos números (rank/BSR/vendas) que vêm
+                 a seguir. -->
+            <div id="keepaCategoryRanksPanel" style="display:none; margin-bottom:20px;">
+              <h4 style="margin-bottom:10px;">Posição por categoria</h4>
+              <div class="alert-list" id="keepaCategoryRanksList"></div>
+            </div>
+
+            <div class="kpi-grid" id="keepaResultKpis"></div>
+            <div id="keepaPriceBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+            <h4 style="margin-top:24px;">Histórico de preço</h4>
+            <div id="keepaPriceHistoryChart" style="margin-top:10px;"></div>
+
+            <div id="keepaRankHistoryWrap" style="display:none;">
+              <h4 style="margin-top:24px;">Histórico de ranking (BSR)</h4>
+              <p class="kpi-card__hint">Quanto menor a posição, mais o produto está vendendo.</p>
+              <div id="keepaRankHistoryChart" style="margin-top:10px;"></div>
+            </div>
+
+            <h4 style="margin-top:24px;">Detalhes do produto</h4>
+            <div class="keepa-detail-grid" id="keepaResultDetails" style="margin-top:10px;"></div>
+
+            <div id="keepaResultDescription" style="display:none; margin-top:24px;"></div>
+
+            <button type="button" class="table-view-toggle" id="keepaUseInPricingBtn" style="margin-top:16px;">Usar este preço na Calculadora de Preço →</button>
+          </div>
+
+          <div class="panel" id="keepaBuyboxStatsPanel" style="display:none;">
+            <div class="panel__head">
+              <div>
+                <h3>Quem domina a buybox</h3>
+                <p>Percentual de vezes que cada vendedor ganhou a exibição principal do produto.</p>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table data-table--cards">
+                <thead>
+                  <tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr>
+                </thead>
+                <tbody id="keepaBuyboxStatsBody"></tbody>
+              </table>
+            </div>
+            <div id="keepaBuyboxStatsToggle" style="margin-top:8px;"></div>
+          </div>
+
+          <div class="panel" id="keepaOffersPanel" style="display:none;">
+            <div class="panel__head">
+              <div>
+                <h3>Quem está vendendo</h3>
+                <p>Todas as ofertas ativas encontradas pra esse produto.</p>
+              </div>
+              <div class="panel__toolbar">
+                <button type="button" class="table-view-toggle" id="keepaLoadSellerRepBtn">Ver reputação dos vendedores</button>
+                <span id="keepaOffersStatus" style="font-size:0.8rem; color:var(--text-muted);"></span>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table data-table--cards">
+                <thead>
+                  <tr><th>Vendedor</th><th class="num">Preço</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th></tr>
+                </thead>
+                <tbody id="keepaOffersBody"></tbody>
+              </table>
+            </div>
+            <div id="keepaOffersToggle" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: detalhes completos de um anúncio monitorado -->
+<div class="modal-backdrop" id="keepaTrackedDetailModal">
+  <div class="modal modal--wide modal--keepa-detail">
+    <div class="modal__head">
+      <div style="display:flex; align-items:center; gap:14px; min-width:0;">
+        <img id="keepaTrackedDetailImage" src="" alt="" style="display:none; width:64px; height:64px; border-radius:10px; object-fit:contain; background:var(--surface-2); flex-shrink:0;">
+        <h3 id="keepaTrackedDetailTitle" style="min-width:0;">—</h3>
+      </div>
+      <button class="modal__close" data-close-modal="keepaTrackedDetailModal">×</button>
+    </div>
+    <div id="keepaTrackedDetailMockBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(250,178,25,0.14); border:1px solid rgba(250,178,25,0.4); color:var(--warning); font-size:0.88rem; font-weight:600;">
+      ⚠️ Modo de teste — estes números são fictícios, não refletem o produto real.
+    </div>
+    <div id="keepaTrackedDetailRedirectBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:8px; background:rgba(208,59,59,0.14); border:1px solid rgba(208,59,59,0.4); color:var(--critical); font-size:0.88rem; font-weight:600;">
+      ⛔ Este ASIN foi redirecionado pela Amazon (anúncio fundido ou descontinuado) — não compre estoque pra revender especificamente nele, pode não existir mais como está aqui.
+    </div>
+    <p id="keepaTrackedDetailMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
+    <p id="keepaTrackedDetailConfidence" style="margin-top:8px;"></p>
+
+    <div id="keepaTrackedDetailRanksWrap" style="display:none; margin-top:14px;">
+      <h4 style="margin-bottom:10px;">Posição por categoria</h4>
+      <div class="alert-list" id="keepaTrackedDetailRanksList"></div>
+    </div>
+
+    <div class="kpi-grid" id="keepaTrackedDetailKpis" style="margin-top:14px;"></div>
+    <div id="keepaTrackedDetailBadges" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+    <h4 style="margin-top:24px;">Histórico de preço</h4>
+    <div id="keepaTrackedDetailPriceChart" style="margin-top:10px;"></div>
+
+    <div id="keepaTrackedDetailRankWrap" style="display:none;">
+      <h4 style="margin-top:24px;">Histórico de ranking (BSR)</h4>
+      <div id="keepaTrackedDetailRankChart" style="margin-top:10px;"></div>
+    </div>
+
+    <h4 style="margin-top:24px;">Detalhes do produto</h4>
+    <div class="keepa-detail-grid" id="keepaTrackedDetailDetails" style="margin-top:10px;"></div>
+
+    <div id="keepaTrackedDetailDescription" style="display:none; margin-top:24px;"></div>
+
+    <div id="keepaTrackedDetailBuyboxWrap" style="display:none; margin-top:24px;">
+      <h4>Quem domina a buybox</h4>
+      <div class="table-scroll">
+        <table class="data-table data-table--cards">
+          <thead><tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr></thead>
+          <tbody id="keepaTrackedDetailBuyboxBody"></tbody>
+        </table>
+      </div>
+      <div id="keepaTrackedDetailBuyboxToggle" style="margin-top:8px;"></div>
+    </div>
+
+    <div id="keepaTrackedDetailOffersWrap" style="display:none; margin-top:24px;">
+      <h4>Quem está vendendo</h4>
+      <div class="table-scroll">
+        <table class="data-table data-table--cards">
+          <thead><tr><th>Vendedor</th><th class="num">Preço</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th></tr></thead>
+          <tbody id="keepaTrackedDetailOffersBody"></tbody>
+        </table>
+      </div>
+      <div id="keepaTrackedDetailOffersToggle" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: confirmar substituição por dados de exemplo (apaga dados reais) -->
+<div class="modal-backdrop" id="resetDemoModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3>Substituir por dados de exemplo?</h3>
+      <button class="modal__close" data-close-modal="resetDemoModal">×</button>
+    </div>
+    <p id="resetDemoModalText" style="margin-bottom:14px;"></p>
+    <div class="field">
+      <label for="resetDemoConfirmInput">Digite <strong>CONFIRMAR</strong> para continuar</label>
+      <input type="text" id="resetDemoConfirmInput" autocomplete="off">
+    </div>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--ghost btn--sm" data-close-modal="resetDemoModal">Cancelar</button>
+      <button type="button" class="btn btn--primary btn--sm" id="resetDemoConfirmBtn" disabled>Substituir dados</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.min.js?v=902604f"></script>
+<script src="js/portal-data.min.js?v=902604f"></script>
+<script src="js/portal-auth.min.js?v=902604f"></script>
+<script src="js/charts.min.js?v=902604f"></script>
+<script src="js/portal-shell.min.js?v=902604f"></script>
+<script src="js/keepa.min.js?v=902604f"></script>
+<script src="js/keepa-app.min.js?v=902604f"></script>
+</body>
+</html>

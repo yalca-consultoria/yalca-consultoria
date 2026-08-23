@@ -172,6 +172,20 @@ function initPricingCalculator() {
   });
 
   renderFeeEditor();
+
+  // Chegada vinda do "Usar este preço na Calculadora de Preço" do Keepa
+  // (keepa.html) — veio de sessionStorage porque são páginas separadas.
+  const savedPrice = sessionStorage.getItem('yalcaPricingManualPrice');
+  if (savedPrice) {
+    document.getElementById('pManualPrice').value = savedPrice;
+    sessionStorage.removeItem('yalcaPricingManualPrice');
+    const savedVariant = sessionStorage.getItem('yalcaPricingFocusVariant');
+    if (savedVariant) {
+      FOCUSED_VARIANT_KEY = savedVariant;
+      sessionStorage.removeItem('yalcaPricingFocusVariant');
+    }
+  }
+
   recalcPricing();
 }
 
