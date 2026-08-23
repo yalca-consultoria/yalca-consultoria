@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initOverviewPeriodFilter();
   initPricingCalculator();
   initKeepaSection();
-  initIaSection();
 
   await reloadAndRenderAll();
 });

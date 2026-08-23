@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://images-na.ssl-images-amazon.com https://m.media-amazon.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Fluxo de Caixa | Yalca Consultoria</title>
+<title>Assistente IA | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:,">
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -66,7 +66,7 @@
           <a class="portal-nav__item" href="dashboard.html#financeiro">
             <span class="portal-nav__label">Receitas e despesas</span>
           </a>
-          <a class="portal-nav__item is-active" href="fluxocaixa.html">
+          <a class="portal-nav__item" href="fluxocaixa.html">
             <span class="portal-nav__label">Fluxo de Caixa</span>
           </a>
         </div>
@@ -94,7 +94,7 @@
         </div>
       </div>
 
-      <a class="portal-nav__item" href="assistente.html">
+      <a class="portal-nav__item is-active" href="assistente.html">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
         <span class="portal-nav__label">Assistente IA</span>
       </a>
@@ -124,7 +124,7 @@
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
         <div>
           <span class="portal-topbar__eyebrow">Painel do Cliente</span>
-          <h2>Fluxo de Caixa</h2>
+          <h2>Assistente IA</h2>
         </div>
       </div>
     </header>
@@ -132,62 +132,46 @@
     <div class="portal-content">
       <section class="portal-section is-active">
         <div class="section-intro">
-          <p>Projeção do saldo em caixa para os próximos meses, com base no seu último mês fechado e nos lançamentos futuros já previstos.</p>
+          <p>Diagnóstico da sua loja e tira-dúvidas gerados por IA rodando nos nossos servidores — sem custo adicional pra você.</p>
         </div>
 
-        <div class="kpi-grid" id="cashflowKpis"></div>
-
-        <div class="panel chart-card panel--highlight">
-          <div class="panel__head">
-            <div>
-              <h3>Saldo projetado</h3>
-              <p>Saldo acumulado estimado para os próximos 3 meses.</p>
-            </div>
-          </div>
-          <div id="cashflowChart"></div>
+        <div class="ia-tabs" role="tablist">
+          <button type="button" class="ia-tab is-active" data-ia-tab="diagnostico" role="tab">Diagnóstico</button>
+          <button type="button" class="ia-tab" data-ia-tab="suporte" role="tab">Suporte</button>
         </div>
 
-        <div class="panel">
-          <div class="panel__head">
-            <div>
-              <h3>Lançamentos futuros previstos</h3>
-              <p>Entradas e saídas já conhecidas que ainda vão acontecer.</p>
+        <div class="ia-tabpanel is-active" data-ia-panel="diagnostico">
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Diagnóstico automático da sua loja</h3>
+                <p>Gera uma análise com base nos lançamentos financeiros e produtos que você já tem cadastrados aqui — não precisa preencher nada.</p>
+              </div>
             </div>
-            <div class="panel__toolbar">
-              <button class="btn btn--primary btn--sm" id="addPlannedBtn">+ Novo lançamento futuro</button>
-            </div>
+            <button type="button" class="btn btn--primary btn--sm" id="iaDiagnosticoBtn">Gerar diagnóstico</button>
+            <p id="iaDiagnosticoStatus" style="margin-top:8px; font-size:0.85rem;"></p>
+            <div class="ia-diagnostico-result" id="iaDiagnosticoResult" style="display:none;"></div>
           </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>Data</th><th>Descrição</th><th class="num">Valor</th><th></th></tr></thead>
-              <tbody id="plannedTableBody"></tbody>
-            </table>
+        </div>
+
+        <div class="ia-tabpanel" data-ia-panel="suporte">
+          <div class="panel">
+            <div class="panel__head">
+              <div>
+                <h3>Tire suas dúvidas</h3>
+                <p>Pergunte sobre as ferramentas do portal, gestão financeira ou marketplaces.</p>
+              </div>
+            </div>
+            <div class="ia-chat-list" id="suporteChatList"></div>
+            <form class="ia-chat-form" id="suporteChatForm">
+              <textarea id="suporteChatInput" placeholder="Digite sua dúvida..." required></textarea>
+              <button type="submit" class="btn btn--primary btn--sm">Enviar</button>
+            </form>
+            <p id="suporteChatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
           </div>
         </div>
       </section>
     </div>
-  </div>
-</div>
-
-<!-- MODAL: novo lançamento futuro -->
-<div class="modal-backdrop" id="plannedModal">
-  <div class="modal">
-    <div class="modal__head">
-      <h3>Novo lançamento futuro</h3>
-      <button class="modal__close" data-close-modal="plannedModal">×</button>
-    </div>
-    <form id="plannedForm">
-      <div class="field"><label for="plDate">Data</label><input type="date" id="plDate" required></div>
-      <div class="field"><label for="plDescription">Descrição</label><input type="text" id="plDescription" required></div>
-      <div class="field">
-        <label for="plAmount">Valor (R$) — use negativo para saída</label>
-        <input type="number" id="plAmount" step="0.01" required>
-      </div>
-      <div class="modal__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="plannedModal">Cancelar</button>
-        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
-      </div>
-    </form>
   </div>
 </div>
 
@@ -216,6 +200,7 @@
 <script src="js/portal-auth.min.js?v=b802ec6"></script>
 <script src="js/charts.min.js?v=b802ec6"></script>
 <script src="js/portal-shell.min.js?v=b802ec6"></script>
-<script src="js/fluxocaixa-app.min.js?v=b802ec6"></script>
+<script src="js/ia.min.js?v=b802ec6"></script>
+<script src="js/assistente-app.min.js?v=b802ec6"></script>
 </body>
 </html>
