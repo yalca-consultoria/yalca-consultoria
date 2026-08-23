@@ -84,7 +84,7 @@ body.portal-body {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-top-color: var(--p-edge-light);
@@ -100,30 +100,144 @@ body.portal-body {
 }
 .login-card > p.login-sub { font-size: 0.92rem; margin-bottom: 28px; }
 
-.login-form { display: flex; flex-direction: column; gap: 16px; }
+/* Selo de segurança discreto — reforça confiança sem parecer alarmista. */
+.login-security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+.login-security-badge svg { width: 14px; height: 14px; stroke: var(--good); flex-shrink: 0; }
+
+.login-form { display: flex; flex-direction: column; gap: 18px; }
 .login-form label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block; }
-.login-form input {
+
+/* Campo com ícone à esquerda — inputs "nus" davam uma sensação mais de
+   protótipo do que de produto; o ícone também ajuda a escanear o
+   formulário mais rápido (email vs senha) sem precisar ler o label. */
+.login-field { position: relative; }
+.login-field svg.login-field__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-muted);
+  pointer-events: none;
+}
+.login-field input {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--p-radius-sm);
-  padding: 12px 14px;
+  padding: 12px 14px 12px 42px;
   color: var(--text);
   font-family: var(--font-body);
   font-size: 1rem;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
-.login-form input:focus { outline: none; border-color: var(--primary-2); }
+.login-field input:focus { outline: none; border-color: var(--primary-2); }
+.login-field input.is-invalid { border-color: var(--critical); }
+.login-field__toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+.login-field__toggle:hover { color: var(--text); }
+.login-field__toggle svg { width: 18px; height: 18px; stroke: currentColor; }
+
+.login-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -8px;
+}
+.login-forgot-link { font-size: 0.82rem; color: var(--accent); font-weight: 600; }
+.login-forgot-link:hover { text-decoration: underline; }
+
 .login-error {
   display: none;
+  align-items: flex-start;
+  gap: 8px;
   background: rgba(208, 59, 59, 0.12);
   border: 1px solid rgba(208, 59, 59, 0.4);
   color: #ff9b9b;
   font-size: 0.85rem;
   padding: 10px 14px;
   border-radius: var(--p-radius-sm);
+  line-height: 1.5;
 }
-.login-error.is-visible { display: block; }
+.login-error.is-visible { display: flex; }
+.login-error svg { width: 16px; height: 16px; stroke: #ff9b9b; flex-shrink: 0; margin-top: 2px; }
+
+.login-info {
+  display: none;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  color: var(--accent);
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  border-radius: var(--p-radius-sm);
+  line-height: 1.5;
+}
+.login-info.is-visible { display: block; }
+.login-info a, .login-info button.link-btn {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Spinner inline no botão — evita duplo submit e deixa claro que algo
+   está acontecendo em requisições que podem levar 1-2s (auth + rede). */
+.btn--loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn--loading::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 50%;
+  left: 50%;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: loginSpin 0.7s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
+
+/* Widget do Cloudflare Turnstile — só aparece depois de N tentativas
+   com credenciais erradas (ver login-app.js). Antes disso fica fora do
+   fluxo de tab pra não atrapalhar quem erra a senha uma vez só. */
+.login-captcha { display: none; margin-top: 4px; }
+.login-captcha.is-visible { display: block; }
+.login-captcha__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.login-captcha__hint svg { width: 14px; height: 14px; stroke: var(--warning); flex-shrink: 0; }
 
 .demo-hint {
   margin-top: 24px;
@@ -151,6 +265,10 @@ body.portal-body {
   color: var(--text-muted);
 }
 .login-back:hover { color: var(--text); }
+
+@media (max-width: 480px) {
+  .login-card { padding: 32px 24px; max-width: 100%; }
+}
 
 /* ---------- Banner de ambiente demo ---------- */
 .demo-banner {

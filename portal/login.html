@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; frame-src https://challenges.cloudflare.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Entrar | Área do Cliente Yalca</title>
 <meta name="robots" content="noindex, nofollow">
@@ -23,20 +23,57 @@
       <h1>Área do Cliente</h1>
       <p class="login-sub">Acesse suas ferramentas de gestão financeira e de marketplaces.</p>
 
+      <div class="login-security-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+        Conexão segura e criptografada
+      </div>
+
       <p class="login-error" id="configWarning">
-        Configuração do banco de dados pendente. Preencha <code>portal/js/supabase-config.js</code> com a URL e a chave do seu projeto Supabase para ativar o login.
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+        <span>Configuração do banco de dados pendente. Preencha <code>portal/js/supabase-config.js</code> com a URL e a chave do seu projeto Supabase para ativar o login.</span>
       </p>
 
       <form class="login-form" id="loginForm" novalidate>
         <div>
           <label for="email">E-mail</label>
-          <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            <input type="email" id="email" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          </div>
         </div>
         <div>
           <label for="password">Senha</label>
-          <input type="password" id="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="password" name="password" placeholder="Sua senha" autocomplete="current-password" required>
+            <button type="button" class="login-field__toggle" id="togglePassword" aria-label="Mostrar senha">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
-        <p class="login-error" id="loginError"></p>
+
+        <div class="login-form-row">
+          <span></span>
+          <a href="#" id="showForgot" class="login-forgot-link">Esqueci minha senha</a>
+        </div>
+
+        <p class="login-error" id="loginError">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+          <span id="loginErrorText"></span>
+        </p>
+
+        <p class="login-info" id="resendConfirmationBox">
+          Não recebeu o e-mail? <button type="button" class="link-btn" id="resendConfirmationBtn">Reenviar confirmação</button>
+        </p>
+
+        <div class="login-captcha" id="loginCaptchaWrap">
+          <p class="login-captcha__hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            Muitas tentativas — confirme que você não é um robô para continuar.
+          </p>
+          <div id="loginTurnstile"></div>
+        </div>
+
         <button type="submit" class="btn btn--primary btn--lg btn--block">Entrar</button>
       </form>
 
@@ -56,17 +93,32 @@
         </div>
         <div>
           <label for="suEmail">E-mail</label>
-          <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            <input type="email" id="suEmail" name="email" placeholder="voce@email.com" autocomplete="username" required style="padding-left:42px;">
+          </div>
         </div>
         <div>
           <label for="suPassword">Senha</label>
-          <input type="password" id="suPassword" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="suPassword" name="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required style="padding-left:42px;">
+            <button type="button" class="login-field__toggle" id="toggleSuPassword" aria-label="Mostrar senha">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div>
           <label for="suPasswordConfirm">Confirmar senha</label>
-          <input type="password" id="suPasswordConfirm" name="passwordConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="suPasswordConfirm" name="passwordConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required style="padding-left:42px;">
+          </div>
         </div>
-        <p class="login-error" id="signupError"></p>
+        <p class="login-error" id="signupError">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+          <span id="signupErrorText"></span>
+        </p>
         <p class="form-success" id="signupSuccess" style="text-align:left;"></p>
         <button type="submit" class="btn btn--primary btn--lg btn--block">Criar conta</button>
       </form>
@@ -76,14 +128,40 @@
       </div>
     </div>
 
+    <div id="forgotView" style="display:none;">
+      <h1>Recuperar senha</h1>
+      <p class="login-sub">Informe seu e-mail — vamos enviar um link para você criar uma nova senha, sem sair do site.</p>
+
+      <form class="login-form" id="forgotForm" novalidate>
+        <div>
+          <label for="fpEmail">E-mail</label>
+          <div class="login-field">
+            <svg class="login-field__icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            <input type="email" id="fpEmail" name="email" placeholder="voce@email.com" autocomplete="username" required>
+          </div>
+        </div>
+        <p class="login-error" id="forgotError">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+          <span id="forgotErrorText"></span>
+        </p>
+        <p class="form-success" id="forgotSuccess" style="text-align:left;"></p>
+        <button type="submit" class="btn btn--primary btn--lg btn--block">Enviar link de recuperação</button>
+      </form>
+
+      <div class="demo-hint">
+        Lembrou a senha? <a href="#" id="showLoginFromForgot" style="color:var(--accent); font-weight:600;">Voltar para o login</a>
+      </div>
+    </div>
+
     <a href="../index.html" class="login-back">← Voltar para o site</a>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.min.js?v=7f4acdd"></script>
+<script src="js/turnstile-config.min.js?v=7f4acdd"></script>
 <script src="js/portal-data.min.js?v=7f4acdd"></script>
 <script src="js/portal-auth.min.js?v=7f4acdd"></script>
-<script src="js/login-app.min.js"></script>
+<script src="js/login-app.min.js?v=7f4acdd"></script>
 </body>
 </html>
