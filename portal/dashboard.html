@@ -68,9 +68,9 @@
           <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="portal-nav__group-items">
-          <button class="portal-nav__item" data-section="financeiro">
+          <a class="portal-nav__item" href="financeiro.html">
             <span class="portal-nav__label">Receitas e despesas</span>
-          </button>
+          </a>
           <a class="portal-nav__item" href="fluxocaixa.html">
             <span class="portal-nav__label">Fluxo de Caixa</span>
           </a>
@@ -217,76 +217,6 @@
       </section>
 
       <!-- ===================== FINANCEIRO ===================== -->
-      <section class="portal-section" data-section="financeiro">
-        <div class="section-intro">
-          <p>Controle de receitas e despesas por período e marketplace — a visão financeira completa do seu ecommerce.</p>
-        </div>
-
-        <div class="kpi-grid" id="financeKpis"></div>
-
-        <div class="grid-2">
-          <div class="panel chart-card">
-            <div class="panel__head">
-              <div>
-                <h3>Receita x Despesa por mês</h3>
-                <p>Evolução mensal das entradas e saídas.</p>
-              </div>
-            </div>
-            <div id="financeTrendChart"></div>
-          </div>
-          <div class="panel chart-card">
-            <div class="panel__head">
-              <div>
-                <h3>Receita por marketplace</h3>
-                <p>Mês mais recente com lançamentos.</p>
-              </div>
-            </div>
-            <div id="financeMarketplaceChart"></div>
-          </div>
-        </div>
-
-        <div class="panel chart-card">
-          <div class="panel__head">
-            <div>
-              <h3>Despesas por categoria</h3>
-              <p>Para onde o dinheiro está indo no período selecionado abaixo.</p>
-            </div>
-          </div>
-          <div id="financeCategoryChart"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel__head">
-            <div>
-              <h3>Lançamentos</h3>
-              <p>Receitas e despesas registradas.</p>
-            </div>
-            <div class="panel__toolbar">
-              <input type="text" class="search-input" id="financeSearch" placeholder="Buscar por descrição ou categoria">
-              <select class="select-chip" id="financeFilterMonth"></select>
-              <div class="panel__toolbar-actions">
-                <button class="btn-tool" id="exportCsvBtn">Exportar CSV</button>
-                <label class="btn-tool" style="cursor:pointer;">
-                  Importar CSV
-                  <input type="file" id="importCsvInput" accept=".csv" style="display:none;">
-                </label>
-                <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Novo lançamento</button>
-              </div>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table data-table--cards">
-              <thead>
-                <tr>
-                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Marketplace</th><th>Descrição</th><th class="num">Valor</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="transactionsTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       <!-- ===================== MARKETPLACES ===================== -->
       <section class="portal-section" data-section="marketplaces">
         <div class="section-intro">
@@ -548,49 +478,6 @@
       </section>
 
     </div>
-  </div>
-</div>
-
-<!-- MODAL: novo/editar lançamento financeiro -->
-<div class="modal-backdrop" id="transactionModal">
-  <div class="modal">
-    <div class="modal__head">
-      <h3 id="transactionModalTitle">Novo lançamento</h3>
-      <button class="modal__close" data-close-modal="transactionModal">×</button>
-    </div>
-    <form id="transactionForm">
-      <input type="hidden" id="tId">
-      <div class="field">
-        <label for="tDate">Data</label>
-        <input type="date" id="tDate" required>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="tType">Tipo</label>
-          <select id="tType"><option value="receita">Receita</option><option value="despesa">Despesa</option></select>
-        </div>
-        <div class="field">
-          <label for="tCategory">Categoria</label>
-          <input type="text" id="tCategory" placeholder="Ex: Vendas, Anúncios..." required>
-        </div>
-      </div>
-      <div class="field">
-        <label for="tMarketplace">Marketplace</label>
-        <select id="tMarketplace"><option value="-">Não se aplica</option></select>
-      </div>
-      <div class="field">
-        <label for="tDescription">Descrição</label>
-        <input type="text" id="tDescription" required>
-      </div>
-      <div class="field">
-        <label for="tAmount">Valor (R$)</label>
-        <input type="number" id="tAmount" min="0" step="0.01" required>
-      </div>
-      <div class="modal__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="transactionModal">Cancelar</button>
-        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
-      </div>
-    </form>
   </div>
 </div>
 

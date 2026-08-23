@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://images-na.ssl-images-amazon.com https://m.media-amazon.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Configurações | Yalca Consultoria</title>
+<title>Receitas e Despesas | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:,">
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -43,9 +43,7 @@
 
   <div class="portal-sidebar-scrim" id="portalSidebarScrim"></div>
 
-  <!-- SIDEBAR (igual em todas as páginas — ver nota em portal-shell.js
-       sobre o preço de não ter build step: mudar o menu exige editar
-       cada página) -->
+  <!-- SIDEBAR (igual em todas as páginas — ver nota em portal-shell.js) -->
   <aside class="portal-sidebar" id="portalSidebar">
     <button type="button" class="portal-sidebar__collapse-btn" id="portalSidebarCollapseBtn" aria-label="Recolher menu" aria-expanded="true">‹</button>
     <div class="portal-sidebar__brand">
@@ -65,7 +63,7 @@
           <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="portal-nav__group-items">
-          <a class="portal-nav__item" href="financeiro.html">
+          <a class="portal-nav__item is-active" href="financeiro.html">
             <span class="portal-nav__label">Receitas e despesas</span>
           </a>
           <a class="portal-nav__item" href="fluxocaixa.html">
@@ -100,7 +98,7 @@
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3c1.8-1.2 3-3.3 3-5.7a7 7 0 0 0-7-7z"/><path d="M9 21h6"/><path d="M10 18v3M14 18v3"/></svg>
         <span class="portal-nav__label">Assistente IA</span>
       </a>
-      <a class="portal-nav__item is-active" href="configuracoes.html">
+      <a class="portal-nav__item" href="configuracoes.html">
         <svg class="portal-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="portal-nav__label">Configurações</span>
       </a>
@@ -126,7 +124,7 @@
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
         <div>
           <span class="portal-topbar__eyebrow">Painel do Cliente</span>
-          <h2>Configurações</h2>
+          <h2>Receitas e Despesas</h2>
         </div>
       </div>
     </header>
@@ -134,44 +132,117 @@
     <div class="portal-content">
       <section class="portal-section is-active">
         <div class="section-intro">
-          <p>Esses dados alimentam os cálculos de margem em "Gestão de Marketplaces" e a projeção em "Fluxo de Caixa".</p>
+          <p>Controle de receitas e despesas por período e marketplace — a visão financeira completa do seu ecommerce.</p>
+        </div>
+
+        <div class="kpi-grid" id="financeKpis"></div>
+
+        <div class="grid-2">
+          <div class="panel chart-card">
+            <div class="panel__head">
+              <div>
+                <h3>Receita x Despesa por mês</h3>
+                <p>Evolução mensal das entradas e saídas.</p>
+              </div>
+            </div>
+            <div id="financeTrendChart"></div>
+          </div>
+          <div class="panel chart-card">
+            <div class="panel__head">
+              <div>
+                <h3>Receita por marketplace</h3>
+                <p>Mês mais recente com lançamentos.</p>
+              </div>
+            </div>
+            <div id="financeMarketplaceChart"></div>
+          </div>
+        </div>
+
+        <div class="panel chart-card">
+          <div class="panel__head">
+            <div>
+              <h3>Despesas por categoria</h3>
+              <p>Para onde o dinheiro está indo no período selecionado abaixo.</p>
+            </div>
+          </div>
+          <div id="financeCategoryChart"></div>
         </div>
 
         <div class="panel">
-          <div class="panel__head"><div><h3>Dados da loja</h3></div></div>
-          <form id="settingsForm" style="display:flex; flex-direction:column; gap:16px; max-width:560px;">
-            <div class="field">
-              <label for="setClientName">Nome da loja</label>
-              <input type="text" id="setClientName" required>
-            </div>
-            <div class="field-row">
-              <div class="field">
-                <label for="setCashBalance">Saldo atual em caixa (R$)</label>
-                <input type="number" id="setCashBalance" step="0.01" required>
-              </div>
-              <div class="field">
-                <label for="setTaxPct">Imposto padrão (%)</label>
-                <input type="number" id="setTaxPct" step="0.1" min="0" required>
-              </div>
-            </div>
-            <div class="field">
-              <label for="setShipping">Frete médio padrão (R$)</label>
-              <input type="number" id="setShipping" step="0.01" min="0" required>
-            </div>
-
+          <div class="panel__head">
             <div>
-              <label style="font-size:0.82rem; font-weight:600; color:var(--text-muted); display:block; margin-bottom:10px;">
-                Taxa de cada marketplace (usada na Gestão de Marketplaces)
-              </label>
-              <div class="field-row" id="settingsFeeFields"></div>
+              <h3>Lançamentos</h3>
+              <p>Receitas e despesas registradas.</p>
             </div>
-
-            <button type="submit" class="btn btn--primary btn--sm" style="align-self:flex-start;">Salvar configurações</button>
-            <p class="form-success" id="settingsSuccess">Configurações salvas com sucesso! ✅</p>
-          </form>
+            <div class="panel__toolbar">
+              <input type="text" class="search-input" id="financeSearch" placeholder="Buscar por descrição ou categoria">
+              <select class="select-chip" id="financeFilterMonth"></select>
+              <div class="panel__toolbar-actions">
+                <button class="btn-tool" id="exportCsvBtn">Exportar CSV</button>
+                <label class="btn-tool" style="cursor:pointer;">
+                  Importar CSV
+                  <input type="file" id="importCsvInput" accept=".csv" style="display:none;">
+                </label>
+                <button class="btn btn--primary btn--sm" id="addTransactionBtn">+ Novo lançamento</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table data-table--cards">
+              <thead>
+                <tr>
+                  <th>Data</th><th>Tipo</th><th>Categoria</th><th>Marketplace</th><th>Descrição</th><th class="num">Valor</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: novo/editar lançamento financeiro -->
+<div class="modal-backdrop" id="transactionModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3 id="transactionModalTitle">Novo lançamento</h3>
+      <button class="modal__close" data-close-modal="transactionModal">×</button>
+    </div>
+    <form id="transactionForm">
+      <input type="hidden" id="tId">
+      <div class="field">
+        <label for="tDate">Data</label>
+        <input type="date" id="tDate" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="tType">Tipo</label>
+          <select id="tType"><option value="receita">Receita</option><option value="despesa">Despesa</option></select>
+        </div>
+        <div class="field">
+          <label for="tCategory">Categoria</label>
+          <input type="text" id="tCategory" placeholder="Ex: Vendas, Anúncios..." required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="tMarketplace">Marketplace</label>
+        <select id="tMarketplace"><option value="-">Não se aplica</option></select>
+      </div>
+      <div class="field">
+        <label for="tDescription">Descrição</label>
+        <input type="text" id="tDescription" required>
+      </div>
+      <div class="field">
+        <label for="tAmount">Valor (R$)</label>
+        <input type="number" id="tAmount" min="0" step="0.01" required>
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="transactionModal">Cancelar</button>
+        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -200,6 +271,6 @@
 <script src="js/portal-auth.min.js?v=0cdf964"></script>
 <script src="js/charts.min.js?v=0cdf964"></script>
 <script src="js/portal-shell.min.js?v=0cdf964"></script>
-<script src="js/configuracoes-app.min.js?v=0cdf964"></script>
+<script src="js/financeiro-app.min.js?v=0cdf964"></script>
 </body>
 </html>
