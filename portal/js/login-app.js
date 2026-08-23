@@ -38,6 +38,7 @@ async function yalcaRenderTurnstile(formKey, containerId) {
     turnstileWidgets[formKey] = { widgetId: null, token: null };
     turnstileWidgets[formKey].widgetId = window.turnstile.render('#' + containerId, {
       sitekey: TURNSTILE_SITE_KEY,
+      theme: 'dark', // o padrão é claro e destoa totalmente do tema escuro do portal
       callback: (token) => { turnstileWidgets[formKey].token = token; },
       'expired-callback': () => { turnstileWidgets[formKey].token = null; },
       'error-callback': () => { turnstileWidgets[formKey].token = null; }
