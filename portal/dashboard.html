@@ -71,9 +71,9 @@
           <button class="portal-nav__item" data-section="financeiro">
             <span class="portal-nav__label">Receitas e despesas</span>
           </button>
-          <button class="portal-nav__item" data-section="fluxocaixa">
+          <a class="portal-nav__item" href="fluxocaixa.html">
             <span class="portal-nav__label">Fluxo de Caixa</span>
-          </button>
+          </a>
         </div>
       </div>
 
@@ -547,43 +547,6 @@
         </div>
       </section>
 
-      <!-- ===================== FLUXO DE CAIXA ===================== -->
-      <section class="portal-section" data-section="fluxocaixa">
-        <div class="section-intro">
-          <p>Projeção do saldo em caixa para os próximos meses, com base no seu último mês fechado e nos lançamentos futuros já previstos.</p>
-        </div>
-
-        <div class="kpi-grid" id="cashflowKpis"></div>
-
-        <div class="panel chart-card panel--highlight">
-          <div class="panel__head">
-            <div>
-              <h3>Saldo projetado</h3>
-              <p>Saldo acumulado estimado para os próximos 3 meses.</p>
-            </div>
-          </div>
-          <div id="cashflowChart"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel__head">
-            <div>
-              <h3>Lançamentos futuros previstos</h3>
-              <p>Entradas e saídas já conhecidas que ainda vão acontecer.</p>
-            </div>
-            <div class="panel__toolbar">
-              <button class="btn btn--primary btn--sm" id="addPlannedBtn">+ Novo lançamento futuro</button>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>Data</th><th>Descrição</th><th class="num">Valor</th><th></th></tr></thead>
-              <tbody id="plannedTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       <!-- ===================== ASSISTENTE IA ===================== -->
       <section class="portal-section" data-section="assistente">
         <div class="section-intro">
@@ -711,28 +674,6 @@
       </div>
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost btn--sm" data-close-modal="productModal">Cancelar</button>
-        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- MODAL: novo lançamento futuro (fluxo de caixa) -->
-<div class="modal-backdrop" id="plannedModal">
-  <div class="modal">
-    <div class="modal__head">
-      <h3>Novo lançamento futuro</h3>
-      <button class="modal__close" data-close-modal="plannedModal">×</button>
-    </div>
-    <form id="plannedForm">
-      <div class="field"><label for="plDate">Data</label><input type="date" id="plDate" required></div>
-      <div class="field"><label for="plDescription">Descrição</label><input type="text" id="plDescription" required></div>
-      <div class="field">
-        <label for="plAmount">Valor (R$) — use negativo para saída</label>
-        <input type="number" id="plAmount" step="0.01" required>
-      </div>
-      <div class="modal__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="plannedModal">Cancelar</button>
         <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
       </div>
     </form>
