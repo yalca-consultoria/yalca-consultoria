@@ -303,12 +303,10 @@ function renderKeepaTrackedDetailModal(result, t) {
   renderKeepaPriceCharts(result, 'keepaTrackedDetailPriceChart', 'keepaTrackedDetailRankWrap', 'keepaTrackedDetailRankChart');
 
   renderKeepaDetailPanel(result, 'keepaTrackedDetailDetails');
-  renderKeepaDescription(result, 'keepaTrackedDetailDescription');
 
   const stats = result.stats || {};
-  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody', 'keepaTrackedDetailBuyboxToggle');
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], result.offers || [], 'keepaTrackedDetailBuyboxWrap', 'keepaTrackedDetailBuyboxBody', 'keepaTrackedDetailBuyboxToggle');
   renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaTrackedDetailRanksWrap', 'keepaTrackedDetailRanksList');
-  renderKeepaOffersTable(result.offers || [], 'keepaTrackedDetailOffersWrap', 'keepaTrackedDetailOffersBody', true, 'keepaTrackedDetailOffersToggle');
 }
 
 // "Desempenho do vendedor" — só aparece depois que um admin cadastra o
@@ -489,11 +487,9 @@ function renderKeepaSearchResult(result) {
 
   renderKeepaPriceCharts(result, 'keepaPriceHistoryChart', 'keepaRankHistoryWrap', 'keepaRankHistoryChart');
 
-  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], 'keepaBuyboxStatsPanel', 'keepaBuyboxStatsBody');
+  renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], result.offers || [], 'keepaBuyboxStatsPanel', 'keepaBuyboxStatsBody');
   renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaCategoryRanksPanel', 'keepaCategoryRanksList');
-  renderKeepaOffersTable(result.offers || [], 'keepaOffersPanel', 'keepaOffersBody', true);
   renderKeepaDetailPanel(result, 'keepaResultDetails');
-  renderKeepaDescription(result, 'keepaResultDescription');
   autoLoadTopSellerReputation(result.offers || [], stats.buyBoxStats || []);
 }
 
@@ -707,30 +703,14 @@ function renderKeepaDetailPanel(result, elId) {
     <div class="keepa-detail-col">${rightRows}</div>`;
 }
 
-// Descrição e bullets do anúncio — conteúdo de marketing/ficha técnica que
-// o cliente vê na própria página de produto da Amazon, útil pra avaliar o
-// produto antes de decidir comprar estoque pra revender.
-function renderKeepaDescription(result, containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const hasDescription = !!(result.description && result.description.trim());
-  const hasFeatures = Array.isArray(result.features) && result.features.length > 0;
-  if (!hasDescription && !hasFeatures) {
-    container.innerHTML = '';
-    container.style.display = 'none';
-    return;
-  }
-  container.style.display = '';
-  const featuresHtml = hasFeatures
-    ? `<ul style="margin:10px 0 0; padding-left:20px;">${result.features.map(f => `<li>${yalcaEscapeHtml(f)}</li>`).join('')}</ul>`
-    : '';
-  const descriptionHtml = hasDescription
-    ? `<p style="white-space:pre-line; margin-top:10px;">${yalcaEscapeHtml(result.description)}</p>`
-    : '';
-  container.innerHTML = `<h4>Descrição do produto</h4>${descriptionHtml}${featuresHtml}`;
-}
-
-function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId, toggleId) {
+// Tabela única de vendedores: linhas vêm do histórico de domínio da buybox
+// (buyBoxStats — existe pra qualquer vendedor que já ganhou a buybox alguma
+// vez), enriquecida com Condição/Tipo/Estoque de quem também tem uma oferta
+// ATIVA agora (offers) — nem todo vendedor do histórico está vendendo neste
+// exato momento, esses campos ficam "—" nesse caso. Antes eram duas tabelas
+// separadas ("Quem domina a buybox" + "Quem está vendendo"); consolidadas
+// porque a segunda, sozinha, não agregava informação nova o suficiente.
+function renderKeepaBuyboxStatsTable(buyBoxStats, offers, panelId, bodyId, toggleId) {
   const panel = document.getElementById(panelId || 'keepaBuyboxStatsPanel');
   const tbody = document.getElementById(bodyId || 'keepaBuyboxStatsBody');
   if (!buyBoxStats || buyBoxStats.length === 0) {
@@ -743,13 +723,28 @@ function renderKeepaBuyboxStatsTable(buyBoxStats, panelId, bodyId, toggleId) {
     const sellerLabel = rep && rep.sellerName
       ? `${yalcaEscapeHtml(rep.sellerName)}<br><span class="kpi-card__hint">${yalcaEscapeHtml(s.sellerId || '—')}</span>`
       : yalcaEscapeHtml(s.sellerId || '—');
-    const tipoLabel = s.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>';
+    const repLabel = rep
+      ? (rep.currentRating != null
+          ? `${rep.currentRating.toFixed(0)}% positiva · ${rep.currentRatingCount ?? 0} avaliações${rep.totalStorefrontAsins != null ? `<br><span class="kpi-card__hint">${rep.totalStorefrontAsins} produtos na loja</span>` : ''}`
+          : '—')
+      : '<span class="kpi-card__hint">não carregada</span>';
+
+    const activeOffer = (offers || []).find(o => o.sellerId && o.sellerId === s.sellerId);
+    const tipoLabel = activeOffer
+      ? [activeOffer.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>', activeOffer.isPrime ? 'Prime' : ''].filter(Boolean).join(' ')
+      : (s.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>');
+    const condicaoLabel = activeOffer ? yalcaEscapeHtml(activeOffer.condition || '—') : '—';
+    const estoqueLabel = activeOffer && activeOffer.stock != null ? activeOffer.stock : '—';
+
     return `
     <tr>
       <td data-label="Vendedor">${sellerLabel}</td>
       <td data-label="% de vezes" class="num">${s.percentageWon != null ? s.percentageWon + '%' : '—'}</td>
       <td data-label="Preço médio" class="num">${s.avgPrice != null ? yalcaFormatCurrency(s.avgPrice) : '—'}</td>
+      <td data-label="Condição">${condicaoLabel}</td>
       <td data-label="Tipo">${tipoLabel}</td>
+      <td data-label="Estoque" class="num">${estoqueLabel}</td>
+      <td data-label="Reputação">${repLabel}</td>
       <td data-label="Visto por último">${s.lastSeen ? yalcaFormatDate(s.lastSeen.slice(0, 10)) : '—'}</td>
     </tr>`;
   });
@@ -820,42 +815,6 @@ function renderKeepaCategoryRanks(ranks, panelId, listId) {
     </div>`).join('');
 }
 
-function renderKeepaOffersTable(offers, panelId, bodyId, withReputation, toggleId) {
-  const panel = document.getElementById(panelId || 'keepaOffersPanel');
-  const tbody = document.getElementById(bodyId || 'keepaOffersBody');
-  if (!offers || offers.length === 0) {
-    panel.style.display = 'none';
-    return;
-  }
-  panel.style.display = '';
-  const rows = offers.map(o => {
-    const rep = o.sellerId ? KEEPA_SELLER_REPUTATION[o.sellerId] : null;
-    const sellerLabel = o.isAmazon
-      ? 'Amazon'
-      : rep && rep.sellerName
-        ? `${yalcaEscapeHtml(rep.sellerName)}<br><span class="kpi-card__hint">${yalcaEscapeHtml(o.sellerId || '—')}</span>`
-        : yalcaEscapeHtml(o.sellerId || '—');
-    const repLabel = rep
-      ? (rep.currentRating != null
-          ? `${rep.currentRating.toFixed(0)}% positiva · ${rep.currentRatingCount ?? 0} avaliações${rep.totalStorefrontAsins != null ? `<br><span class="kpi-card__hint">${rep.totalStorefrontAsins} produtos na loja</span>` : ''}`
-          : '—')
-      : (o.isAmazon ? '—' : '<span class="kpi-card__hint">não carregada</span>');
-    const tipoLabel = [o.isFBA ? '<span class="badge badge--ativo">FBA</span>' : '<span class="badge badge--pausado">FBM</span>', o.isPrime ? 'Prime' : ''].filter(Boolean).join(' ');
-    const priceLabel = o.price != null ? yalcaFormatCurrency(o.price) + (o.shipping ? ` + ${yalcaFormatCurrency(o.shipping)} frete` : '') : '—';
-    const couponLabel = o.coupon ? `<br><span class="text-good" style="font-size:0.78rem;">cupom: ${o.coupon.type === 'percent' ? o.coupon.value + '%' : yalcaFormatCurrency(o.coupon.value)}</span>` : '';
-    return `
-    <tr>
-      <td data-label="Vendedor">${sellerLabel}</td>
-      <td data-label="Preço" class="num">${priceLabel}${couponLabel}</td>
-      <td data-label="Condição">${yalcaEscapeHtml(o.condition || '—')}</td>
-      <td data-label="Tipo">${tipoLabel}</td>
-      <td data-label="Estoque" class="num">${o.stock != null ? o.stock : '—'}</td>
-      ${withReputation ? `<td data-label="Reputação">${repLabel}</td>` : ''}
-    </tr>`;
-  });
-  yalcaPaginateSellerTable(tbody, rows, toggleId || 'keepaOffersToggle', 'vendedor');
-}
-
 // Função central: busca a reputação de uma lista específica de vendedores,
 // mescla no mapa da sessão e re-renderiza a tabela. Usada tanto pelo
 // carregamento automático dos top-N quanto pelo clique manual "ver os
@@ -870,8 +829,7 @@ async function loadSellerReputation(sellerIds, offers) {
       return false;
     }
     Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
-    renderKeepaOffersTable(offers);
-    renderKeepaBuyboxStatsTable(LAST_KEEPA_SEARCH_RESULT?.stats?.buyBoxStats || []);
+    renderKeepaBuyboxStatsTable(LAST_KEEPA_SEARCH_RESULT?.stats?.buyBoxStats || [], offers);
     return true;
   } catch (err) {
     statusEl.textContent = 'Não foi possível buscar agora: ' + err.message;

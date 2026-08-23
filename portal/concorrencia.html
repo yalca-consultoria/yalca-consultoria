@@ -230,8 +230,6 @@
             <h4 style="margin-top:24px;">Detalhes do produto</h4>
             <div class="keepa-detail-grid" id="keepaResultDetails" style="margin-top:10px;"></div>
 
-            <div id="keepaResultDescription" style="display:none; margin-top:24px;"></div>
-
             <button type="button" class="table-view-toggle" id="keepaUseInPricingBtn" style="margin-top:16px;">Usar este preço na Calculadora de Preço →</button>
           </div>
 
@@ -239,25 +237,7 @@
             <div class="panel__head">
               <div>
                 <h3>Quem domina a buybox</h3>
-                <p>Percentual de vezes que cada vendedor ganhou a exibição principal do produto.</p>
-              </div>
-            </div>
-            <div class="table-scroll">
-              <table class="data-table data-table--cards">
-                <thead>
-                  <tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr>
-                </thead>
-                <tbody id="keepaBuyboxStatsBody"></tbody>
-              </table>
-            </div>
-            <div id="keepaBuyboxStatsToggle" style="margin-top:8px;"></div>
-          </div>
-
-          <div class="panel" id="keepaOffersPanel" style="display:none;">
-            <div class="panel__head">
-              <div>
-                <h3>Quem está vendendo</h3>
-                <p>Todas as ofertas ativas encontradas pra esse produto.</p>
+                <p>Histórico de quem ganha a exibição principal, com condição/estoque/reputação de quem tem oferta ativa agora.</p>
               </div>
               <div class="panel__toolbar">
                 <button type="button" class="table-view-toggle" id="keepaLoadSellerRepBtn">Ver reputação dos vendedores</button>
@@ -267,12 +247,12 @@
             <div class="table-scroll">
               <table class="data-table data-table--cards">
                 <thead>
-                  <tr><th>Vendedor</th><th class="num">Preço</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th></tr>
+                  <tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th><th>Visto por último</th></tr>
                 </thead>
-                <tbody id="keepaOffersBody"></tbody>
+                <tbody id="keepaBuyboxStatsBody"></tbody>
               </table>
             </div>
-            <div id="keepaOffersToggle" style="margin-top:8px;"></div>
+            <div id="keepaBuyboxStatsToggle" style="margin-top:8px;"></div>
           </div>
         </div>
       </section>
@@ -318,28 +298,15 @@
     <h4 style="margin-top:24px;">Detalhes do produto</h4>
     <div class="keepa-detail-grid" id="keepaTrackedDetailDetails" style="margin-top:10px;"></div>
 
-    <div id="keepaTrackedDetailDescription" style="display:none; margin-top:24px;"></div>
-
     <div id="keepaTrackedDetailBuyboxWrap" style="display:none; margin-top:24px;">
       <h4>Quem domina a buybox</h4>
       <div class="table-scroll">
         <table class="data-table data-table--cards">
-          <thead><tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Tipo</th><th>Visto por último</th></tr></thead>
+          <thead><tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th><th>Visto por último</th></tr></thead>
           <tbody id="keepaTrackedDetailBuyboxBody"></tbody>
         </table>
       </div>
       <div id="keepaTrackedDetailBuyboxToggle" style="margin-top:8px;"></div>
-    </div>
-
-    <div id="keepaTrackedDetailOffersWrap" style="display:none; margin-top:24px;">
-      <h4>Quem está vendendo</h4>
-      <div class="table-scroll">
-        <table class="data-table data-table--cards">
-          <thead><tr><th>Vendedor</th><th class="num">Preço</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th></tr></thead>
-          <tbody id="keepaTrackedDetailOffersBody"></tbody>
-        </table>
-      </div>
-      <div id="keepaTrackedDetailOffersToggle" style="margin-top:8px;"></div>
     </div>
   </div>
 </div>
