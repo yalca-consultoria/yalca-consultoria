@@ -6,6 +6,6 @@
    Supabase, em Authentication → Attack Protection — nunca aqui).
    ========================================= */
 
-const TURNSTILE_SITE_KEY = 'COLE_AQUI_SEU_SITE_KEY';
+const TURNSTILE_SITE_KEY = '0x4AAAAAAEZV_bp2-l5BmaHk';
 
 const yalcaTurnstileConfigured = !TURNSTILE_SITE_KEY.startsWith('COLE_AQUI');
