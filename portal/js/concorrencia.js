@@ -332,7 +332,7 @@ function renderKeepaSellerMetrics() {
     { label: 'Posse da Buy Box (Novo)', value: m.buybox_new_ownership_pct != null ? `${m.buybox_new_ownership_pct}%` : '—', delta: null, info: 'Em quantos % dos seus produtos (condição Novo) você está ganhando a buybox agora.' },
     { label: 'Posse da Buy Box (Usado)', value: m.buybox_used_ownership_pct != null ? `${m.buybox_used_ownership_pct}%` : '—', delta: null, info: 'Em quantos % dos seus produtos (condição Usado) você está ganhando a buybox agora.' },
     { label: 'Média de concorrentes na Buy Box', value: m.avg_buybox_competitors != null ? Number(m.avg_buybox_competitors).toFixed(2) : '—', delta: null, info: 'Em média, quantos outros vendedores disputam a buybox nos seus produtos — quanto maior, mais concorrida é a venda.' },
-    { label: 'Acompanhado desde', value: m.tracked_since ? yalcaFormatDate(m.tracked_since.slice(0, 10)) : '—', delta: null, info: 'Desde quando a Keepa tem histórico registrado da sua loja.' },
+    { label: 'Acompanhado desde', value: m.tracked_since ? yalcaFormatDate(m.tracked_since.slice(0, 10)) : '—', delta: null, info: 'Desde quando temos histórico registrado da sua loja.' },
   ]);
 
   document.getElementById('keepaSellerLastSync').textContent = m.last_synced_at
@@ -653,7 +653,10 @@ function renderKeepaDetailPanel(result, elId) {
 
   const cheapestByFulfillment = (isFBA) => {
     const match = (result.offers || []).find(o => !o.isAmazon && o.isFBA === isFBA && o.price != null);
-    return match ? `${yalcaEscapeHtml(match.sellerId)} — ${yalcaFormatCurrency(match.price)}` : '—';
+    if (!match) return '—';
+    const rep = match.sellerId ? KEEPA_SELLER_REPUTATION[match.sellerId] : null;
+    const sellerLabel = rep && rep.sellerName ? rep.sellerName : (match.sellerId || 'vendedor não identificado');
+    return `${yalcaEscapeHtml(sellerLabel)} — ${yalcaFormatCurrency(match.price)}`;
   };
 
   const row = (label, value) => value != null && value !== ''
