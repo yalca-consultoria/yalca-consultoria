@@ -52,10 +52,10 @@ function renderEstoque() {
   const valorParado = parado.reduce((a, p) => a + p.cost * p.stock, 0);
 
   renderKpiGrid('stockKpis', [
-    { label: 'Esgotados', value: esgotado, delta: null },
-    { label: 'Estoque baixo', value: baixo, delta: null },
-    { label: 'Estoque parado', value: parado.length, delta: null },
-    { label: 'Capital parado em estoque', value: yalcaFormatCurrency(valorParado), delta: null, hint: 'custo × unidades de itens parados' }
+    { label: 'Esgotados', value: esgotado, delta: null, info: 'Produtos com 0 unidades em estoque agora — venda parada até repor.' },
+    { label: 'Estoque baixo', value: baixo, delta: null, info: 'Produtos com estoque abaixo do mínimo cadastrado — risco de esgotar em breve.' },
+    { label: 'Estoque parado', value: parado.length, delta: null, info: 'Produtos com estoque alto e poucas vendas no mês — capital parado que poderia estar girando.' },
+    { label: 'Capital parado em estoque', value: yalcaFormatCurrency(valorParado), delta: null, hint: 'custo × unidades de itens parados', info: 'Quanto dinheiro está investido (custo × unidades) nos produtos classificados como "estoque parado" — é capital que não está gerando venda.' }
   ]);
 
   renderStockStatusStack(withStatus);

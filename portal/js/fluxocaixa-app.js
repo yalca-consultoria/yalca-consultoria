@@ -74,10 +74,10 @@ function renderFluxoCaixa() {
   const lowestMonth = projection.reduce((min, p) => p.saldo < min.saldo ? p : min, projection[0]);
 
   renderKpiGrid('cashflowKpis', [
-    { label: 'Saldo atual em caixa', value: yalcaFormatCurrency(currentBalance), delta: null, hint: yalcaMonthLabel(currentKey + '-01') },
-    { label: 'Lucro recorrente/mês', value: yalcaFormatCurrency(recurringNet), delta: null, hint: 'baseado no último mês fechado' },
-    { label: `Saldo projetado (${yalcaMonthLabel(projection[2].key + '-01')})`, value: yalcaFormatCurrency(projection[2].saldo), delta: null },
-    { label: 'Mês mais apertado', value: yalcaMonthLabel(lowestMonth.key + '-01'), delta: null, hint: yalcaFormatCurrency(lowestMonth.saldo) }
+    { label: 'Saldo atual em caixa', value: yalcaFormatCurrency(currentBalance), delta: null, hint: yalcaMonthLabel(currentKey + '-01'), info: 'Saldo em caixa cadastrado nas Configurações, referente ao último mês com lançamentos fechados.' },
+    { label: 'Lucro recorrente/mês', value: yalcaFormatCurrency(recurringNet), delta: null, hint: 'baseado no último mês fechado', info: 'Receita menos despesa do último mês totalmente fechado — usado como base pra projetar os próximos meses, assumindo que o ritmo se mantém.' },
+    { label: `Saldo projetado (${yalcaMonthLabel(projection[2].key + '-01')})`, value: yalcaFormatCurrency(projection[2].saldo), delta: null, info: 'Estimativa de saldo em caixa daqui a 3 meses, somando o lucro recorrente mensal e os lançamentos futuros já cadastrados na tabela abaixo.' },
+    { label: 'Mês mais apertado', value: yalcaMonthLabel(lowestMonth.key + '-01'), delta: null, hint: yalcaFormatCurrency(lowestMonth.saldo), info: 'Dos próximos 3 meses projetados, qual deles tem o menor saldo em caixa estimado — útil pra se planejar com antecedência.' }
   ]);
 
   const points = [{ label: yalcaMonthLabel(currentKey + '-01'), value: currentBalance }, ...projection.map(p => ({ label: yalcaMonthLabel(p.key + '-01'), value: p.saldo }))];

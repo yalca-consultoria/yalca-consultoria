@@ -84,10 +84,10 @@ function renderMarketplaces() {
   const totalUnits = products.reduce((a, p) => a + p.unitsSoldMonth, 0);
 
   renderKpiGrid('marketplaceKpis', [
-    { label: 'Produtos cadastrados', value: products.length, delta: null },
-    { label: 'Unidades vendidas/mês', value: totalUnits, delta: null },
-    { label: 'Margem média da carteira', value: `${avgMargin.toFixed(1)}%`, delta: null },
-    { label: 'Produtos no prejuízo', value: negativeCount, delta: null, hint: negativeCount > 0 ? 'revise o preço desses itens' : 'nenhum item no prejuízo' }
+    { label: 'Produtos cadastrados', value: products.length, delta: null, info: 'Quantos produtos estão cadastrados no marketplace filtrado abaixo (ou no total, se o filtro estiver em "todos").' },
+    { label: 'Unidades vendidas/mês', value: totalUnits, delta: null, info: 'Soma das unidades vendidas por mês de todos os produtos filtrados, segundo o cadastro de cada um.' },
+    { label: 'Margem média da carteira', value: `${avgMargin.toFixed(1)}%`, delta: null, info: 'Média da margem líquida de todos os produtos filtrados — já considerando taxa do marketplace, imposto e frete cadastrados nas Configurações.' },
+    { label: 'Produtos no prejuízo', value: negativeCount, delta: null, hint: negativeCount > 0 ? 'revise o preço desses itens' : 'nenhum item no prejuízo', info: 'Quantos produtos têm margem líquida negativa — ou seja, você perde dinheiro a cada venda deles no preço/custo atual.' }
   ]);
 
   const marginByMarketplace = MARKETPLACES

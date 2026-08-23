@@ -69,10 +69,10 @@ function renderFinanceiro() {
 
   if (monthly.length === 0) {
     renderKpiGrid('financeKpis', [
-      { label: 'Receita', value: yalcaFormatCurrency(0), delta: null },
-      { label: 'Despesa', value: yalcaFormatCurrency(0), delta: null },
-      { label: 'Lucro líquido', value: yalcaFormatCurrency(0), delta: null },
-      { label: 'Margem líquida', value: '—', delta: null }
+      { label: 'Receita', value: yalcaFormatCurrency(0), delta: null, info: 'Soma de todos os lançamentos do tipo "receita" no período filtrado abaixo.' },
+      { label: 'Despesa', value: yalcaFormatCurrency(0), delta: null, info: 'Soma de todos os lançamentos do tipo "despesa" no período filtrado abaixo.' },
+      { label: 'Lucro líquido', value: yalcaFormatCurrency(0), delta: null, info: 'Receita menos despesa no período filtrado.' },
+      { label: 'Margem líquida', value: '—', delta: null, info: 'Lucro líquido dividido pela receita, em % — mostra quanto do que entra sobra de lucro.' }
     ]);
     document.getElementById('financeFilterMonth').innerHTML = '<option value="todos">Todos os meses</option>';
     document.getElementById('financeTrendChart').innerHTML = '<p class="alert-empty">Nenhum lançamento cadastrado ainda.</p>';
@@ -96,10 +96,10 @@ function renderFinanceiro() {
   const margem = receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
 
   renderKpiGrid('financeKpis', [
-    { label: 'Receita', value: yalcaFormatCurrency(receitaTotal), delta: null },
-    { label: 'Despesa', value: yalcaFormatCurrency(despesaTotal), delta: null },
-    { label: 'Lucro líquido', value: yalcaFormatCurrency(lucro), delta: null },
-    { label: 'Margem líquida', value: `${margem.toFixed(1)}%`, delta: null }
+    { label: 'Receita', value: yalcaFormatCurrency(receitaTotal), delta: null, info: 'Soma de todos os lançamentos do tipo "receita" no período filtrado abaixo.' },
+    { label: 'Despesa', value: yalcaFormatCurrency(despesaTotal), delta: null, info: 'Soma de todos os lançamentos do tipo "despesa" no período filtrado abaixo.' },
+    { label: 'Lucro líquido', value: yalcaFormatCurrency(lucro), delta: null, info: 'Receita menos despesa no período filtrado.' },
+    { label: 'Margem líquida', value: `${margem.toFixed(1)}%`, delta: null, info: 'Lucro líquido dividido pela receita, em % — mostra quanto do que entra sobra de lucro.' }
   ]);
 
   const last6 = monthly.slice(-6);

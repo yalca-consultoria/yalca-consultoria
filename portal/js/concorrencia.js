@@ -520,8 +520,8 @@ function buildKeepaKpis(result) {
   const buyboxHint = [result.buybox?.isAmazon ? 'é a própria Amazon' : rotationHint, ...buyboxWarnParts].filter(Boolean).join(' · ');
   const buyboxSellerName = result.buybox?.seller ? KEEPA_SELLER_REPUTATION[result.buybox.seller]?.sellerName : null;
   const buyboxKpi = result.buybox
-    ? { label: 'Buybox', value: yalcaEscapeHtml(buyboxSellerName || result.buybox.seller), hint: buyboxHint || null, delta: null }
-    : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null };
+    ? { label: 'Buybox', value: yalcaEscapeHtml(buyboxSellerName || result.buybox.seller), hint: buyboxHint || null, delta: null, info: 'Quem está ganhando a "caixa de compra" agora — o vendedor que a maioria dos clientes vê e compra direto, sem precisar clicar em "Ver outras opções de compra".' }
+    : { label: 'Buybox', value: '—', hint: 'nenhum vendedor está com a buybox agora — pode acontecer mesmo havendo ofertas ativas', delta: null, info: 'Quem está ganhando a "caixa de compra" agora — o vendedor que a maioria dos clientes vê e compra direto, sem precisar clicar em "Ver outras opções de compra".' };
 
   let vendasValue = '—';
   let vendasHint = 'sem dado suficiente pra estimar';

@@ -170,7 +170,16 @@
             <div class="table-scroll">
               <table class="data-table data-table--cards keepa-tracked-table">
                 <thead>
-                  <tr><th>Produto</th><th class="num">Preço</th><th class="num">BSR</th><th>Buybox</th><th class="num">Ofertas</th><th class="num">Comprado/mês</th><th class="num">Fora de estoque (90d)</th><th></th></tr>
+                  <tr>
+                    <th>Produto</th>
+                    <th class="num" title="Preço da buybox agora — o que o comprador paga na maioria dos pedidos.">Preço</th>
+                    <th class="num" title="Ranking de vendas na categoria — quanto MENOR o número, mais o produto vende.">BSR</th>
+                    <th title="Quem está ganhando a buybox agora — 'ninguém' significa que nenhum vendedor está com a exibição principal no momento.">Buybox</th>
+                    <th class="num" title="Quantos vendedores diferentes estão anunciando esse mesmo produto agora.">Ofertas</th>
+                    <th class="num" title="Unidades vendidas no último mês, segundo a Amazon (ou estimado por quedas no ranking quando a Amazon não informa direto).">Comprado/mês</th>
+                    <th class="num" title="Quanto do tempo, nos últimos 90 dias, esse produto ficou sem nenhuma oferta disponível pra compra.">Fora de estoque (90d)</th>
+                    <th></th>
+                  </tr>
                 </thead>
                 <tbody id="keepaTrackedBody"></tbody>
               </table>
@@ -247,7 +256,16 @@
             <div class="table-scroll">
               <table class="data-table data-table--cards">
                 <thead>
-                  <tr><th>Vendedor</th><th class="num">% de vezes</th><th class="num">Preço médio</th><th>Condição</th><th>Tipo</th><th class="num">Estoque</th><th>Reputação</th><th>Visto por último</th></tr>
+                  <tr>
+                    <th title="Vendedor que ganhou a buybox em algum momento do histórico desse produto.">Vendedor</th>
+                    <th class="num" title="Em quantas das últimas consultas do Keepa esse vendedor estava com a buybox — quanto maior, mais tempo ele domina a exibição principal.">% de vezes</th>
+                    <th class="num" title="Preço médio de quando esse vendedor esteve com a buybox.">Preço médio</th>
+                    <th title="Condição do produto (Novo, Usado etc.) na oferta ativa desse vendedor agora — fica '—' se ele não tiver oferta ativa no momento.">Condição</th>
+                    <th title="FBA = a Amazon guarda e envia o estoque desse vendedor. FBM = o próprio vendedor envia.">Tipo</th>
+                    <th class="num" title="Unidades disponíveis na oferta ativa desse vendedor agora — fica '—' se ele não tiver oferta ativa no momento ou se a Amazon não informar o número.">Estoque</th>
+                    <th title="Reputação do vendedor na Amazon — carrega ao clicar em 'Ver reputação dos vendedores' (gasta consulta).">Reputação</th>
+                    <th title="Data mais recente em que esse vendedor foi registrado com a buybox — se for antiga, ele pode já ter saído da disputa (sem estoque, parou de vender etc.).">Visto por último</th>
+                  </tr>
                 </thead>
                 <tbody id="keepaBuyboxStatsBody"></tbody>
               </table>
