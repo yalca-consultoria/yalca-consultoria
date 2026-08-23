@@ -90,9 +90,9 @@
           <button class="portal-nav__item" data-section="keepa">
             <span class="portal-nav__label">Compras &amp; Concorrência</span>
           </button>
-          <button class="portal-nav__item" data-section="precificacao">
+          <a class="portal-nav__item" href="precificacao.html">
             <span class="portal-nav__label">Calculadora de Preço</span>
-          </button>
+          </a>
           <a class="portal-nav__item" href="estoque.html">
             <span class="portal-nav__label">Controle de Estoque</span>
           </a>
@@ -366,119 +366,7 @@
         </div>
       </section>
 
-      <!-- ===================== PRECIFICAÇÃO ===================== -->
-      <section class="portal-section" data-section="precificacao">
-        <div class="section-intro">
-          <p>Descubra o preço ideal em cada marketplace considerando custo, frete, imposto e a taxa real de cada canal. Taxas levantadas nas páginas oficiais de cada vendedor sempre que possível — quando não deu para confirmar ao vivo, aparece um aviso ⚠ e o link da fonte em "Ajustar taxas dos marketplaces".</p>
-        </div>
-
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel__head"><div><h3>Dados do produto</h3></div></div>
-            <form id="pricingForm" style="display:flex; flex-direction:column; gap:16px;">
-              <div class="field-row">
-                <div class="field">
-                  <label for="pCost">Custo do produto (R$)</label>
-                  <input type="number" id="pCost" min="0" step="0.01" value="50" required>
-                </div>
-                <div class="field">
-                  <label for="pShipping">Frete (R$)</label>
-                  <input type="number" id="pShipping" min="0" step="0.01" value="12" required>
-                </div>
-              </div>
-              <div class="field-row">
-                <div class="field">
-                  <label for="pTax">Imposto (%)</label>
-                  <input type="number" id="pTax" min="0" step="0.1" value="6" required>
-                </div>
-                <div class="field">
-                  <label for="pMargin">Margem de lucro desejada (%)</label>
-                  <input type="number" id="pMargin" min="0" step="0.1" value="20" required>
-                </div>
-              </div>
-              <p style="font-size:0.8rem; color:var(--text-muted);">Ou informe um preço de venda para ver a margem resultante em cada marketplace:</p>
-              <div class="field">
-                <label for="pManualPrice">Preço de venda (opcional)</label>
-                <input type="number" id="pManualPrice" min="0" step="0.01" placeholder="Deixe em branco para calcular automaticamente">
-              </div>
-            </form>
-
-            <button type="button" class="table-view-toggle" id="toggleFeeEditor" style="margin-top:20px;">⚙ Ajustar taxas dos marketplaces</button>
-            <div class="fee-editor" id="feeEditor" style="display:none; margin-top:14px;"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel__head">
-              <div>
-                <h3>Comparação entre marketplaces e planos</h3>
-                <p>Inclui Clássico/Premium do Mercado Livre e FBM/FBA da Amazon. Clique em uma linha para ver o detalhamento completo do preço.</p>
-              </div>
-            </div>
-            <div class="table-scroll">
-              <table class="data-table">
-                <thead><tr><th>Marketplace / plano</th><th class="num">Preço</th><th class="num">Lucro</th><th class="num">Margem</th><th></th></tr></thead>
-                <tbody id="pricingComparisonBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel panel--highlight">
-          <div class="panel__head">
-            <div>
-              <h3 id="pricingDetailTitle">Detalhamento — Mercado Livre Clássico</h3>
-              <p id="pricingDetailConfidence" style="margin-top:8px;"></p>
-            </div>
-          </div>
-          <div id="pricingWaterfall"></div>
-          <div class="calc-result__breakdown" id="pricingBreakdown" style="margin-top:20px;"></div>
-        </div>
-      </section>
-
     </div>
-  </div>
-</div>
-
-<!-- MODAL: novo/editar produto -->
-<div class="modal-backdrop" id="productModal">
-  <div class="modal">
-    <div class="modal__head">
-      <h3 id="productModalTitle">Novo produto</h3>
-      <button class="modal__close" data-close-modal="productModal">×</button>
-    </div>
-    <form id="productForm">
-      <input type="hidden" id="prodId">
-      <div class="field-row">
-        <div class="field"><label for="prodSku">SKU</label><input type="text" id="prodSku" required></div>
-        <div class="field"><label for="prodName">Nome do produto</label><input type="text" id="prodName" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="prodMarketplace">Marketplace</label>
-          <select id="prodMarketplace"></select>
-        </div>
-        <div class="field"><label for="prodCategory">Categoria</label><input type="text" id="prodCategory" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodCost">Custo (R$)</label><input type="number" id="prodCost" min="0" step="0.01" required></div>
-        <div class="field"><label for="prodPrice">Preço de venda (R$)</label><input type="number" id="prodPrice" min="0" step="0.01" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodStock">Estoque atual</label><input type="number" id="prodStock" min="0" step="1" required></div>
-        <div class="field"><label for="prodMinStock">Estoque mínimo</label><input type="number" id="prodMinStock" min="0" step="1" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodSoldMonth">Vendidos no mês</label><input type="number" id="prodSoldMonth" min="0" step="1" required></div>
-        <div class="field">
-          <label for="prodStatus">Status do anúncio</label>
-          <select id="prodStatus"><option value="Ativo">Ativo</option><option value="Pausado">Pausado</option></select>
-        </div>
-      </div>
-      <div class="modal__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="productModal">Cancelar</button>
-        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
-      </div>
-    </form>
   </div>
 </div>
 
