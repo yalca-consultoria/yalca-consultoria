@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ok = await yalcaInitPortalShell();
   if (!ok) return;
 
-  initModals();
   renderSettingsForm();
 
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {

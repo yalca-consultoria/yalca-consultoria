@@ -78,7 +78,6 @@ function renderAll() {
   renderOverview();
   renderFinanceiro();
   renderMarketplaces();
-  renderEstoque();
   renderFluxoCaixa();
   recalcPricing();
   renderResetButtonLabel();
@@ -316,11 +315,8 @@ function populateMarketplaceSelects() {
   });
   marketplaceFilter.addEventListener('change', renderMarketplaces);
 
-  document.getElementById('stockFilter').addEventListener('change', renderEstoque);
-
   document.getElementById('financeSearch').addEventListener('input', renderFinanceiro);
   document.getElementById('marketplaceSearch').addEventListener('input', renderMarketplaces);
-  document.getElementById('stockSearch').addEventListener('input', renderEstoque);
 }
 
 /* ============================================================
@@ -509,44 +505,10 @@ function renderOverviewAlerts() {
   renderAlertList(container, alerts.slice(0, 6));
 }
 
-function renderAlertList(container, alerts) {
-  if (alerts.length === 0) {
-    container.innerHTML = '<p class="alert-empty">Nenhum alerta no momento. Tudo sob controle. ✅</p>';
-    return;
-  }
-  container.innerHTML = alerts.map(a => `
-    <div class="alert-item ${a.level}">
-      <span class="alert-item__icon">${a.icon}</span>
-      <div><strong>${yalcaEscapeHtml(a.title)}</strong><span>${yalcaEscapeHtml(a.sub)}</span></div>
-    </div>`).join('');
-}
-
-// progress (0-100, pode ser negativo pra indicar queda) e compareValue são
-// opcionais — só a Visão Geral usa (barra de progresso + comparação com o
-// período anterior, estilo Bling); as demais seções continuam passando só
-// {label, value, delta, hint} e renderizam exatamente como antes.
-function renderKpiGrid(containerId, kpis) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = kpis.map(k => {
-    const hasDelta = k.delta !== null && k.delta !== undefined;
-    const hasCompareRow = hasDelta || k.compareValue;
-    return `
-    <div class="kpi-card">
-      <div class="kpi-card__label">${yalcaEscapeHtml(k.label)}${yalcaInfoIcon(k.info)}</div>
-      <div class="kpi-card__value">${k.value}</div>
-      ${k.progress !== undefined && k.progress !== null ? `
-      <div class="kpi-card__progress">
-        <div class="kpi-card__progress-fill ${k.progress < 0 ? 'is-negative' : ''}" style="width:${Math.max(0, Math.min(100, Math.abs(k.progress)))}%"></div>
-      </div>` : ''}
-      ${hasCompareRow ? `
-      <div class="kpi-card__compare">
-        ${hasDelta ? `<span class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</span>` : ''}
-        ${k.compareValue ? `<span>${yalcaEscapeHtml(k.compareValue)}</span>` : ''}
-      </div>` : ''}
-      ${k.hint ? `<div class="kpi-card__hint">${yalcaEscapeHtml(k.hint)}</div>` : ''}
-    </div>`;
-  }).join('');
-}
+// renderAlertList e renderKpiGrid moraram aqui até 2026-08-22 — mudaram
+// pra charts.js (compartilhado por TODAS as páginas, inclusive as
+// standalone que vieram depois de dashboard.html, ex: estoque.html) pra
+// não duplicar a mesma função em cada página nova separada do SPA.
 
 /* ============================================================
    FINANCEIRO
@@ -1324,87 +1286,8 @@ function openSaveAsProduct(marketplace, price, cost) {
   openModal('productModal');
 }
 
-const STOCK_STATUS_VISUALS = {
-  OK: { color: 'var(--good)', badge: 'badge--ok' },
-  Baixo: { color: 'var(--warning)', badge: 'badge--baixo' },
-  Esgotado: { color: 'var(--critical)', badge: 'badge--esgotado' },
-  Parado: { color: 'var(--serious)', badge: 'badge--parado' }
-};
-
-function renderStockStatusStack(withStatus) {
-  const stack = document.getElementById('stockStatusStack');
-  const legend = document.getElementById('stockStatusLegend');
-  const total = withStatus.length;
-  if (total === 0) {
-    stack.innerHTML = '';
-    legend.innerHTML = '<p class="alert-empty">Nenhum produto cadastrado.</p>';
-    return;
-  }
-  const counts = { OK: 0, Baixo: 0, Esgotado: 0, Parado: 0 };
-  withStatus.forEach(p => { counts[p.status_calc] = (counts[p.status_calc] || 0) + 1; });
-
-  stack.innerHTML = Object.entries(counts).filter(([, n]) => n > 0).map(([status, n]) => {
-    const pct = (n / total) * 100;
-    return `<div class="status-stack__seg" style="width:${pct}%; background:${STOCK_STATUS_VISUALS[status].color};" title="${status}: ${n} produto(s) (${pct.toFixed(1)}%)"></div>`;
-  }).join('');
-
-  legend.innerHTML = Object.entries(counts).filter(([, n]) => n > 0).map(([status, n]) => `
-    <span class="status-stack__legend-item"><span class="status-stack__legend-swatch" style="background:${STOCK_STATUS_VISUALS[status].color}"></span>${status}: <strong style="color:var(--text);">${n}</strong> (${((n / total) * 100).toFixed(1)}%)</span>
-  `).join('');
-}
-
-/* ============================================================
-   CONTROLE DE ESTOQUE
-   ============================================================ */
-function renderEstoque() {
-  const filter = document.getElementById('stockFilter').value || 'todos';
-  const withStatus = DATA.products.map(p => ({ ...p, status_calc: yalcaStockStatus(p) }));
-  const filtered = filter === 'todos' ? withStatus : withStatus.filter(p => p.status_calc === filter);
-
-  const esgotado = withStatus.filter(p => p.status_calc === 'Esgotado').length;
-  const baixo = withStatus.filter(p => p.status_calc === 'Baixo').length;
-  const parado = withStatus.filter(p => p.status_calc === 'Parado');
-  const valorParado = parado.reduce((a, p) => a + p.cost * p.stock, 0);
-
-  renderKpiGrid('stockKpis', [
-    { label: 'Esgotados', value: esgotado, delta: null },
-    { label: 'Estoque baixo', value: baixo, delta: null },
-    { label: 'Estoque parado', value: parado.length, delta: null },
-    { label: 'Capital parado em estoque', value: yalcaFormatCurrency(valorParado), delta: null, hint: 'custo × unidades de itens parados' }
-  ]);
-
-  renderStockStatusStack(withStatus);
-
-  const alerts = [];
-  withStatus.filter(p => p.status_calc === 'Esgotado').forEach(p =>
-    alerts.push({ level: 'critical', icon: '⛔', title: `${p.name} esgotado`, sub: `${p.marketplace} · vendia ${p.unitsSoldMonth}/mês` }));
-  withStatus.filter(p => p.status_calc === 'Baixo').forEach(p =>
-    alerts.push({ level: 'warning', icon: '⚠️', title: `Estoque baixo: ${p.name}`, sub: `${p.stock} unidades restantes (mínimo: ${p.minStock})` }));
-  withStatus.filter(p => p.status_calc === 'Parado').forEach(p =>
-    alerts.push({ level: '', icon: '🐌', title: `${p.name} está parado`, sub: `${p.stock} unidades em estoque, só ${p.unitsSoldMonth} vendidas no mês — ${yalcaFormatCurrency(p.cost * p.stock)} parados` }));
-  renderAlertList(document.getElementById('stockAlerts'), alerts.slice(0, 8));
-
-  const search = document.getElementById('stockSearch').value.trim().toLowerCase();
-  const searched = search
-    ? filtered.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search))
-    : filtered;
-
-  const tbody = document.getElementById('stockTableBody');
-  if (searched.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="alert-empty">${filtered.length === 0 ? 'Nenhum produto nesse status.' : 'Nenhum produto encontrado para essa busca.'}</td></tr>`;
-    return;
-  }
-  const badgeClass = { OK: 'ok', Baixo: 'baixo', Esgotado: 'esgotado', Parado: 'parado' };
-  tbody.innerHTML = searched.map(p => `
-    <tr>
-      <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
-      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
-      <td class="num" data-label="Estoque">${p.stock}</td>
-      <td class="num" data-label="Mínimo">${p.minStock}</td>
-      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
-      <td data-label="Status"><span class="badge badge--${badgeClass[p.status_calc]}">${p.status_calc}</span></td>
-    </tr>`).join('');
-}
+/* Controle de Estoque saiu daqui — virou página própria (estoque.html +
+   js/estoque-app.js), 2026-08-22. */
 
 /* ============================================================
    FLUXO DE CAIXA

@@ -53,6 +53,7 @@ async function yalcaInitPortalShell() {
 
   document.getElementById('portalShell').style.display = 'flex';
   initShellSidebar();
+  initModals();
   bindShellGlobalActions();
 
   try {

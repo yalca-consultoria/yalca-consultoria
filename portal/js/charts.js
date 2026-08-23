@@ -43,6 +43,50 @@ function yalcaEscapeHtml(str) {
   return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
 }
 
+// Movidas de portal-app.js pra cá em 2026-08-22, quando o site começou a
+// ser separado em páginas standalone (uma seção por HTML, em vez do SPA
+// único de antes) — charts.js já era carregado por todas elas, então
+// virou o lugar natural pra utilitário de render compartilhado, em vez de
+// duplicar a mesma função em cada página nova.
+function renderAlertList(container, alerts) {
+  if (alerts.length === 0) {
+    container.innerHTML = '<p class="alert-empty">Nenhum alerta no momento. Tudo sob controle. ✅</p>';
+    return;
+  }
+  container.innerHTML = alerts.map(a => `
+    <div class="alert-item ${a.level}">
+      <span class="alert-item__icon">${a.icon}</span>
+      <div><strong>${yalcaEscapeHtml(a.title)}</strong><span>${yalcaEscapeHtml(a.sub)}</span></div>
+    </div>`).join('');
+}
+
+// progress (0-100, pode ser negativo pra indicar queda) e compareValue são
+// opcionais — só a Visão Geral usa (barra de progresso + comparação com o
+// período anterior, estilo Bling); as demais seções continuam passando só
+// {label, value, delta, hint} e renderizam exatamente como antes.
+function renderKpiGrid(containerId, kpis) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = kpis.map(k => {
+    const hasDelta = k.delta !== null && k.delta !== undefined;
+    const hasCompareRow = hasDelta || k.compareValue;
+    return `
+    <div class="kpi-card">
+      <div class="kpi-card__label">${yalcaEscapeHtml(k.label)}${yalcaInfoIcon(k.info)}</div>
+      <div class="kpi-card__value">${k.value}</div>
+      ${k.progress !== undefined && k.progress !== null ? `
+      <div class="kpi-card__progress">
+        <div class="kpi-card__progress-fill ${k.progress < 0 ? 'is-negative' : ''}" style="width:${Math.max(0, Math.min(100, Math.abs(k.progress)))}%"></div>
+      </div>` : ''}
+      ${hasCompareRow ? `
+      <div class="kpi-card__compare">
+        ${hasDelta ? `<span class="kpi-card__delta ${k.delta >= 0 ? 'up' : 'down'}">${k.delta >= 0 ? '▲' : '▼'} ${Math.abs(k.delta).toFixed(1)}%</span>` : ''}
+        ${k.compareValue ? `<span>${yalcaEscapeHtml(k.compareValue)}</span>` : ''}
+      </div>` : ''}
+      ${k.hint ? `<div class="kpi-card__hint">${yalcaEscapeHtml(k.hint)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
 // Seta de tendência (▲/▼ colorida) em vez de emoji (📈/📉) — pictogramas
 // de gráfico são Unicode mais recente e alguns navegadores/SO sem a fonte
 // de emoji completa mostram um ícone genérico de "glifo não encontrado" no

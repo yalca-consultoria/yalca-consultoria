@@ -93,9 +93,9 @@
           <button class="portal-nav__item" data-section="precificacao">
             <span class="portal-nav__label">Calculadora de Preço</span>
           </button>
-          <button class="portal-nav__item" data-section="estoque">
+          <a class="portal-nav__item" href="estoque.html">
             <span class="portal-nav__label">Controle de Estoque</span>
-          </button>
+          </a>
         </div>
       </div>
 
@@ -544,63 +544,6 @@
           </div>
           <div id="pricingWaterfall"></div>
           <div class="calc-result__breakdown" id="pricingBreakdown" style="margin-top:20px;"></div>
-        </div>
-      </section>
-
-      <!-- ===================== ESTOQUE ===================== -->
-      <section class="portal-section" data-section="estoque">
-        <div class="section-intro">
-          <p>Evite vender sem estoque e identifique produtos parados que estão empatando seu capital de giro.</p>
-        </div>
-
-        <div class="kpi-grid" id="stockKpis"></div>
-
-        <div class="panel">
-          <div class="panel__head"><div><h3>Situação do estoque</h3><p>Proporção de produtos em cada status.</p></div></div>
-          <div class="status-stack" id="stockStatusStack"></div>
-          <div class="status-stack__legend" id="stockStatusLegend"></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel__head"><div><h3>Alertas de estoque</h3></div></div>
-            <div class="alert-list" id="stockAlerts"></div>
-          </div>
-          <div class="panel">
-            <details>
-              <summary>Legenda de status</summary>
-              <div class="alert-list">
-                <div class="alert-item"><span class="badge badge--ok">OK</span><span>Estoque saudável para o ritmo de vendas atual.</span></div>
-                <div class="alert-item warning"><span class="badge badge--baixo">Baixo</span><span>Abaixo do estoque mínimo — planeje reposição.</span></div>
-                <div class="alert-item critical"><span class="badge badge--esgotado">Esgotado</span><span>Sem unidades disponíveis — anúncio pode estar perdendo posição.</span></div>
-                <div class="alert-item"><span class="badge badge--parado">Parado</span><span>Estoque alto e poucas vendas — capital parado.</span></div>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel__head">
-            <div><h3>Estoque por produto</h3></div>
-            <div class="panel__toolbar">
-              <input type="text" class="search-input" id="stockSearch" placeholder="Buscar por SKU ou nome">
-              <select class="select-chip" id="stockFilter">
-                <option value="todos">Todos os status</option>
-                <option value="OK">OK</option>
-                <option value="Baixo">Baixo</option>
-                <option value="Esgotado">Esgotado</option>
-                <option value="Parado">Parado</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table data-table--cards">
-              <thead>
-                <tr><th>SKU</th><th>Produto</th><th class="num">Estoque</th><th class="num">Mínimo</th><th class="num">Vendidos/mês</th><th>Status</th></tr>
-              </thead>
-              <tbody id="stockTableBody"></tbody>
-            </table>
-          </div>
         </div>
       </section>
 
