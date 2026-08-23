@@ -6,6 +6,28 @@
    tabela (acessibilidade), sem eixo duplo.
    ========================================= */
 
+/* Selo por canal: logo real (imagem já usada no site principal) quando temos
+   um asset legítimo e sourced; iniciais coloridas como fallback automático
+   para qualquer canal sem logo (ex: Temu, Droga Raia — este último nem é um
+   marketplace de comissão padrão, é um acordo comercial customizado, então
+   nunca faria sentido "inventar" um logo genérico pra ele). */
+const CHANNEL_VISUALS = {
+  'Mercado Livre': { initials: 'ML', bg: '#FFE600', color: '#1c1c1c', logo: 'mercadolivre.svg' },
+  'Amazon': { initials: 'AZ', bg: '#131921', color: '#FF9900', logo: 'amazon.svg' },
+  'Shopee': { initials: 'SP', bg: '#EE4D2D', color: '#ffffff', logo: 'shopee.svg' },
+  'TikTok': { initials: 'TT', bg: '#010101', color: '#25F4EE', logo: 'tiktok.svg' },
+  'Temu': { initials: 'TM', bg: '#FB6514', color: '#ffffff' },
+  'Droga Raia': { initials: 'DR', bg: '#00A650', color: '#ffffff' }
+};
+
+function renderChannelBadge(channel) {
+  const v = CHANNEL_VISUALS[channel] || { initials: channel.slice(0, 2).toUpperCase(), bg: 'var(--surface-2)', color: 'var(--text)' };
+  if (v.logo) {
+    return `<span class="marketplace-cell__logo" title="${yalcaEscapeHtml(channel)}"><img src="../img/marketplaces/${v.logo}" alt="${yalcaEscapeHtml(channel)}" loading="lazy"></span>`;
+  }
+  return `<span class="marketplace-cell__logo" style="background:${v.bg}; color:${v.color};" title="${yalcaEscapeHtml(channel)}">${v.initials}</span>`;
+}
+
 /* Cores fixas por entidade (nunca por posição/ordem de filtro).
    Usadas como atributo direto no SVG (fill/stroke), por isso em hex —
    var(--x) em atributo de apresentação SVG não é suportado de forma

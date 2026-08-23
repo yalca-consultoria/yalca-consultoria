@@ -84,9 +84,9 @@
           <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="portal-nav__group-items">
-          <button class="portal-nav__item" data-section="marketplaces">
+          <a class="portal-nav__item" href="marketplaces.html">
             <span class="portal-nav__label">Gestão de Marketplaces</span>
-          </button>
+          </a>
           <button class="portal-nav__item" data-section="keepa">
             <span class="portal-nav__label">Compras &amp; Concorrência</span>
           </button>
@@ -218,48 +218,6 @@
 
       <!-- ===================== FINANCEIRO ===================== -->
       <!-- ===================== MARKETPLACES ===================== -->
-      <section class="portal-section" data-section="marketplaces">
-        <div class="section-intro">
-          <p>Seus produtos em cada canal de venda, com margem líquida estimada já considerando taxa do marketplace, imposto e frete.</p>
-        </div>
-
-        <div class="kpi-grid" id="marketplaceKpis"></div>
-
-        <div class="panel chart-card">
-          <div class="panel__head">
-            <div>
-              <h3>Margem média por marketplace</h3>
-              <p>Ajuda a decidir onde vale mais a pena concentrar esforço.</p>
-            </div>
-          </div>
-          <div id="marketplaceMarginChart"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel__head">
-            <div>
-              <h3>Produtos por marketplace</h3>
-              <p>Itens com margem negativa aparecem destacados — é dinheiro saindo do bolso a cada venda.</p>
-            </div>
-            <div class="panel__toolbar">
-              <input type="text" class="search-input" id="marketplaceSearch" placeholder="Buscar por SKU ou nome">
-              <select class="select-chip" id="marketplaceFilter"></select>
-              <button class="btn btn--primary btn--sm" id="addProductBtn">+ Novo produto</button>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table data-table--cards">
-              <thead>
-                <tr>
-                  <th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Custo</th><th class="num">Preço</th><th class="num">Margem líquida</th><th class="num">Vendidos/mês</th><th>Status</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="productsTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       <!-- ===================== COMPRAS & CONCORRÊNCIA ===================== -->
       <section class="portal-section" data-section="keepa">
         <div class="section-intro">

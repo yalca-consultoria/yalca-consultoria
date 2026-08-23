@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://images-na.ssl-images-amazon.com https://m.media-amazon.com; connect-src 'self' https://api.yalca.com.br wss://api.yalca.com.br https://keepa-api.yalca.com.br https://ia-api.yalca.com.br; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Controle de Estoque | Yalca Consultoria</title>
+<title>Gestão de Marketplaces | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:,">
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -79,7 +79,7 @@
           <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="portal-nav__group-items">
-          <a class="portal-nav__item" href="marketplaces.html">
+          <a class="portal-nav__item is-active" href="marketplaces.html">
             <span class="portal-nav__label">Gestão de Marketplaces</span>
           </a>
           <a class="portal-nav__item" href="dashboard.html#keepa">
@@ -88,7 +88,7 @@
           <a class="portal-nav__item" href="dashboard.html#precificacao">
             <span class="portal-nav__label">Calculadora de Preço</span>
           </a>
-          <a class="portal-nav__item is-active" href="estoque.html">
+          <a class="portal-nav__item" href="estoque.html">
             <span class="portal-nav__label">Controle de Estoque</span>
           </a>
         </div>
@@ -124,7 +124,7 @@
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
         <div>
           <span class="portal-topbar__eyebrow">Painel do Cliente</span>
-          <h2>Controle de Estoque</h2>
+          <h2>Gestão de Marketplaces</h2>
         </div>
       </div>
     </header>
@@ -132,60 +132,89 @@
     <div class="portal-content">
       <section class="portal-section is-active">
         <div class="section-intro">
-          <p>Evite vender sem estoque e identifique produtos parados que estão empatando seu capital de giro.</p>
+          <p>Seus produtos em cada canal de venda, com margem líquida estimada já considerando taxa do marketplace, imposto e frete.</p>
         </div>
 
-        <div class="kpi-grid" id="stockKpis"></div>
+        <div class="kpi-grid" id="marketplaceKpis"></div>
 
-        <div class="panel">
-          <div class="panel__head"><div><h3>Situação do estoque</h3><p>Proporção de produtos em cada status.</p></div></div>
-          <div class="status-stack" id="stockStatusStack"></div>
-          <div class="status-stack__legend" id="stockStatusLegend"></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel__head"><div><h3>Alertas de estoque</h3></div></div>
-            <div class="alert-list" id="stockAlerts"></div>
+        <div class="panel chart-card">
+          <div class="panel__head">
+            <div>
+              <h3>Margem média por marketplace</h3>
+              <p>Ajuda a decidir onde vale mais a pena concentrar esforço.</p>
+            </div>
           </div>
-          <div class="panel">
-            <details>
-              <summary>Legenda de status</summary>
-              <div class="alert-list">
-                <div class="alert-item"><span class="badge badge--ok">OK</span><span>Estoque saudável para o ritmo de vendas atual.</span></div>
-                <div class="alert-item warning"><span class="badge badge--baixo">Baixo</span><span>Abaixo do estoque mínimo — planeje reposição.</span></div>
-                <div class="alert-item critical"><span class="badge badge--esgotado">Esgotado</span><span>Sem unidades disponíveis — anúncio pode estar perdendo posição.</span></div>
-                <div class="alert-item"><span class="badge badge--parado">Parado</span><span>Estoque alto e poucas vendas — capital parado.</span></div>
-              </div>
-            </details>
-          </div>
+          <div id="marketplaceMarginChart"></div>
         </div>
 
         <div class="panel">
           <div class="panel__head">
-            <div><h3>Estoque por produto</h3></div>
+            <div>
+              <h3>Produtos por marketplace</h3>
+              <p>Itens com margem negativa aparecem destacados — é dinheiro saindo do bolso a cada venda.</p>
+            </div>
             <div class="panel__toolbar">
-              <input type="text" class="search-input" id="stockSearch" placeholder="Buscar por SKU ou nome">
-              <select class="select-chip" id="stockFilter">
-                <option value="todos">Todos os status</option>
-                <option value="OK">OK</option>
-                <option value="Baixo">Baixo</option>
-                <option value="Esgotado">Esgotado</option>
-                <option value="Parado">Parado</option>
-              </select>
+              <input type="text" class="search-input" id="marketplaceSearch" placeholder="Buscar por SKU ou nome">
+              <select class="select-chip" id="marketplaceFilter"></select>
+              <button class="btn btn--primary btn--sm" id="addProductBtn">+ Novo produto</button>
             </div>
           </div>
           <div class="table-scroll">
             <table class="data-table data-table--cards">
               <thead>
-                <tr><th>SKU</th><th>Produto</th><th class="num">Estoque</th><th class="num">Mínimo</th><th class="num">Vendidos/mês</th><th>Status</th></tr>
+                <tr>
+                  <th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Custo</th><th class="num">Preço</th><th class="num">Margem líquida</th><th class="num">Vendidos/mês</th><th>Status</th><th></th>
+                </tr>
               </thead>
-              <tbody id="stockTableBody"></tbody>
+              <tbody id="productsTableBody"></tbody>
             </table>
           </div>
         </div>
       </section>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: novo/editar produto -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <div class="modal__head">
+      <h3 id="productModalTitle">Novo produto</h3>
+      <button class="modal__close" data-close-modal="productModal">×</button>
+    </div>
+    <form id="productForm">
+      <input type="hidden" id="prodId">
+      <div class="field-row">
+        <div class="field"><label for="prodSku">SKU</label><input type="text" id="prodSku" required></div>
+        <div class="field"><label for="prodName">Nome do produto</label><input type="text" id="prodName" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="prodMarketplace">Marketplace</label>
+          <select id="prodMarketplace"></select>
+        </div>
+        <div class="field"><label for="prodCategory">Categoria</label><input type="text" id="prodCategory" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodCost">Custo (R$)</label><input type="number" id="prodCost" min="0" step="0.01" required></div>
+        <div class="field"><label for="prodPrice">Preço de venda (R$)</label><input type="number" id="prodPrice" min="0" step="0.01" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodStock">Estoque atual</label><input type="number" id="prodStock" min="0" step="1" required></div>
+        <div class="field"><label for="prodMinStock">Estoque mínimo</label><input type="number" id="prodMinStock" min="0" step="1" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="prodSoldMonth">Vendidos no mês</label><input type="number" id="prodSoldMonth" min="0" step="1" required></div>
+        <div class="field">
+          <label for="prodStatus">Status do anúncio</label>
+          <select id="prodStatus"><option value="Ativo">Ativo</option><option value="Pausado">Pausado</option></select>
+        </div>
+      </div>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="productModal">Cancelar</button>
+        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -214,6 +243,6 @@
 <script src="js/portal-auth.min.js?v=57df776"></script>
 <script src="js/charts.min.js?v=57df776"></script>
 <script src="js/portal-shell.min.js?v=57df776"></script>
-<script src="js/estoque-app.min.js?v=57df776"></script>
+<script src="js/marketplaces-app.min.js?v=57df776"></script>
 </body>
 </html>

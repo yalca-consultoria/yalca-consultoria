@@ -75,7 +75,6 @@ async function reloadAndRenderAll() {
 function renderAll() {
   renderClientName();
   renderOverview();
-  renderMarketplaces();
   recalcPricing();
   renderResetButtonLabel();
   renderKeepaSellerMetrics();
@@ -301,18 +300,6 @@ function populateMarketplaceSelects() {
       sel.appendChild(opt);
     });
   });
-  const marketplaceFilter = document.getElementById('marketplaceFilter');
-  const optAll = document.createElement('option');
-  optAll.value = 'todos'; optAll.textContent = 'Todos os marketplaces';
-  marketplaceFilter.appendChild(optAll);
-  MARKETPLACES.forEach(mk => {
-    const opt = document.createElement('option');
-    opt.value = mk; opt.textContent = mk;
-    marketplaceFilter.appendChild(opt);
-  });
-  marketplaceFilter.addEventListener('change', renderMarketplaces);
-
-  document.getElementById('marketplaceSearch').addEventListener('input', renderMarketplaces);
 }
 
 /* ============================================================
@@ -509,95 +496,12 @@ function renderOverviewAlerts() {
 /* FINANCEIRO saiu daqui — virou página própria (financeiro.html +
    js/financeiro-app.js), 2026-08-23. */
 
-/* ============================================================
-   GESTÃO DE MARKETPLACES (produtos / SKUs)
-   ============================================================ */
-function renderMarketplaces() {
-  const filter = document.getElementById('marketplaceFilter').value || 'todos';
-  const products = filter === 'todos' ? DATA.products : DATA.products.filter(p => p.marketplace === filter);
-
-  const margins = products.map(p => yalcaProductMargin(p, DATA.settings).marginPct);
-  const avgMargin = margins.length ? margins.reduce((a, b) => a + b, 0) / margins.length : 0;
-  const negativeCount = products.filter(p => yalcaProductMargin(p, DATA.settings).marginPct < 0).length;
-  const totalUnits = products.reduce((a, p) => a + p.unitsSoldMonth, 0);
-
-  renderKpiGrid('marketplaceKpis', [
-    { label: 'Produtos cadastrados', value: products.length, delta: null },
-    { label: 'Unidades vendidas/mês', value: totalUnits, delta: null },
-    { label: 'Margem média da carteira', value: `${avgMargin.toFixed(1)}%`, delta: null },
-    { label: 'Produtos no prejuízo', value: negativeCount, delta: null, hint: negativeCount > 0 ? 'revise o preço desses itens' : 'nenhum item no prejuízo' }
-  ]);
-
-  const marginByMarketplace = MARKETPLACES
-    .map(mk => {
-      const mkProducts = DATA.products.filter(p => p.marketplace === mk);
-      if (mkProducts.length === 0) return null;
-      const avg = mkProducts.reduce((a, p) => a + yalcaProductMargin(p, DATA.settings).marginPct, 0) / mkProducts.length;
-      return { label: mk, value: Number(avg.toFixed(1)), color: YALCA_MARKETPLACE_COLOR[mk] };
-    })
-    .filter(Boolean);
-
-  if (marginByMarketplace.length > 0) {
-    yalcaRenderBarChart(document.getElementById('marketplaceMarginChart'), {
-      data: marginByMarketplace,
-      formatValue: (v) => `${v}%`
-    });
-  } else {
-    document.getElementById('marketplaceMarginChart').innerHTML = '<p class="alert-empty">Cadastre produtos para ver a margem média por marketplace.</p>';
-  }
-
-  const search = document.getElementById('marketplaceSearch').value.trim().toLowerCase();
-  const searchedProducts = search
-    ? products.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search))
-    : products;
-
-  const tbody = document.getElementById('productsTableBody');
-  if (searchedProducts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="alert-empty">${products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado para essa busca.'}</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = searchedProducts.map(p => {
-    const { marginPct } = yalcaProductMargin(p, DATA.settings);
-    const marginClass = marginPct < 0 ? 'text-critical' : (marginPct < 15 ? '' : 'text-good');
-    const gaugeColor = marginPct < 0 ? 'var(--critical)' : (marginPct < 15 ? 'var(--warning)' : 'var(--good)');
-    const gaugeWidth = Math.max(0, Math.min(100, marginPct));
-    return `
-    <tr>
-      <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
-      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
-      <td data-label="Marketplace"><div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div></td>
-      <td class="num" data-label="Custo">${yalcaFormatCurrency(p.cost)}</td>
-      <td class="num" data-label="Preço">${yalcaFormatCurrency(p.price)}</td>
-      <td class="num ${marginClass}" data-label="Margem líquida">
-        ${marginPct.toFixed(1)}%
-        <div class="margin-gauge margin-gauge--sm"><div class="margin-gauge__fill" style="width:${gaugeWidth}%; background:${gaugeColor};"></div></div>
-      </td>
-      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
-      <td data-label="Status">${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}</td>
-      <td class="row-actions">
-        <button class="icon-btn" title="Editar" data-action="editProduct" data-id="${p.id}">✎</button>
-        <button class="icon-btn" title="Excluir" data-action="deleteProductRow" data-id="${p.id}">🗑</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
+/* Gestão de Marketplaces (renderMarketplaces/editProduct/deleteProductRow)
+   saiu daqui — virou página própria (marketplaces.html +
+   js/marketplaces-app.js), 2026-08-23. O submit do #productForm continua
+   aqui porque a Calculadora de Preço (openSaveAsProduct, ainda nesta
+   página) reaproveita o mesmo #productModal pra salvar um produto novo. */
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('productsTableBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const { action, id } = btn.dataset;
-    if (action === 'editProduct') editProduct(id);
-    else if (action === 'deleteProductRow') deleteProductRow(id);
-  });
-
-  document.getElementById('addProductBtn').addEventListener('click', () => {
-    document.getElementById('productForm').reset();
-    document.getElementById('prodId').value = '';
-    document.getElementById('productModalTitle').textContent = 'Novo produto';
-    openModal('productModal');
-  });
-
   document.getElementById('productForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -627,34 +531,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
-function editProduct(id) {
-  const p = DATA.products.find(x => x.id === id);
-  if (!p) return;
-  document.getElementById('prodId').value = p.id;
-  document.getElementById('prodSku').value = p.sku;
-  document.getElementById('prodName').value = p.name;
-  document.getElementById('prodMarketplace').value = p.marketplace;
-  document.getElementById('prodCategory').value = p.category;
-  document.getElementById('prodCost').value = p.cost;
-  document.getElementById('prodPrice').value = p.price;
-  document.getElementById('prodStock').value = p.stock;
-  document.getElementById('prodMinStock').value = p.minStock;
-  document.getElementById('prodSoldMonth').value = p.unitsSoldMonth;
-  document.getElementById('prodStatus').value = p.status;
-  document.getElementById('productModalTitle').textContent = 'Editar produto';
-  openModal('productModal');
-}
-
-async function deleteProductRow(id) {
-  if (!confirm('Excluir este produto?')) return;
-  try {
-    await yalcaDeleteProduct(id);
-    await reloadAndRenderAll();
-  } catch (err) {
-    alert('Não foi possível excluir: ' + err.message);
-  }
-}
 
 /* ============================================================
    CALCULADORA DE PRECIFICAÇÃO
@@ -749,27 +625,10 @@ const PRICING_VARIANTS_DEFAULT = [
   }
 ];
 
-/* Selo por canal: logo real (imagem já usada no site principal) quando temos
-   um asset legítimo e sourced; iniciais coloridas como fallback automático
-   para qualquer canal sem logo (ex: Temu, Droga Raia — este último nem é um
-   marketplace de comissão padrão, é um acordo comercial customizado, então
-   nunca faria sentido "inventar" um logo genérico pra ele). */
-const CHANNEL_VISUALS = {
-  'Mercado Livre': { initials: 'ML', bg: '#FFE600', color: '#1c1c1c', logo: 'mercadolivre.svg' },
-  'Amazon': { initials: 'AZ', bg: '#131921', color: '#FF9900', logo: 'amazon.svg' },
-  'Shopee': { initials: 'SP', bg: '#EE4D2D', color: '#ffffff', logo: 'shopee.svg' },
-  'TikTok': { initials: 'TT', bg: '#010101', color: '#25F4EE', logo: 'tiktok.svg' },
-  'Temu': { initials: 'TM', bg: '#FB6514', color: '#ffffff' },
-  'Droga Raia': { initials: 'DR', bg: '#00A650', color: '#ffffff' }
-};
-
-function renderChannelBadge(channel) {
-  const v = CHANNEL_VISUALS[channel] || { initials: channel.slice(0, 2).toUpperCase(), bg: 'var(--surface-2)', color: 'var(--text)' };
-  if (v.logo) {
-    return `<span class="marketplace-cell__logo" title="${yalcaEscapeHtml(channel)}"><img src="../img/marketplaces/${v.logo}" alt="${yalcaEscapeHtml(channel)}" loading="lazy"></span>`;
-  }
-  return `<span class="marketplace-cell__logo" style="background:${v.bg}; color:${v.color};" title="${yalcaEscapeHtml(channel)}">${v.initials}</span>`;
-}
+// CHANNEL_VISUALS/renderChannelBadge moraram aqui até 2026-08-23 — mudaram
+// pra charts.js (compartilhado por todas as páginas) porque a Visão Geral
+// e o Keepa (que continuam aqui) e a Gestão de Marketplaces (que virou
+// página própria) todos precisam.
 
 let PRICING_VARIANTS = [];
 let FOCUSED_VARIANT_KEY = null;
