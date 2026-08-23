@@ -64,12 +64,15 @@ async function yalcaResendConfirmation(email) {
 // cliente de volta pra reset-password.html (mesmo domínio — não sai do
 // site), onde ele define a nova senha; o token de recuperação vem no
 // próprio hash da URL, o cliente Supabase já detecta sozinho.
-async function yalcaRequestPasswordReset(email) {
+async function yalcaRequestPasswordReset(email, captchaToken) {
   if (!supabaseClient) {
     return { ok: false, error: 'Configuração do Supabase pendente.' };
   }
   const redirectTo = `${window.location.origin}${window.location.pathname.replace(/login\.html$/, '')}reset-password.html`;
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo,
+    captchaToken
+  });
   if (error) {
     return { ok: false, error: yalcaAuthErrorMessage(error) };
   }

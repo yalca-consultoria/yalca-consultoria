@@ -1,19 +1,20 @@
 /* =========================================
    Yalca Portal — página de login/cadastro/recuperação de senha
-   Captcha (Cloudflare Turnstile) só aparece depois de algumas
-   tentativas de login com credenciais erradas — não incomoda quem
-   erra a senha uma vez só, mas trava tentativas automatizadas em
-   sequência. O bloqueio de verdade acontece no servidor (Supabase
-   Auth valida o token com a Secret Key); o widget aqui é só a
-   metade visível do mecanismo.
+
+   Captcha (Cloudflare Turnstile): o Supabase Auth self-hosted valida
+   captcha em nível de PROJETO — uma vez ativado no servidor
+   (GOTRUE_SECURITY_CAPTCHA_ENABLED), TODA chamada de login/cadastro/
+   recuperação passa a exigir um captcha_token válido, não só depois de
+   muitas tentativas (diferente do SaaS gerenciado, aqui não existe um
+   "threshold" nativo no GoTrue). Por isso o widget carrega sempre nos
+   3 formulários — em modo "managed" o Turnstile resolve sozinho e
+   invisível pra a maioria dos acessos legítimos, só aparecendo uma
+   interação visível quando o tráfego parece suspeito, então o efeito
+   prático pra quem usa normal continua sendo "não incomoda".
    ========================================= */
 
-const LOGIN_FAIL_THRESHOLD = 3;
-const LOGIN_FAIL_STORAGE_KEY = 'yalcaLoginFailCount';
-
-let turnstileWidgetId = null;
-let turnstileToken = null;
 let turnstileScriptLoading = null;
+const turnstileWidgets = {}; // formId -> { widgetId, token }
 
 function yalcaLoadTurnstileScript() {
   if (window.turnstile) return Promise.resolve();
@@ -30,16 +31,30 @@ function yalcaLoadTurnstileScript() {
   return turnstileScriptLoading;
 }
 
-function yalcaGetFailCount() {
-  return Number(sessionStorage.getItem(LOGIN_FAIL_STORAGE_KEY) || '0');
+async function yalcaRenderTurnstile(formKey, containerId) {
+  if (!yalcaTurnstileConfigured) return;
+  try {
+    await yalcaLoadTurnstileScript();
+    turnstileWidgets[formKey] = { widgetId: null, token: null };
+    turnstileWidgets[formKey].widgetId = window.turnstile.render('#' + containerId, {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token) => { turnstileWidgets[formKey].token = token; },
+      'expired-callback': () => { turnstileWidgets[formKey].token = null; },
+      'error-callback': () => { turnstileWidgets[formKey].token = null; }
+    });
+  } catch (err) {
+    console.error('Turnstile:', err);
+  }
 }
-function yalcaBumpFailCount() {
-  const next = yalcaGetFailCount() + 1;
-  sessionStorage.setItem(LOGIN_FAIL_STORAGE_KEY, String(next));
-  return next;
-}
-function yalcaResetFailCount() {
-  sessionStorage.removeItem(LOGIN_FAIL_STORAGE_KEY);
+
+function yalcaConsumeTurnstileToken(formKey) {
+  const w = turnstileWidgets[formKey];
+  const token = w ? w.token : null;
+  if (w && w.widgetId !== null) {
+    window.turnstile.reset(w.widgetId); // token de uso único — sempre pede um novo pro próximo submit
+    w.token = null;
+  }
+  return token;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -60,7 +75,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const configWarning = document.getElementById('configWarning');
   const resendBox = document.getElementById('resendConfirmationBox');
   const resendBtn = document.getElementById('resendConfirmationBtn');
-  const captchaWrap = document.getElementById('loginCaptchaWrap');
 
   function showView(view) {
     loginView.style.display = view === 'login' ? 'block' : 'none';
@@ -102,28 +116,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Se já passamos do limite de tentativas nesta sessão (ex: usuário
-  // recarregou a página no meio de um ataque manual), mostra o captcha
-  // direto em vez de esperar mais uma tentativa falhar.
-  async function maybeShowCaptcha() {
-    if (yalcaGetFailCount() < LOGIN_FAIL_THRESHOLD) return;
-    captchaWrap.classList.add('is-visible');
-    if (!yalcaTurnstileConfigured) return; // placeholder ainda não trocado — não trava o login por isso
-    try {
-      await yalcaLoadTurnstileScript();
-      if (turnstileWidgetId === null) {
-        turnstileWidgetId = window.turnstile.render('#loginTurnstile', {
-          sitekey: TURNSTILE_SITE_KEY,
-          callback: (token) => { turnstileToken = token; },
-          'expired-callback': () => { turnstileToken = null; },
-          'error-callback': () => { turnstileToken = null; }
-        });
-      }
-    } catch (err) {
-      console.error('Turnstile:', err);
-    }
-  }
-  await maybeShowCaptcha();
+  // Os 3 widgets carregam desde o início — o servidor exige o token em
+  // toda chamada agora que o captcha está ativado no projeto.
+  yalcaRenderTurnstile('login', 'loginTurnstile');
+  yalcaRenderTurnstile('signup', 'signupTurnstile');
+  yalcaRenderTurnstile('forgot', 'forgotTurnstile');
 
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -133,42 +130,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     errorEl.classList.remove('is-visible');
     resendBox.classList.remove('is-visible');
 
-    const captchaRequired = captchaWrap.classList.contains('is-visible') && yalcaTurnstileConfigured;
-    if (captchaRequired && !turnstileToken) {
-      errorTextEl.textContent = 'Confirme a verificação de segurança antes de continuar.';
+    const captchaToken = yalcaConsumeTurnstileToken('login');
+    if (yalcaTurnstileConfigured && !captchaToken) {
+      errorTextEl.textContent = 'Aguarde a verificação de segurança carregar e tente novamente.';
       errorEl.classList.add('is-visible');
       return;
     }
 
     submitBtn.disabled = true;
     submitBtn.classList.add('btn--loading');
-    const result = await yalcaLogin(email, password, turnstileToken || undefined);
-
-    // Token do Turnstile é de uso único — sempre pede um novo depois de
-    // qualquer tentativa de submit, sucesso ou falha.
-    if (turnstileWidgetId !== null) {
-      window.turnstile.reset(turnstileWidgetId);
-      turnstileToken = null;
-    }
+    const result = await yalcaLogin(email, password, captchaToken || undefined);
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
 
     if (result.ok) {
-      yalcaResetFailCount();
       window.location.href = 'dashboard.html';
       return;
     }
 
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('btn--loading');
     errorTextEl.textContent = result.error;
     errorEl.classList.add('is-visible');
-
     if (result.code === 'email_not_confirmed') {
       resendBox.classList.add('is-visible');
-    }
-
-    const failCount = yalcaBumpFailCount();
-    if (failCount >= LOGIN_FAIL_THRESHOLD) {
-      await maybeShowCaptcha();
     }
   });
 
@@ -209,9 +192,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    const captchaToken = yalcaConsumeTurnstileToken('signup');
+    if (yalcaTurnstileConfigured && !captchaToken) {
+      signupErrorTextEl.textContent = 'Aguarde a verificação de segurança carregar e tente novamente.';
+      signupErrorEl.classList.add('is-visible');
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.classList.add('btn--loading');
-    const result = await yalcaSignUp(email, password, storeName);
+    const result = await yalcaSignUp(email, password, storeName, captchaToken || undefined);
     submitBtn.disabled = false;
     submitBtn.classList.remove('btn--loading');
 
@@ -236,9 +226,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     forgotSuccessEl.classList.remove('is-visible');
 
     const email = forgotForm.email.value;
+    const captchaToken = yalcaConsumeTurnstileToken('forgot');
+    if (yalcaTurnstileConfigured && !captchaToken) {
+      forgotErrorTextEl.textContent = 'Aguarde a verificação de segurança carregar e tente novamente.';
+      forgotErrorEl.classList.add('is-visible');
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.classList.add('btn--loading');
-    const result = await yalcaRequestPasswordReset(email);
+    const result = await yalcaRequestPasswordReset(email, captchaToken || undefined);
     submitBtn.disabled = false;
     submitBtn.classList.remove('btn--loading');
 
