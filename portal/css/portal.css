@@ -992,6 +992,11 @@ body.portal-body {
      cliente, 2026-08-23) — os valores das células continuam numa linha
      só (curtos: número/percentual), só os títulos das colunas quebram. */
   .keepa-tracked-table th { white-space: normal; line-height: 1.3; vertical-align: bottom; }
+  /* A célula de Preço combina valor + badge de desconto, que juntos
+     estouram a largura fixa da coluna e vazam visualmente por cima da
+     coluna de BSR ao lado (bug reportado pelo cliente, 2026-08-24).
+     Deixando essa célula quebrar linha em vez de manter nowrap. */
+  .keepa-tracked-table td:nth-child(2) { white-space: normal; }
 }
 .data-table th {
   text-align: left;
