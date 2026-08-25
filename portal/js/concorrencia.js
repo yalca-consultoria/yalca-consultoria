@@ -439,11 +439,18 @@ async function handleKeepaSearchSubmit(e) {
       return;
     }
     LAST_KEEPA_SEARCH_RESULT = result;
-    // Resolve o vendedor da buybox ANTES do primeiro render — sem isso o
-    // KPI "Buybox" e a linha "Buy Box — vendedor" mostram o ID técnico e só
-    // trocam pro nome depois (quando autoLoadTopSellerReputation termina e
-    // re-renderiza só as tabelas de ofertas/domínio de buybox, não os KPIs).
-    if (result.buybox?.seller) await yalcaResolveSellerNames([result.buybox.seller]);
+    // Resolve ANTES do primeiro render os vendedores que aparecem nomeados
+    // diretamente no painel (buybox + mais barato FBA + mais barato FBM) —
+    // sem isso eles mostram o ID técnico até o carregamento automático de
+    // reputação terminar, e o carregamento automático só pega os 3
+    // primeiros vendedores da lista de ofertas (KEEPA_AUTO_LOAD_SELLER_COUNT),
+    // que pode não incluir o vendedor mais barato FBM se os primeiros da
+    // lista forem todos FBA (ou vice-versa) — bug real reproduzido com o
+    // ASIN B095XPYM2V, onde os 3 primeiros eram todos FBA.
+    const cheapestFbaSeller = (result.offers || []).find(o => !o.isAmazon && o.isFBA && o.sellerId)?.sellerId;
+    const cheapestFbmSeller = (result.offers || []).find(o => !o.isAmazon && !o.isFBA && o.sellerId)?.sellerId;
+    const namedSellerIds = [...new Set([result.buybox?.seller, cheapestFbaSeller, cheapestFbmSeller].filter(Boolean))];
+    if (namedSellerIds.length > 0) await yalcaResolveSellerNames(namedSellerIds);
     renderKeepaSearchResult(result);
   } catch (err) {
     statusEl.textContent = 'Não foi possível consultar agora: ' + err.message;
