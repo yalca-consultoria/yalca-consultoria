@@ -830,6 +830,11 @@ async function loadSellerReputation(sellerIds, offers) {
     }
     Object.assign(KEEPA_SELLER_REPUTATION, result.sellers);
     renderKeepaBuyboxStatsTable(LAST_KEEPA_SEARCH_RESULT?.stats?.buyBoxStats || [], offers);
+    // O painel "Detalhes do produto" (Vendedor mais barato FBA/FBM) é
+    // renderizado uma vez ANTES da reputação dos vendedores terminar de
+    // carregar — sem re-renderizar aqui, ele fica preso mostrando o ID
+    // técnico do vendedor pra sempre, mesmo depois do nome já ter chegado.
+    if (LAST_KEEPA_SEARCH_RESULT) renderKeepaDetailPanel(LAST_KEEPA_SEARCH_RESULT, 'keepaResultDetails');
     return true;
   } catch (err) {
     statusEl.textContent = 'Não foi possível buscar agora: ' + err.message;
