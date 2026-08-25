@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-rOs42F2VneHU4Rx8CEDAGi3CWFHQi2aEG7UMrDcZSzM='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Política de Privacidade — Skill Alexa | Yalca Consultoria</title>
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://www.yalca.com.br/alexa-privacidade.html">
+<link rel="icon" href="data:,">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.min.css">
+<style>
+  .legal { max-width: 760px; margin: 0 auto; padding: 140px 24px 100px; }
+  .legal h1 { margin-bottom: 8px; }
+  .legal p.updated { color: var(--text-muted, #8a8fa3); margin-bottom: 40px; }
+  .legal h2 { margin-top: 40px; margin-bottom: 12px; font-size: 1.25rem; }
+  .legal p, .legal li { line-height: 1.7; color: var(--text-muted, #b8bcc8); }
+  .legal ul { padding-left: 20px; margin: 12px 0; }
+  .legal a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="header" id="header">
+  <div class="container header__inner">
+    <a href="index.html" class="logo">Yalca<span>.</span></a>
+    <div class="header__actions">
+      <a href="portal/login.html" class="btn btn--ghost btn--sm">Área do Cliente</a>
+    </div>
+  </div>
+</header>
+
+<main class="legal">
+  <h1>Política de Privacidade — Skill Alexa da Yalca Consultoria</h1>
+  <p class="updated">Última atualização: 25 de agosto de 2026</p>
+
+  <p>Esta política descreve como a skill de voz "Yalca" para a Alexa (Amazon) trata os dados dos
+  clientes da <strong>Yalca E-Consultoria LTDA</strong> (CNPJ 68.402.008/0001-18) que optam por
+  vincular sua conta do portal Yalca a um dispositivo Alexa.</p>
+
+  <h2>O que a skill faz</h2>
+  <p>A skill permite que um cliente já cadastrado no portal Yalca consulte, por comando de voz,
+  informações do próprio negócio já existentes no portal: faturamento, quantidade de pedidos e
+  produtos com estoque baixo. A skill não cria, não altera e não exclui nenhum dado — apenas lê
+  informações que o próprio cliente já cadastrou ou que já são sincronizadas no portal.</p>
+
+  <h2>Vinculação de conta (account linking)</h2>
+  <p>Para usar a skill, o cliente precisa autorizar explicitamente a vinculação entre sua conta
+  Alexa e sua conta no portal Yalca, informando o e-mail e senha já usados no portal em uma tela de
+  login segura (com verificação humana via Cloudflare Turnstile). Essa autorização gera um token de
+  acesso próprio, sem relação com a senha do cliente, que a Alexa usa para identificar de qual
+  cliente são os dados solicitados a cada pergunta.</p>
+  <p>O cliente pode revogar essa vinculação a qualquer momento pelo aplicativo Alexa, em
+  "Suas Skills" → Yalca → "Desativar Skill", o que invalida o acesso imediatamente.</p>
+
+  <h2>Quais dados são acessados</h2>
+  <ul>
+    <li>Identificador da conta do cliente no portal Yalca (para saber de quem são os dados);</li>
+    <li>Valores de faturamento e quantidade de lançamentos de venda, já cadastrados no portal;</li>
+    <li>Nome e quantidade em estoque de produtos com estoque abaixo do mínimo cadastrado.</li>
+  </ul>
+  <p>A skill não acessa, não solicita e não armazena dados de pagamento, documentos pessoais,
+  localização, contatos, calendário ou qualquer dado do dispositivo Alexa em si.</p>
+
+  <h2>Onde os dados ficam armazenados</h2>
+  <p>Os dados consultados já existem e continuam armazenados exclusivamente na infraestrutura da
+  Yalca (banco de dados próprio, hospedado no Brasil). A skill não copia nem replica esses dados
+  para servidores da Amazon além do necessário para montar a resposta falada de cada pergunta, que
+  não fica retida após a resposta.</p>
+  <p>O único dado novo criado pela vinculação é o token de acesso da Alexa em si, que expira
+  automaticamente em até 30 dias e pode ser revogado a qualquer momento pelo cliente.</p>
+
+  <h2>Compartilhamento com terceiros</h2>
+  <p>Nenhum dado é vendido, compartilhado ou usado para publicidade. Os dados trafegam apenas entre
+  os servidores da Amazon Alexa e o servidor da Yalca, por conexão criptografada (HTTPS), para
+  responder à pergunta feita pelo cliente.</p>
+
+  <h2>Direitos do titular (LGPD)</h2>
+  <p>Como cliente, você pode solicitar a qualquer momento a confirmação, correção ou exclusão dos
+  seus dados, ou a revogação da vinculação com a Alexa, entrando em contato pelo e-mail abaixo.</p>
+
+  <h2>Contato</h2>
+  <p>Dúvidas sobre esta política ou sobre o tratamento dos seus dados:
+  <a href="mailto:contato@yalca.com.br">contato@yalca.com.br</a></p>
+</main>
+
+</body>
+</html>
