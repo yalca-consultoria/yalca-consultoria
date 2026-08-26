@@ -28,8 +28,8 @@ export default function Hero() {
             Sua loja vendendo mais, <span className="text-gradient">com estratégia</span> e sem achismo.
           </h1>
           <p className="mt-5 max-w-lg text-lg text-text-muted">
-            Cuidamos da gestão dos seus marketplaces, do tráfego pago e da estratégia do seu negócio
-            para você crescer com previsibilidade e margem saudável.
+            Da negociação com fornecedores à parte contábil, passando pela gestão dos seus marketplaces
+            e pelo tráfego pago — tudo com um time só, pra você crescer com previsibilidade e margem saudável.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <a

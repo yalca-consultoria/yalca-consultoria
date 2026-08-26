@@ -3,3 +3,9 @@ Thumbs.db
 *.log
 web/node_modules
 web/dist
+
+# Skill tooling instalada localmente (não é código-fonte do projeto)
+.agents/
+.claude/skills/
+.impeccable/
+skills-lock.json

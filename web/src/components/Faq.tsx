@@ -6,7 +6,7 @@ const faqs = [
   { q: 'Preciso já ter uma loja rodando para contratar a assessoria?', a: 'Não. Trabalhamos tanto com lojas que já vendem e querem escalar, quanto com quem está começando e precisa estruturar os canais desde o início.' },
   { q: 'Em quais marketplaces vocês atuam?', a: 'Atuamos principalmente em Mercado Livre, Amazon, Shopee e lojas próprias em Shopify e Nuvemshop.' },
   { q: 'Quanto tempo leva para ver resultados?', a: 'Os primeiros ajustes de operação e anúncios costumam gerar impacto já nas primeiras semanas. Resultados mais consistentes de crescimento aparecem entre 60 e 90 dias.' },
-  { q: 'Existe contrato de fidelidade?', a: 'Não trabalhamos com fidelidade obrigatória. Acreditamos que o resultado é o que mantém a parceria.' },
+  { q: 'Como funciona o contrato?', a: 'O contrato é personalizado para cada cliente — não vendemos um pacote fechado. Montamos o escopo e as condições de acordo com o momento e o tamanho do seu negócio.' },
 ]
 
 export default function Faq() {

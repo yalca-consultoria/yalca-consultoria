@@ -1,9 +1,9 @@
 import Reveal from '../effects/Reveal'
 
 const points = [
-  { title: 'Time multidisciplinar', desc: 'Especialistas em marketplaces, tráfego pago e gestão financeira trabalhando juntos.' },
+  { title: 'Time multidisciplinar', desc: 'Especialistas em marketplaces, tráfego pago, contábil e negociação com fornecedores trabalhando juntos.' },
   { title: 'Decisão baseada em dados', desc: 'Relatórios simples e objetivos para você entender exatamente o que está funcionando.' },
-  { title: 'Sem contratos engessados', desc: 'Planos flexíveis que acompanham o momento e o tamanho do seu negócio.' },
+  { title: 'Contrato sob medida', desc: 'Nada de pacote fechado: montamos o escopo e as condições pra cada cliente, do jeito que faz sentido pro seu momento.' },
 ]
 
 export default function About() {

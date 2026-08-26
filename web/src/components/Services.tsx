@@ -1,7 +1,20 @@
 import Reveal from '../effects/Reveal'
 import HoverGlowCard from '../effects/HoverGlowCard'
 
+// 6 frentes reais do negócio (PRODUCT.md) — antes só 3 apareciam aqui
+// ("Gestão de Marketplaces", "Tráfego Pago", "Consultoria Estratégica"),
+// escondendo o real diferencial competitivo da Yalca: negociação com
+// indústria, contábil/tributário e criação de contas. Corrigido a partir
+// do critique de 2026-08-26 (P0: "Services section hides the real
+// differentiator").
 const services = [
+  {
+    icon: '🤝',
+    title: 'Negociação com Indústria',
+    desc: 'Nosso time comercial negocia direto com fornecedores e indústrias pelo poder de compra que você precisa pra ser competitivo em preço.',
+    items: ['Poder de negociação com fornecedores', 'Condições comerciais melhores', 'Sourcing de novos fornecedores'],
+    highlight: true,
+  },
   {
     icon: '🛒',
     title: 'Gestão de Marketplaces',
@@ -19,7 +32,18 @@ const services = [
     title: 'Consultoria Estratégica',
     desc: 'Visão de negócio para decisões mais seguras e crescimento sustentável.',
     items: ['Precificação e margem de lucro', 'Análise de dados e indicadores', 'Planejamento financeiro do ecommerce', 'Plano de expansão de canais'],
-    highlight: true,
+  },
+  {
+    icon: '📊',
+    title: 'Contábil & Tributário',
+    desc: 'Cuidamos da parte contábil e tributária do seu ecommerce, sem você precisar entender de imposto.',
+    items: ['Regime tributário do ecommerce', 'Organização fiscal', 'Suporte contábil contínuo'],
+  },
+  {
+    icon: '⚙️',
+    title: 'Criação de Contas & Auditoria',
+    desc: 'Configuramos suas contas em marketplaces e ERPs, e revisamos ecommerces que já estão em andamento.',
+    items: ['Criação de contas: Bling, Tiny, Amazon, Mercado Livre, Shopee', 'Revisão de ecommerces já existentes', 'Diagnóstico de operações em andamento'],
   },
 ]
 
@@ -29,19 +53,20 @@ export default function Services() {
       <div className="mx-auto max-w-6xl px-6">
         <Reveal className="mb-14 max-w-2xl">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">O que fazemos</span>
-          <h2 className="mt-3 text-3xl font-bold lg:text-4xl">Assessoria completa para o seu ecommerce</h2>
+          <h2 className="mt-3 text-3xl font-bold lg:text-4xl">Um parceiro completo, não um fornecedor a mais</h2>
           <p className="mt-3 text-text-muted">
-            Três frentes que trabalham juntas para gerar mais vendas, com processo e lucro sob controle.
+            O que você faria hoje com 3-4 fornecedores diferentes, a gente faz com um time só — da negociação
+            com a indústria ao contábil, passando pela operação dos seus canais.
           </p>
         </Reveal>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((s, i) => (
-            <Reveal key={s.title} delay={i * 0.1}>
+            <Reveal key={s.title} delay={i * 0.08}>
               <HoverGlowCard highlight={s.highlight}>
                 {s.highlight && (
                   <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-primary to-accent px-3 py-1 text-xs font-semibold text-white">
-                    Mais procurado
+                    Diferencial Yalca
                   </span>
                 )}
                 <div className="text-3xl">{s.icon}</div>

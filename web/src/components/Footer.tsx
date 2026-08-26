@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-4">
         <div>
           <a href="#top" className="font-heading text-xl font-bold">Yalca<span className="text-accent">.</span></a>
-          <p className="mt-3 text-sm text-text-muted">Assessoria de ecommerce: marketplaces, tráfego pago e estratégia em um só lugar.</p>
+          <p className="mt-3 text-sm text-text-muted">Assessoria completa de ecommerce: da negociação com fornecedores ao contábil, em um só time.</p>
         </div>
         <div>
           <h4 className="mb-3 font-bold">Navegação</h4>
@@ -17,9 +17,12 @@ export default function Footer() {
         <div>
           <h4 className="mb-3 font-bold">Serviços</h4>
           <div className="flex flex-col gap-2 text-sm text-text-muted">
+            <a href="#servicos" className="hover:text-text">Negociação com Indústria</a>
             <a href="#servicos" className="hover:text-text">Gestão de Marketplaces</a>
             <a href="#servicos" className="hover:text-text">Tráfego Pago</a>
             <a href="#servicos" className="hover:text-text">Consultoria Estratégica</a>
+            <a href="#servicos" className="hover:text-text">Contábil & Tributário</a>
+            <a href="#servicos" className="hover:text-text">Criação de Contas & Auditoria</a>
           </div>
         </div>
         <div>
