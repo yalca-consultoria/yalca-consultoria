@@ -5,6 +5,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const ok = await yalcaInitPortalShell();
   if (!ok) return;
+  initIaAgentWidget('marketplaces');
 
   const prodMarketplaceSel = document.getElementById('prodMarketplace');
   MARKETPLACES.forEach(mk => {

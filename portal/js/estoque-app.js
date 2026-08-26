@@ -5,6 +5,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const ok = await yalcaInitPortalShell();
   if (!ok) return;
+  initIaAgentWidget('estoque');
 
   document.getElementById('stockFilter').addEventListener('change', renderEstoque);
   document.getElementById('stockSearch').addEventListener('input', renderEstoque);

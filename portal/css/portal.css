@@ -1535,3 +1535,26 @@ body.portal-body {
   border-radius: var(--p-radius-sm);
   line-height: 1.6;
 }
+
+/* ============ Widget flutuante de agente por página ============ */
+.ia-widget { position: fixed; right: 20px; bottom: 20px; z-index: 900; }
+.ia-widget__toggle {
+  width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--gradient); color: #fff; font-size: 1.3rem;
+  box-shadow: 0 8px 24px -6px rgba(109, 91, 246, 0.6);
+}
+.ia-widget__panel {
+  position: absolute; right: 0; bottom: 64px; width: 340px; max-width: calc(100vw - 40px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--p-radius-md, 12px);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5); padding: var(--p-space-3); display: flex; flex-direction: column;
+}
+.ia-widget__header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 600; font-size: 0.9rem; padding-bottom: var(--p-space-2); margin-bottom: var(--p-space-2);
+  border-bottom: 1px solid var(--border);
+}
+.ia-widget__close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+.ia-widget__status { font-size: 0.8rem; min-height: 1.2em; margin: 4px 0 0; }
+@media (max-width: 480px) {
+  .ia-widget__panel { width: calc(100vw - 40px); }
+}

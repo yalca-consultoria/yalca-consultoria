@@ -69,6 +69,7 @@ function renderAll() {
   renderClientName();
   renderOverview();
   renderResetButtonLabel();
+  initIaAgentWidget('overview');
 }
 
 /* ============================================================

@@ -28,6 +28,7 @@ const { makeRestClient } = require('./lib/rest-client');
 const { makeAuthClient } = require('./lib/auth');
 const { chatStream } = require('./lib/groq-client');
 const { buildDiagnosticPrompt } = require('./lib/diagnostic-builder');
+const { buildAgentContext, isValidAgent } = require('./lib/agent-context-builder');
 
 function loadEnv(envPath) {
   const out = {};
@@ -255,6 +256,37 @@ async function handleSuporte(req, res) {
   if (!ok) console.error('erro no suporte (stream já iniciado):', error);
 }
 
+const AGENT_SYSTEM_PROMPTS = {
+  overview: 'Você é o assistente da Visão Geral do portal Yalca Consultoria. Ajude o cliente a entender o resumo do negócio: faturamento, despesas, resultado e alertas de estoque. Responda em português do Brasil, de forma direta.',
+  financeiro: 'Você é o assistente de Financeiro do portal Yalca Consultoria. Ajude o cliente a entender receitas, despesas, margem e a comparar marketplaces/categorias. Responda em português do Brasil, de forma direta e prática.',
+  fluxocaixa: 'Você é o assistente de Fluxo de Caixa do portal Yalca Consultoria. Ajude o cliente a entender o saldo em caixa e os lançamentos futuros planejados, e a planejar os próximos meses. Responda em português do Brasil, de forma direta.',
+  marketplaces: 'Você é o assistente de Marketplaces do portal Yalca Consultoria. Ajude o cliente a entender como os produtos estão distribuídos entre marketplaces e o desempenho de vendas de cada um. Responda em português do Brasil, de forma direta.',
+  estoque: 'Você é o assistente de Estoque do portal Yalca Consultoria. Ajude o cliente a identificar produtos com estoque baixo ou esgotado e priorizar reposição. Responda em português do Brasil, de forma direta.',
+  precificacao: 'Você é o assistente de Precificação do portal Yalca Consultoria. Ajude o cliente a entender margem, taxas de marketplace, impostos e frete, e como precificar melhor os produtos. Responda em português do Brasil, de forma direta.',
+  concorrencia: 'Você é o assistente de Compras & Concorrência do portal Yalca Consultoria (dados do Keepa sobre produtos monitorados na Amazon). Ajude o cliente a interpretar preço, BSR, buybox e concorrência dos produtos que ele acompanha. Responda em português do Brasil, de forma direta.',
+};
+
+async function handleAgente(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireApprovedClient(user.id, res))) return;
+
+  let body;
+  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  const agent = typeof body.agent === 'string' ? body.agent : '';
+  if (!isValidAgent(agent)) { sendJson(res, 400, { ok: false, reason: 'invalid_agent', message: 'Página não reconhecida.' }); return; }
+  const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
+  if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
+  const history = sanitizeHistory(body.history);
+
+  const context = await buildAgentContext(db, user.id, agent);
+  const systemPrompt = AGENT_SYSTEM_PROMPTS[agent]
+    + (context ? `\n\nDados reais já cadastrados pelo cliente (use isso pra responder, nunca invente números):\n${context}` : '\n\nO cliente ainda não tem dados suficientes cadastrados nessa área — oriente-o a cadastrar antes de pedir análises específicas.');
+
+  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }], systemPrompt);
+  if (!ok) console.error(`erro no agente ${agent} (stream já iniciado):`, error);
+}
+
 async function handlePanelChat(req, res) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -278,6 +310,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/assistant') { await handleAssistant(req, res); return; }
     if (req.method === 'POST' && url === '/diagnostico') { await handleDiagnostico(req, res); return; }
     if (req.method === 'POST' && url === '/suporte') { await handleSuporte(req, res); return; }
+    if (req.method === 'POST' && url === '/agente') { await handleAgente(req, res); return; }
     if (req.method === 'POST' && url === '/chat') { await handlePanelChat(req, res); return; }
     if (req.method === 'GET' && url === '/health') { sendJson(res, 200, { ok: true }); return; }
     sendJson(res, 404, { ok: false, reason: 'not_found', message: 'Rota não encontrada.' });

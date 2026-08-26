@@ -272,6 +272,9 @@ async function yalcaIaDiagnostico(onChunk) {
 async function yalcaIaSuporte(message, history, onChunk) {
   return yalcaIaApiStream('/suporte', { message, history }, onChunk);
 }
+async function yalcaIaAgente(agent, message, history, onChunk) {
+  return yalcaIaApiStream('/agente', { agent, message, history }, onChunk);
+}
 
 /* ---------- Dados de exemplo ---------- */
 

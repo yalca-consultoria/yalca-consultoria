@@ -5,6 +5,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const ok = await yalcaInitPortalShell();
   if (!ok) return;
+  initIaAgentWidget('financeiro');
 
   const tMarketplaceSel = document.getElementById('tMarketplace');
   MARKETPLACES.forEach(mk => {

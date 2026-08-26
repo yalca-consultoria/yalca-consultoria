@@ -107,6 +107,60 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
   });
 }
 
+// Widget flutuante de agente especializado — um por página do portal.
+// Reaproveita initIaChat (mesma lógica de streaming/histórico do chat de
+// Suporte) só que injeta o HTML do balão+painel na hora, em vez de exigir
+// marcação própria em cada página. AGENT_LABELS/EMPTY_TEXTS vivem aqui
+// mesmo pra não duplicar string em toda página que chama a função.
+const IA_AGENT_LABELS = {
+  overview: 'Assistente da Visão Geral',
+  financeiro: 'Assistente Financeiro',
+  fluxocaixa: 'Assistente de Fluxo de Caixa',
+  marketplaces: 'Assistente de Marketplaces',
+  estoque: 'Assistente de Estoque',
+  precificacao: 'Assistente de Precificação',
+  concorrencia: 'Assistente de Compras & Concorrência',
+};
+
+function initIaAgentWidget(agentKey) {
+  // Algumas páginas chamam a função de render principal mais de uma vez
+  // (ex: depois de recarregar dados) — sem essa guarda, o widget duplicaria
+  // o próprio DOM (e o listener do chat) a cada re-render.
+  if (document.querySelector('.ia-widget')) return;
+  const label = IA_AGENT_LABELS[agentKey];
+  if (!label) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'ia-widget';
+  wrap.innerHTML = `
+    <button type="button" class="ia-widget__toggle" id="iaWidgetToggle" aria-label="${yalcaEscapeHtml(label)}">💬</button>
+    <div class="ia-widget__panel" id="iaWidgetPanel" style="display:none;">
+      <div class="ia-widget__header">
+        <span>${yalcaEscapeHtml(label)}</span>
+        <button type="button" class="ia-widget__close" id="iaWidgetClose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="ia-chat-list" id="iaWidgetList" style="max-height:320px;"></div>
+      <p class="ia-widget__status" id="iaWidgetStatus"></p>
+      <form class="ia-chat-form" id="iaWidgetForm">
+        <textarea id="iaWidgetInput" placeholder="Pergunte algo sobre esta página..." required></textarea>
+        <button type="submit" class="btn btn--primary btn--sm">Enviar</button>
+      </form>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const toggle = document.getElementById('iaWidgetToggle');
+  const panel = document.getElementById('iaWidgetPanel');
+  const closeBtn = document.getElementById('iaWidgetClose');
+  toggle.addEventListener('click', () => { panel.style.display = panel.style.display === 'none' ? '' : 'none'; });
+  closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+
+  initIaChat({
+    listId: 'iaWidgetList', formId: 'iaWidgetForm', inputId: 'iaWidgetInput', statusId: 'iaWidgetStatus',
+    apiFn: (message, history, onChunk) => yalcaIaAgente(agentKey, message, history, onChunk),
+    emptyText: 'Pergunte algo sobre os dados desta página.',
+  });
+}
+
 // Diagnóstico: sem histórico de conversa, só um botão "gerar" e o
 // resultado (texto corrido) — os dados já vêm do que o cliente cadastrou.
 function initIaDiagnostico({ btnId, resultId, statusId }) {
