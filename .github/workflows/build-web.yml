@@ -1,0 +1,55 @@
+name: Build landing page (web/) e publicar na raiz
+
+# A VPS só faz "git pull" (webhook), não roda nenhum build — então este
+# workflow compila o projeto Vite em web/ e commita o resultado (dist/)
+# direto nos arquivos que o site já serve na raiz (index.html + assets/),
+# sem mudar a infraestrutura de hospedagem. Só dispara em mudanças dentro
+# de web/, pra não rodar à toa em commits que só mexem no portal/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/build-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependências
+        working-directory: web
+        run: npm ci
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      - name: Publicar build na raiz do site
+        run: |
+          rm -rf assets
+          cp -r web/dist/assets assets
+          cp web/dist/index.html index.html
+
+      - name: Commitar se houve mudança
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html assets
+          if git diff --cached --quiet; then
+            echo "Nada para publicar."
+          else
+            git commit -m "Publica build da landing page (web/) [skip ci]"
+            git push
+          fi

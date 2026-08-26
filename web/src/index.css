@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* Fontes e cores idênticas ao site atual (css/style.css na raiz do repo) —
+   preservadas pra não mudar a identidade visual da marca na migração. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/manrope-latin.woff2') format('woff2');
+}
+
+@theme {
+  --color-bg: #0b1120;
+  --color-bg-alt: #0f1729;
+  --color-surface: #131c31;
+  --color-surface-2: #1a2540;
+  --color-border: #24304d;
+  --color-text: #e7ebf5;
+  --color-text-muted: #9aa5bd;
+  --color-primary: #6d5bf6;
+  --color-primary-2: #8b7bff;
+  --color-accent: #22d3ee;
+  --color-whatsapp: #25d366;
+  --font-heading: "Manrope", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 90px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #6d5bf6 0%, #8b7bff 45%, #22d3ee 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
