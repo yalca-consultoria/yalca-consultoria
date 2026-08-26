@@ -26,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { makeRestClient } = require('./lib/rest-client');
 const { makeAuthClient } = require('./lib/auth');
-const { chatStream } = require('./lib/groq-client');
+const { chatStream, transcribeAudio } = require('./lib/groq-client');
 const { buildDiagnosticPrompt } = require('./lib/diagnostic-builder');
 const { buildAgentContext, isValidAgent } = require('./lib/agent-context-builder');
 
@@ -112,12 +112,13 @@ function startTextStream(res) {
 // logar) se algo falhar DEPOIS que o stream já começou — nesse caso não dá
 // mais pra mandar um JSON de erro (os headers já foram enviados), então só
 // encerra a conexão; o front-end trata isso como "parou no meio".
-async function streamChatResponse(res, messages, systemPrompt) {
+async function streamChatResponse(res, messages, systemPrompt, imageDataUrl) {
   startTextStream(res);
   try {
     const full = await chatStream(messages, {
       systemPrompt,
       apiKey: GROQ_API_KEY,
+      imageDataUrl,
       onChunk: (piece) => res.write(piece),
     });
     res.end();
@@ -131,14 +132,14 @@ async function streamChatResponse(res, messages, systemPrompt) {
 // Corpo grande demais devolve 413 explícito em vez de só destruir a conexão
 // (req.destroy() sozinho derruba o socket sem resposta HTTP nenhuma — o
 // cliente via um erro de rede cru em vez de uma mensagem tratável).
-function readJsonBody(req, res) {
+function readJsonBody(req, res, maxBytes = 200_000) {
   return new Promise((resolve, reject) => {
     let data = '';
     let tooLarge = false;
     req.on('data', (chunk) => {
       if (tooLarge) return;
       data += chunk;
-      if (data.length > 200_000) {
+      if (data.length > maxBytes) {
         tooLarge = true;
         sendJson(res, 413, { ok: false, reason: 'payload_too_large', message: 'Requisição grande demais.' });
         req.destroy();
@@ -275,16 +276,36 @@ const AGENT_SYSTEM_PROMPTS = {
   concorrencia: 'Você é o assistente de Compras & Concorrência do portal Yalca Consultoria (dados do Keepa sobre produtos monitorados na Amazon). Ajude o cliente a interpretar preço, BSR, buybox e concorrência dos produtos que ele acompanha.' + CHAT_STYLE_RULES,
 };
 
+// Foto/áudio em base64 são bem maiores que texto — corpo JSON precisa de um
+// teto bem mais generoso que os outros endpoints (200KB não cabe nem uma
+// foto pequena). 14MB de JSON cobre confortavelmente ~10MB de mídia
+// codificada em base64 (que infla ~33% o tamanho original).
+const MAX_MEDIA_BODY_BYTES = 14_000_000;
+
 async function handleAgente(req, res) {
   const user = await requireUser(req, res);
   if (!user) return;
   if (!(await requireApprovedClient(user.id, res))) return;
 
   let body;
-  try { body = await readJsonBody(req, res); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  try { body = await readJsonBody(req, res, MAX_MEDIA_BODY_BYTES); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
   const agent = typeof body.agent === 'string' ? body.agent : '';
   if (!isValidAgent(agent)) { sendJson(res, 400, { ok: false, reason: 'invalid_agent', message: 'Página não reconhecida.' }); return; }
-  const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
+
+  let message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_LEN) : '';
+  const imageDataUrl = typeof body.imageDataUrl === 'string' && body.imageDataUrl.startsWith('data:image/') ? body.imageDataUrl : null;
+  const audioBase64 = typeof body.audioBase64 === 'string' ? body.audioBase64 : null;
+  const audioMimeType = typeof body.audioMimeType === 'string' ? body.audioMimeType : 'audio/webm';
+
+  if (audioBase64) {
+    try {
+      const transcribed = await transcribeAudio({ audioBase64, mimeType: audioMimeType, apiKey: GROQ_API_KEY });
+      message = (message ? `${message}\n${transcribed}` : transcribed).trim().slice(0, MAX_MESSAGE_LEN);
+    } catch (err) {
+      sendJson(res, 200, { ok: false, reason: 'transcription_error', message: 'Não consegui entender o áudio. Tente falar de novo ou digitar a pergunta.' });
+      return;
+    }
+  }
   if (!message) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Mensagem vazia.' }); return; }
   const history = sanitizeHistory(body.history);
 
@@ -292,7 +313,7 @@ async function handleAgente(req, res) {
   const systemPrompt = AGENT_SYSTEM_PROMPTS[agent]
     + (context ? `\n\nDados reais já cadastrados pelo cliente (use isso pra responder, nunca invente números):\n${context}` : '\n\nO cliente ainda não tem dados suficientes cadastrados nessa área — oriente-o a cadastrar antes de pedir análises específicas.');
 
-  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }], systemPrompt);
+  const { ok, error } = await streamChatResponse(res, [...history, { role: 'user', content: message }], systemPrompt, imageDataUrl);
   if (!ok) console.error(`erro no agente ${agent} (stream já iniciado):`, error);
 }
 

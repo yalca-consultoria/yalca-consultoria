@@ -1555,6 +1555,13 @@ body.portal-body {
 }
 .ia-widget__close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
 .ia-widget__status { font-size: 0.8rem; min-height: 1.2em; margin: 4px 0 0; }
+.ia-attach-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ia-attach-btn {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  width: 32px; height: 32px; cursor: pointer; font-size: 0.95rem; line-height: 1;
+}
+.ia-attach-btn.is-recording { background: var(--critical); border-color: var(--critical); }
+.ia-attach-preview { font-size: 0.78rem; color: var(--text-muted); }
 @media (max-width: 480px) {
   .ia-widget__panel { width: calc(100vw - 40px); }
 }

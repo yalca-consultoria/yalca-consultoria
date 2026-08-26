@@ -26,8 +26,11 @@ function initIaTabs() {
 }
 
 // Cria um chat completo (histórico + input + envio) num container.
-// apiFn(message, history) -> {ok, reply, message}
-function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
+// apiFn(message, history, onChunk, attachments) -> {ok, reply, message}
+// enableAttachments (opcional): injeta botão de foto + microfone antes do
+// campo de texto — só usado pelo widget de agente por página; os outros
+// chats (Assistente/Suporte) continuam sem, passando undefined.
+function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enableAttachments }) {
   const list = document.getElementById(listId);
   const form = document.getElementById(formId);
   const input = document.getElementById(inputId);
@@ -35,6 +38,10 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
   if (!form) return;
 
   const history = [];
+  let pendingImageDataUrl = null;
+  let pendingAudio = null; // { base64, mimeType }
+  let mediaRecorder = null;
+  let recordedChunks = [];
 
   function renderMessage(role, text) {
     const row = document.createElement('div');
@@ -51,16 +58,85 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
     list.appendChild(hint);
   }
 
+  let attachBtn, micBtn, imageInput, attachPreview;
+  if (enableAttachments) {
+    const row = document.createElement('div');
+    row.className = 'ia-attach-row';
+    row.innerHTML = `
+      <input type="file" accept="image/*" id="${inputId}_img" style="display:none;">
+      <button type="button" class="ia-attach-btn" id="${inputId}_attachBtn" title="Anexar foto">📷</button>
+      <button type="button" class="ia-attach-btn" id="${inputId}_micBtn" title="Gravar áudio">🎤</button>
+      <span class="ia-attach-preview" id="${inputId}_preview"></span>`;
+    form.parentNode.insertBefore(row, form);
+    imageInput = row.querySelector(`#${inputId}_img`);
+    attachBtn = row.querySelector(`#${inputId}_attachBtn`);
+    micBtn = row.querySelector(`#${inputId}_micBtn`);
+    attachPreview = row.querySelector(`#${inputId}_preview`);
+
+    attachBtn.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingImageDataUrl = reader.result;
+        attachPreview.textContent = '🖼️ foto anexada';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    micBtn.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        micBtn.textContent = '🎤';
+        micBtn.classList.remove('is-recording');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = () => {
+            pendingAudio = { base64: reader.result.split(',')[1], mimeType: 'audio/webm' };
+            attachPreview.textContent = '🎙️ áudio gravado';
+          };
+          reader.readAsDataURL(blob);
+        };
+        mediaRecorder.start();
+        micBtn.textContent = '⏹️';
+        micBtn.classList.add('is-recording');
+      } catch {
+        statusEl.textContent = 'Não foi possível acessar o microfone.';
+        statusEl.style.color = 'var(--critical)';
+      }
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = input.value.trim();
-    if (!message) return;
+    if (!message && !pendingImageDataUrl && !pendingAudio) return;
 
     const emptyHint = list.querySelector('.alert-empty');
     if (emptyHint) emptyHint.remove();
 
-    renderMessage('user', message);
+    const attachments = (pendingImageDataUrl || pendingAudio)
+      ? { imageDataUrl: pendingImageDataUrl, audioBase64: pendingAudio?.base64, audioMimeType: pendingAudio?.mimeType }
+      : null;
+    let userLabel = message;
+    if (!userLabel) userLabel = attachments?.imageDataUrl ? '📷 (foto enviada)' : '🎤 (áudio enviado)';
+    else if (attachments?.imageDataUrl) userLabel += ' 📷';
+    renderMessage('user', userLabel);
     input.value = '';
+    pendingImageDataUrl = null;
+    pendingAudio = null;
+    if (attachPreview) attachPreview.textContent = '';
+    if (imageInput) imageInput.value = '';
     input.disabled = true;
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -85,14 +161,14 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText }) {
         full += piece;
         bubble.innerHTML = yalcaEscapeHtml(full).replace(/\n/g, '<br>');
         list.scrollTop = list.scrollHeight;
-      });
+      }, attachments);
       if (!result.ok) {
         if (started) bubbleRow.remove();
         statusEl.textContent = result.message || 'Não foi possível gerar a resposta agora.';
         statusEl.style.color = 'var(--warning)';
         return;
       }
-      history.push({ role: 'user', content: message }, { role: 'assistant', content: result.reply });
+      history.push({ role: 'user', content: message || userLabel }, { role: 'assistant', content: result.reply });
       statusEl.textContent = '';
     } catch (err) {
       if (started) bubbleRow.remove();
@@ -156,8 +232,9 @@ function initIaAgentWidget(agentKey) {
 
   initIaChat({
     listId: 'iaWidgetList', formId: 'iaWidgetForm', inputId: 'iaWidgetInput', statusId: 'iaWidgetStatus',
-    apiFn: (message, history, onChunk) => yalcaIaAgente(agentKey, message, history, onChunk),
-    emptyText: 'Pergunte algo sobre os dados desta página.',
+    apiFn: (message, history, onChunk, attachments) => yalcaIaAgente(agentKey, message, history, onChunk, attachments),
+    emptyText: 'Pergunte algo sobre os dados desta página, ou anexe uma foto/áudio.',
+    enableAttachments: true,
   });
 }
 

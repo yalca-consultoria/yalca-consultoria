@@ -9,7 +9,12 @@
 // estourar, a API devolve 429 (tratado abaixo).
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_TRANSCRIBE_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const MODEL = 'openai/gpt-oss-120b';
+// gpt-oss não aceita imagem — quando o cliente manda uma foto, troca pra
+// esse modelo com visão (mesma família Llama 4, também gratuito na Groq).
+const VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const WHISPER_MODEL = 'whisper-large-v3-turbo';
 // gpt-oss é um modelo de raciocínio: antes de responder ele gera tokens de
 // "pensamento" em inglês (campo separado `reasoning`, não aparece na
 // resposta) que contam no mesmo orçamento de max_completion_tokens. Com
@@ -31,13 +36,24 @@ function mapError(status, bodyText) {
 // messages: [{role: 'user'|'assistant', content: string}, ...]. onChunk
 // recebe cada pedaço de texto assim que chega (parsing manual do SSE no
 // formato OpenAI: linhas "data: {...}", terminado por "data: [DONE]").
-async function chatStream(messages, { systemPrompt, onChunk, apiKey }) {
-  const fullMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+// imageDataUrl (opcional): data URL da foto que o cliente anexou — quando
+// presente, vira parte do conteúdo multimodal da ÚLTIMA mensagem do
+// usuário, e troca o modelo pro que tem visão (gpt-oss não entende imagem).
+async function chatStream(messages, { systemPrompt, onChunk, apiKey, imageDataUrl }) {
+  let fullMessages = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+
+  if (imageDataUrl) {
+    fullMessages = fullMessages.map((m, i) => {
+      if (i !== fullMessages.length - 1 || m.role !== 'user') return m;
+      return { role: 'user', content: [{ type: 'text', text: m.content }, { type: 'image_url', image_url: { url: imageDataUrl } }] };
+    });
+  }
+  const model = imageDataUrl ? VISION_MODEL : MODEL;
 
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: MODEL, messages: fullMessages, max_completion_tokens: MAX_TOKENS, reasoning_effort: REASONING_EFFORT, stream: true }),
+    body: JSON.stringify({ model, messages: fullMessages, max_completion_tokens: MAX_TOKENS, reasoning_effort: REASONING_EFFORT, stream: true }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok || !res.body) throw mapError(res.status, await res.text().catch(() => ''));
@@ -69,4 +85,26 @@ async function chatStream(messages, { systemPrompt, onChunk, apiKey }) {
   return full;
 }
 
-module.exports = { chatStream, MODEL };
+// Transcreve um áudio (base64) pra texto via Whisper da Groq — usado
+// quando o cliente grava a pergunta em vez de digitar. audioBase64 sem o
+// prefixo "data:...;base64,", mimeType tipo "audio/webm".
+async function transcribeAudio({ audioBase64, mimeType, apiKey }) {
+  const buffer = Buffer.from(audioBase64, 'base64');
+  const ext = mimeType.includes('webm') ? 'webm' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'm4a';
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: mimeType }), `audio.${ext}`);
+  form.append('model', WHISPER_MODEL);
+  form.append('language', 'pt');
+
+  const res = await fetch(GROQ_TRANSCRIBE_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw mapError(res.status, await res.text().catch(() => ''));
+  const json = await res.json();
+  return json.text || '';
+}
+
+module.exports = { chatStream, transcribeAudio, MODEL };
