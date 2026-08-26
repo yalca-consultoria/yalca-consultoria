@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+
+const navItems = [
+  { href: '#servicos', label: 'Serviços' },
+  { href: '#sobre', label: 'Sobre' },
+  { href: '#faq', label: 'FAQ' },
+]
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
+  const [hovered, setHovered] = useState<string | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -19,6 +27,32 @@ export default function Header() {
         <a href="#top" className="font-heading text-xl font-bold">
           Yalca<span className="text-accent">.</span>
         </a>
+
+        {/* Menu central com pill animada seguindo o item em hover — mesmo
+            tipo de efeito de navegação mostrado no vídeo. */}
+        <nav
+          className="relative hidden items-center gap-1 rounded-full border border-border bg-surface/60 p-1 md:flex"
+          onMouseLeave={() => setHovered(null)}
+        >
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onMouseEnter={() => setHovered(item.href)}
+              className="relative z-10 rounded-full px-4 py-1.5 text-sm font-semibold text-text-muted transition-colors hover:text-text"
+            >
+              {hovered === item.href && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 -z-10 rounded-full bg-surface-2"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
         <div className="flex items-center gap-3">
           <a
             href="/portal/login.html"

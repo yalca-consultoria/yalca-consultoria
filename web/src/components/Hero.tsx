@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import AuroraBackground from '../effects/AuroraBackground'
+import FlowFieldBackground from '../effects/FlowFieldBackground'
 
 const floats = [
   { src: '/img/marketplaces/mercadolivre.svg', className: 'top-4 left-0' },
@@ -12,6 +13,7 @@ const floats = [
 export default function Hero() {
   return (
     <section id="top" className="relative isolate overflow-hidden pt-20 pb-24">
+      <FlowFieldBackground />
       <AuroraBackground />
       <div className="relative mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-2 lg:items-center">
         <motion.div
