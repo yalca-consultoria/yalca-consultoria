@@ -1,15 +1,7 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-
-const navItems = [
-  { href: '#servicos', label: 'Serviços' },
-  { href: '#sobre', label: 'Sobre' },
-  { href: '#faq', label: 'FAQ' },
-]
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
-  const [hovered, setHovered] = useState<string | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -28,43 +20,31 @@ export default function Header() {
           Yalca<span className="text-accent">.</span>
         </a>
 
-        {/* Menu central com pill animada seguindo o item em hover — mesmo
-            tipo de efeito de navegação mostrado no vídeo. */}
-        <nav
-          className="relative hidden items-center gap-1 rounded-full border border-border bg-surface/60 p-1 md:flex"
-          onMouseLeave={() => setHovered(null)}
-        >
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              onMouseEnter={() => setHovered(item.href)}
-              className="relative z-10 rounded-full px-4 py-1.5 text-sm font-semibold text-text-muted transition-colors hover:text-text"
-            >
-              {hovered === item.href && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 -z-10 rounded-full bg-surface-2"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-3">
+        {/* Escondido abaixo de sm (640px) — sem menu mobile ainda, esses dois
+            botões não cabem lado a lado com a logo e quebravam linha dentro
+            do container de altura fixa do hover "roll-text", cortando o
+            texto e empurrando o resto da página (bug real relatado pelo
+            usuário, 2026-08-26). O botão flutuante do WhatsApp já cobre a
+            conversão em telas pequenas. */}
+        <div className="hidden items-center gap-3 sm:flex">
           <a
             href="/portal/login.html"
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold transition hover:border-primary-2 hover:text-primary-2"
+            className="rounded-full border border-border px-4 py-2 text-sm font-semibold whitespace-nowrap transition hover:border-primary-2 hover:text-primary-2"
           >
             Área do Cliente
           </a>
           <a
             href="#contato"
-            className="rounded-full bg-gradient-to-r from-primary via-primary-2 to-accent px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+            className="rounded-full bg-gradient-to-r from-primary via-primary-2 to-accent p-0.5 transition hover:-translate-y-0.5"
           >
-            Fale com um especialista
+            <span className="group flex items-center gap-2 whitespace-nowrap rounded-full bg-bg px-4 py-1.5">
+              <span className="roll-text h-[1.1em] overflow-hidden text-sm font-semibold">
+                <span className="roll-text__inner block">
+                  <span className="block">Fale com um especialista</span>
+                  <span className="block">Fale com um especialista</span>
+                </span>
+              </span>
+            </span>
           </a>
         </div>
       </div>

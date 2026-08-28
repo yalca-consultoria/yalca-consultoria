@@ -14,7 +14,7 @@ export default function Faq() {
 
   return (
     <section id="faq" className="py-24">
-      <div className="mx-auto max-w-3xl px-6">
+      <div className="mx-auto max-w-6xl px-6">
         <Reveal className="mb-12 text-center">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">Dúvidas frequentes</span>
           <h2 className="mt-3 text-3xl font-bold lg:text-4xl">Perguntas frequentes</h2>

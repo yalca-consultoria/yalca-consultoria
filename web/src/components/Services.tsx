@@ -1,5 +1,6 @@
 import Reveal from '../effects/Reveal'
 import HoverGlowCard from '../effects/HoverGlowCard'
+import RollButton from '../effects/RollButton'
 
 // 6 frentes reais do negócio (PRODUCT.md) — antes só 3 apareciam aqui
 // ("Gestão de Marketplaces", "Tráfego Pago", "Consultoria Estratégica"),
@@ -51,7 +52,7 @@ export default function Services() {
   return (
     <section id="servicos" className="py-24">
       <div className="mx-auto max-w-6xl px-6">
-        <Reveal className="mb-14 max-w-2xl">
+        <Reveal className="mb-14">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">O que fazemos</span>
           <h2 className="mt-3 text-3xl font-bold lg:text-4xl">Um parceiro completo, não um fornecedor a mais</h2>
           <p className="mt-3 text-text-muted">
@@ -62,13 +63,8 @@ export default function Services() {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {services.map((s, i) => (
-            <Reveal key={s.title} delay={i * 0.08}>
+            <Reveal key={s.title} delay={i * 0.08} className="h-full">
               <HoverGlowCard highlight={s.highlight}>
-                {s.highlight && (
-                  <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-primary to-accent px-3 py-1 text-xs font-semibold text-white">
-                    Diferencial Yalca
-                  </span>
-                )}
                 <div className="text-3xl">{s.icon}</div>
                 <h3 className="mt-4 text-xl font-bold">{s.title}</h3>
                 <p className="mt-2 text-text-muted">{s.desc}</p>
@@ -79,6 +75,15 @@ export default function Services() {
                     </li>
                   ))}
                 </ul>
+                {/* mt-auto empurra o botão pro rodapé do card sempre, mesmo
+                    quando os cards vizinhos na mesma linha têm mais texto/
+                    itens — antes cada card só tinha a altura do seu próprio
+                    conteúdo, e o botão ficava em alturas bem diferentes de
+                    card pra card (bug real relatado pelo usuário, medido:
+                    até 90px de diferença, 2026-08-26). */}
+                <a href="#contato" className="mt-auto inline-block pt-6">
+                  <RollButton label="Saiba mais" />
+                </a>
               </HoverGlowCard>
             </Reveal>
           ))}

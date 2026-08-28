@@ -26,7 +26,7 @@ export default function HoverGlowCard({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-px ${className}`}>
+    <div className={`relative h-full overflow-hidden rounded-2xl p-px ${className}`}>
       <motion.div
         className="absolute inset-[-50%] rounded-2xl"
         style={{
@@ -41,7 +41,7 @@ export default function HoverGlowCard({
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
-        className="group relative overflow-hidden rounded-2xl bg-surface p-8 transition-transform duration-300 hover:-translate-y-1.5"
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-surface p-8 transition-transform duration-300 hover:-translate-y-1.5"
       >
         <div
           className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
@@ -49,7 +49,7 @@ export default function HoverGlowCard({
             background: `radial-gradient(280px circle at ${pos.x}% ${pos.y}%, rgba(109,91,246,0.22), transparent 70%)`,
           }}
         />
-        <div className="relative">{children}</div>
+        <div className="relative flex h-full flex-col">{children}</div>
       </div>
     </div>
   )

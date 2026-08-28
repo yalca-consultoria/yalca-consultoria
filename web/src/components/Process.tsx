@@ -11,7 +11,7 @@ export default function Process() {
   return (
     <section className="py-24">
       <div className="mx-auto max-w-6xl px-6">
-        <Reveal className="mb-14 max-w-2xl">
+        <Reveal className="mb-14">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">Como funciona</span>
           <h2 className="mt-3 text-3xl font-bold lg:text-4xl">Do diagnóstico ao crescimento, em 4 etapas</h2>
         </Reveal>

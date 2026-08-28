@@ -3,19 +3,21 @@ import { useState } from 'react'
 
 export type LogoItem = { src: string; alt: string }
 
-// Carrossel infinito de logos — pausa no hover do trilho inteiro, e cada
-// logo individual passa de preto-e-branco pra cor real ao passar o mouse
-// (efeito comum em landing pages premium pra dar vida ao "trust bar").
+// Carrossel infinito de logos — pausa no hover do trilho inteiro. Os logos
+// ficam sempre coloridos (antes desaturava e só voltava à cor no hover de
+// cada um — pedido pra tirar isso, 2026-08-28); e o hover de cada chip é só
+// CSS puro (:hover), sem estado do React por item, que antes disparava um
+// re-render da lista inteira (~26 itens) a cada movimento do mouse durante
+// a animação e travava o carrossel (bug real relatado, 2026-08-28).
 export default function LogoLoop({ logos }: { logos: LogoItem[] }) {
   const track = [...logos, ...logos]
   const [paused, setPaused] = useState(false)
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
 
   return (
     <div
       className="relative overflow-hidden py-2 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
       onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => { setPaused(false); setHoveredIdx(null) }}
+      onMouseLeave={() => setPaused(false)}
     >
       <motion.div
         className="flex w-max gap-10"
@@ -25,19 +27,11 @@ export default function LogoLoop({ logos }: { logos: LogoItem[] }) {
         {track.map((logo, i) => (
           <div
             key={`${logo.alt}-${i}`}
-            onMouseEnter={() => setHoveredIdx(i)}
-            className="flex h-16 w-32 shrink-0 items-center justify-center rounded-xl border border-border bg-surface/60 px-4 transition-colors duration-300 hover:border-primary-2"
+            className="flex h-16 w-32 shrink-0 items-center justify-center rounded-xl border border-border bg-white px-4 transition-colors duration-300 hover:border-primary-2"
           >
-            <img
-              src={logo.src}
-              alt={logo.alt}
-              loading="lazy"
-              className="max-h-8 w-auto transition-all duration-300"
-              style={{
-                filter: hoveredIdx === i ? 'none' : 'grayscale(1)',
-                opacity: hoveredIdx === i ? 1 : 0.6,
-              }}
-            />
+            {/* Fundo branco fixo no chip — vários logos (Bling, Tiny,
+                Americanas etc.) usam arte escura pensada pra fundo claro. */}
+            <img src={logo.src} alt={logo.alt} loading="lazy" className="max-h-8 w-auto" />
           </div>
         ))}
       </motion.div>
