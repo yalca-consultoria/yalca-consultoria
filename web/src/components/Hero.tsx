@@ -41,18 +41,18 @@ export default function Hero() {
           </motion.p>
 
           <motion.div
-            className="mt-8 flex flex-wrap items-center gap-4"
+            className="mt-8 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center"
             initial={{ opacity: 0, y: 16 }}
             animate={done ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <div className="btn-border-wrap">
+            <div className="btn-border-wrap w-full sm:w-auto">
               <div className="btn-border-mask">
                 <div className="btn-border-spin" />
               </div>
               <a
                 href="#contato"
-                className="btn-fill-swap--right btn-fill-swap relative flex items-center gap-2 rounded-full bg-[#060218] px-7 py-3.5 text-base font-semibold text-white"
+                className="btn-fill-swap--right btn-fill-swap relative flex w-full items-center justify-center gap-2 rounded-full bg-[#060218] px-7 py-3.5 text-base font-semibold text-white sm:w-auto"
               >
                 Iniciar projeto
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -62,7 +62,7 @@ export default function Hero() {
             </div>
             <a
               href="#servicos"
-              className="rounded-full border border-border px-6 py-3 font-semibold transition hover:border-primary-2 hover:text-primary-2"
+              className="flex items-center justify-center rounded-full border border-border px-6 py-3.5 text-center font-semibold transition hover:border-primary-2 hover:text-primary-2 sm:py-3"
             >
               Ver serviços
             </a>
