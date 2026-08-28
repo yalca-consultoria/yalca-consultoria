@@ -8,10 +8,10 @@ export default function Hero() {
   const { visible, done } = useTypewriter(HEADLINE, 35, 400)
 
   return (
-    <section id="top" className="relative isolate overflow-hidden pt-20 pb-14">
+    <section id="top" className="relative isolate overflow-hidden pt-10 pb-14 sm:pt-14 lg:pt-20">
       <div className="relative mx-auto flex max-w-6xl flex-col gap-12 px-6 lg:flex-row lg:items-center lg:justify-between">
         <motion.div
-          className="flex-[0_1_560px] pt-10"
+          className="flex-[0_1_560px] lg:pt-10"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
