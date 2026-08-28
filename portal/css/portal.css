@@ -541,7 +541,22 @@ body.portal-body {
   background: var(--bg-alt);
   z-index: 20;
 }
-.portal-topbar h2 { font-size: 1.35rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; }
+.portal-topbar h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  /* min-width:0 permite que o título encolha dentro do flex do topbar em
+     vez de forçar a largura do item pelo conteúdo — sem isso, em telas
+     estreitas (ex: admin.html, onde o título divide a barra com os botões
+     "Meu painel"/"Sair" sem nenhum hambúrguer do lado esquerdo pra
+     "absorver" espaço) o texto empurrava os botões pra fora da tela. O
+     ellipsis dá uma saída graciosa pro título truncar em vez de vazar. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .portal-topbar__eyebrow {
   display: block;
   font-size: var(--p-text-xs);
@@ -1380,11 +1395,14 @@ body.portal-body {
   min-width: 200px;
 }
 .search-input:focus { outline: none; border-color: var(--primary-2); }
-.modal__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.modal__head h3 { font-size: 1.1rem; font-weight: 800; }
-.modal__close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; min-width: 36px; min-height: 36px; }
+.modal__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; }
+.modal__head h3 { font-size: 1.1rem; font-weight: 800; min-width: 0; }
+.modal__close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; min-width: 36px; min-height: 36px; flex-shrink: 0; }
 .modal form { display: flex; flex-direction: column; gap: 14px; }
-.modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+/* flex-wrap: alguns modais têm 2-3 botões nesta barra (ex: sellerIdModal
+   tem "Sincronizar vitrine agora" + "Fechar" + "Salvar") — sem wrap, esse
+   texto mais longo estourava a largura do modal em vez de quebrar linha. */
+.modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 
 /* =========================================
    RESPONSIVE
@@ -1417,6 +1435,26 @@ body.portal-body {
   .portal-content { padding: 16px; gap: 20px; }
   .panel { padding: 18px; }
   .demo-banner { font-size: 0.72rem; padding: 6px 10px; }
+
+  /* Modais: menos padding pra sobrar largura útil de verdade num backdrop
+     que já perde 24px de cada lado no mobile (ver .modal-backdrop). */
+  .modal { padding: 20px; }
+
+  /* Ações do modal empilham em largura cheia, mesmo padrão de empilhamento
+     usado nos CTAs do hero da landing — coluna invertida pra ação
+     primária (ex: "Salvar", que vem depois no HTML) aparecer no topo. */
+  .modal__actions { flex-direction: column-reverse; align-items: stretch; }
+  .modal__actions .btn { width: 100%; }
+  /* Grupos de botões aninhados dentro da barra de ações (ex: sellerIdModal:
+     "Fechar" + "Salvar" lado a lado) mantêm o próprio flex interno, só
+     esticam pra ocupar a largura da coluna acima. */
+  .modal__actions > div[style*="display:flex"] { width: 100%; }
+  .modal__actions > div[style*="display:flex"] .btn { width: auto; flex: 1; }
+
+  /* Topbar sem sidebar/hambúrguer (ex: admin.html): o grupo de ações não
+     pode encolher — é o título (com min-width:0 + ellipsis acima) que cede
+     espaço primeiro. */
+  .portal-topbar > div[style*="display:flex"] { flex-shrink: 0; }
 
   .period-filter-bar { padding: 14px 16px; gap: 14px; }
   .period-filter-bar .field input[type="date"] { min-width: 0; width: 100%; }
