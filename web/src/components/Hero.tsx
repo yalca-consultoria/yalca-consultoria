@@ -70,7 +70,7 @@ export default function Hero() {
         </motion.div>
 
         <motion.div
-          className="mx-auto w-full max-w-[420px] shrink-0 lg:mx-0"
+          className="mx-auto hidden w-full max-w-[420px] shrink-0 sm:block lg:mx-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.3, ease: 'easeOut' }}
