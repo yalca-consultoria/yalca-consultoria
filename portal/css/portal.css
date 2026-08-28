@@ -1163,8 +1163,24 @@ body.portal-body {
 .alert-item.critical::before { background: var(--critical); }
 .alert-item.warning { border-color: rgba(250,178,25,0.3); background: rgba(250,178,25,0.06); }
 .alert-item.warning::before { background: var(--warning); }
-.alert-item strong { display: block; color: var(--text); margin-bottom: 2px; }
-.alert-item span { color: var(--text-muted); font-size: 0.82rem; }
+/* .good: faltava um nível pra notícia positiva (ex: "recuperou a buybox")
+   — antes caía sem classe nenhuma e ficava com a cara de alerta neutro,
+   escondendo que era uma boa notícia. */
+.alert-item.good { border-color: rgba(43,166,101,0.32); background: rgba(43,166,101,0.06); }
+.alert-item.good::before { background: var(--good); }
+.alert-item__body { min-width: 0; flex: 1; }
+.alert-item__body strong { display: block; color: var(--text); margin-bottom: 2px; }
+.alert-item__body span { color: var(--text-muted); font-size: 0.82rem; }
+/* Hora relativa ("há 2h") — sem isso não dava pra saber se um alerta era
+   de agora ou de semana passada, e a lista não tem paginação nem indica
+   quando foi atualizada. */
+.alert-item__time { flex-shrink: 0; color: var(--text-muted); font-size: 0.76rem; white-space: nowrap; padding-top: 1px; }
+/* Clicável: abre o mesmo popup de detalhe da tabela de produtos
+   monitorados — antes o alerta era só texto estático, sem link nenhum
+   pro produto que ele estava avisando. */
+.alert-item--clickable { cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+.alert-item--clickable:hover, .alert-item--clickable:focus-visible { border-color: var(--primary-2); }
+.alert-item--clickable:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
 .alert-empty { color: var(--text-muted); font-size: 0.88rem; padding: 8px 0; }
 
 /* ---------- Gráficos ---------- */
@@ -1441,6 +1457,12 @@ body.portal-body {
   .portal-content { padding: 16px; gap: 20px; }
   .panel { padding: 18px; }
   .demo-banner { font-size: 0.72rem; padding: 6px 10px; }
+
+  /* Alertas: a hora relativa quebra pra linha própria em vez de espremer
+     ao lado de um título longo (que aí quebra em 2 linhas e deixa a hora
+     "flutuando" descolada no meio do card). */
+  .alert-item { flex-wrap: wrap; }
+  .alert-item__time { width: 100%; margin-left: 30px; margin-top: -4px; }
 
   /* Modais: menos padding pra sobrar largura útil de verdade num backdrop
      que já perde 24px de cada lado no mobile (ver .modal-backdrop). */

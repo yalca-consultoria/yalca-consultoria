@@ -70,15 +70,25 @@ function yalcaEscapeHtml(str) {
 // único de antes) — charts.js já era carregado por todas elas, então
 // virou o lugar natural pra utilitário de render compartilhado, em vez de
 // duplicar a mesma função em cada página nova.
+// `time` (texto tipo "há 2h", opcional) e `asin` (opcional — quando presente
+// o item vira clicável, com data-asin pro caller escutar o clique e abrir o
+// detalhe do produto) foram adicionados 2026-08-28 pros alertas de
+// concorrência (Keepa); os outros usos de renderAlertList (Visão Geral,
+// Estoque) continuam passando só {level, icon, title, sub} e renderizam
+// exatamente como antes, sem hora nem clique.
 function renderAlertList(container, alerts) {
   if (alerts.length === 0) {
     container.innerHTML = '<p class="alert-empty">Nenhum alerta no momento. Tudo sob controle. ✅</p>';
     return;
   }
   container.innerHTML = alerts.map(a => `
-    <div class="alert-item ${a.level}">
+    <div class="alert-item ${a.level}${a.asin ? ' alert-item--clickable' : ''}" ${a.asin ? `data-asin="${yalcaEscapeHtml(a.asin)}" role="button" tabindex="0"` : ''}>
       <span class="alert-item__icon">${a.icon}</span>
-      <div><strong>${yalcaEscapeHtml(a.title)}</strong><span>${yalcaEscapeHtml(a.sub)}</span></div>
+      <div class="alert-item__body">
+        <strong>${yalcaEscapeHtml(a.title)}</strong>
+        <span>${yalcaEscapeHtml(a.sub)}</span>
+      </div>
+      ${a.time ? `<span class="alert-item__time">${yalcaEscapeHtml(a.time)}</span>` : ''}
     </div>`).join('');
 }
 

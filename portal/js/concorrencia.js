@@ -42,6 +42,20 @@ function initKeepaSection() {
     if (row) openKeepaTrackedDetail(row.dataset.asin);
   });
 
+  // "Alertas recentes": clicar num alerta com produto ainda monitorado
+  // (renderKeepaAlerts só marca data-asin nesse caso) abre o mesmo popup
+  // de detalhe usado na tabela de produtos monitorados — antes o alerta
+  // era só texto estático, sem nenhum jeito de ir direto pro produto.
+  document.getElementById('keepaAlerts').addEventListener('click', (e) => {
+    const item = e.target.closest('[data-asin]');
+    if (item) openKeepaTrackedDetail(item.dataset.asin);
+  });
+  document.getElementById('keepaAlerts').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const item = e.target.closest('[data-asin]');
+    if (item) { e.preventDefault(); openKeepaTrackedDetail(item.dataset.asin); }
+  });
+
   document.getElementById('keepaSearchForm').addEventListener('submit', handleKeepaSearchSubmit);
 
   document.getElementById('keepaUseInPricingBtn').addEventListener('click', useKeepaResultInPricingCalculator);
@@ -363,13 +377,25 @@ function renderKeepaAlerts() {
     } else if (a.alert_type === 'buybox_changed' && ownSeller && a.previous_value && a.previous_value.seller === ownSeller) {
       level = 'critical'; icon = '⛔'; message = `Você perdeu a buybox pra ${a.new_value?.seller ?? 'outro vendedor'}.`;
     } else if (a.alert_type === 'buybox_regained' && ownSeller && a.new_value && a.new_value.seller === ownSeller) {
-      level = ''; icon = '✅'; message = 'Você recuperou a buybox!';
+      level = 'good'; icon = '✅'; message = 'Você recuperou a buybox!';
     } else if (a.alert_type === 'price_drop') { icon = '📉'; }
     else if (a.alert_type === 'price_increase') { icon = '📈'; }
     else if (a.alert_type === 'out_of_stock') { level = 'critical'; icon = '⛔'; }
     else if (a.alert_type === 'rating_drop') { icon = '⭐'; }
 
-    return { level, icon, title: trackedLabelByAsin[a.asin] || a.asin, sub: message };
+    // Só vira clicável se o produto ainda está sendo monitorado — um
+    // alerta antigo de um ASIN que o cliente já removeu do monitoramento
+    // não tem detalhe nenhum pra abrir (evita clique morto).
+    const stillTracked = Object.prototype.hasOwnProperty.call(trackedLabelByAsin, a.asin);
+
+    return {
+      level,
+      icon,
+      title: trackedLabelByAsin[a.asin] || a.asin,
+      sub: message,
+      time: yalcaKeepaRelativeAge(a.created_at),
+      asin: stillTracked ? a.asin : undefined,
+    };
   });
 
   renderAlertList(container, formatted);
