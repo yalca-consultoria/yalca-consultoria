@@ -899,6 +899,12 @@ body.portal-body {
    alturas visivelmente diferentes — bordas desencontradas na linha. */
 .grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: stretch; }
 .grid-2--reverse { grid-template-columns: 1fr 1.3fr; }
+/* min-width:0 nos itens: por padrão um item de grid não encolhe abaixo do
+   min-content do conteúdo interno (ex: a barra de ferramentas de um painel
+   com select + botão) — sem isso, um painel com conteúdo largo estourava a
+   coluna de 1fr inteira em vez de quebrar linha, vazando a página pra fora
+   da tela (achado ao colocar painéis com toolbar dentro de .grid-2). */
+.grid-2 > *, .grid-2--reverse > * { min-width: 0; }
 
 /* Painéis de referência colapsáveis (ex: legenda de status) — ficam a um
    clique de distância em vez de competir por espaço com o conteúdo ativo. */
