@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Header from './components/Header'
 import Hero from './components/Hero'
 import Logos from './components/Logos'
@@ -12,9 +13,11 @@ import Footer from './components/Footer'
 import FloatingButtons from './components/FloatingButtons'
 
 export default function App() {
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
     <>
-      <Header />
+      <Header menuOpen={menuOpen} onMenuOpenChange={setMenuOpen} />
       <main>
         <Hero />
         <Logos />
@@ -27,7 +30,7 @@ export default function App() {
         <Contact />
       </main>
       <Footer />
-      <FloatingButtons />
+      {!menuOpen && <FloatingButtons />}
     </>
   )
 }

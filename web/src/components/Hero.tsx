@@ -21,7 +21,7 @@ export default function Hero() {
           </span>
 
           <h1
-            className="font-urbanist mt-4 min-h-[192px] text-4xl font-semibold leading-tight tracking-tight lg:text-[64px] lg:leading-[64px] lg:tracking-[-1.5px]"
+            className="font-urbanist mt-4 min-h-[180px] text-4xl font-semibold leading-tight tracking-tight sm:min-h-[100px] lg:min-h-[192px] lg:text-[64px] lg:leading-[64px] lg:tracking-[-1.5px]"
             aria-label={HEADLINE}
           >
             <span aria-hidden="true">
