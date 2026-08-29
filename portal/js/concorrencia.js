@@ -86,7 +86,42 @@ function initKeepaSection() {
   document.getElementById('keepaTrackedDetailUseInPricingBtn').addEventListener('click', () => useKeepaResultInPricingCalculator(LAST_KEEPA_TRACKED_DETAIL_RESULT));
 
   document.getElementById('keepaLoadSellerRepBtn').addEventListener('click', handleLoadSellerReputation);
+
+  document.getElementById('keepaTrackedExportBtn')?.addEventListener('click', yalcaPrintKeepaTracked);
+  document.getElementById('keepaResultExportBtn')?.addEventListener('click', yalcaPrintKeepaSearchResult);
 }
+
+// "Exportar PDF": em vez de gerar o arquivo no cliente (precisaria de uma
+// biblioteca extra só pra isso), usa a função de imprimir do próprio
+// navegador com um layout específico pra impressão — "Salvar como PDF" já
+// vem de fábrica em qualquer navegador moderno, sem depender de nada além
+// do que o portal já carrega.
+//
+// "Produtos monitorados" respeita a busca/filtro ativos (exporta só o que
+// bate com o que o cliente já filtrou) mas ignora a paginação — exportar
+// só a página atual (20 de 134) seria inútil pra esse fim.
+function yalcaPrintKeepaTracked() {
+  const tbody = document.getElementById('keepaTrackedBody');
+  const rows = [...tbody.querySelectorAll('tr[data-asin]')];
+  const query = (document.getElementById('keepaTrackedSearch')?.value || '').trim().toLowerCase();
+  const filter = document.getElementById('keepaTrackedFilter')?.value || 'todos';
+  rows.forEach(row => {
+    const matchesQuery = !query || (row.dataset.search || '').includes(query);
+    const matchesFilter = filter === 'todos' || (row.dataset.tags || '').split(' ').includes(filter);
+    row.classList.toggle('print-show', matchesQuery && matchesFilter);
+  });
+  document.body.classList.add('is-printing-tracked');
+  window.print();
+}
+
+function yalcaPrintKeepaSearchResult() {
+  document.body.classList.add('is-printing-search');
+  window.print();
+}
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('is-printing-tracked', 'is-printing-search');
+});
 
 /* ---------- Carregamento ---------- */
 async function reloadKeepaData() {

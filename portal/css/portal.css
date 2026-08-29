@@ -1700,3 +1700,72 @@ tr.is-hidden { display: none; }
 @media (max-width: 480px) {
   .ia-widget__panel { width: calc(100vw - 40px); }
 }
+
+/* =========================================
+   Exportar PDF (window.print) — "Produtos monitorados" e "Pesquisar
+   Produto". Em vez de gerar o PDF no cliente com uma biblioteca extra,
+   usa a impressão nativa do navegador ("Salvar como PDF" já vem de
+   fábrica) com um layout dedicado: esconde tudo que não interessa num
+   papel (menu, abas, botões) e mostra só o painel exportado, em preto no
+   branco pra não gastar tinta com o fundo escuro do portal. As classes
+   is-printing-tracked/is-printing-search são ligadas só durante o clique
+   em "Exportar PDF" (ver yalcaPrintKeepaTracked/yalcaPrintKeepaSearchResult
+   em concorrencia.js) — sem elas, Ctrl+P normal do cliente imprime a tela
+   inteira como está, sem esse tratamento especial. */
+@media print {
+  body.is-printing-tracked, body.is-printing-search {
+    background: #fff; color: #111;
+  }
+  body.is-printing-tracked .portal-sidebar,
+  body.is-printing-tracked .portal-sidebar-scrim,
+  body.is-printing-tracked .portal-topbar,
+  body.is-printing-tracked .demo-banner,
+  body.is-printing-tracked .section-intro,
+  body.is-printing-tracked .keepa-tabs,
+  body.is-printing-tracked .kpi-grid,
+  body.is-printing-tracked #keepaSellerMetricsPanel,
+  body.is-printing-tracked .alert-list,
+  body.is-printing-tracked #keepaAlertsFoot,
+  body.is-printing-tracked .panel:not(#keepaTrackedPanel),
+  body.is-printing-tracked .panel__toolbar,
+  body.is-printing-tracked #keepaTrackedCount,
+  body.is-printing-tracked .pagination,
+  body.is-printing-tracked .ia-widget,
+  body.is-printing-search .portal-sidebar,
+  body.is-printing-search .portal-sidebar-scrim,
+  body.is-printing-search .portal-topbar,
+  body.is-printing-search .demo-banner,
+  body.is-printing-search .section-intro,
+  body.is-printing-search .keepa-tabs,
+  body.is-printing-search #keepaSearchForm,
+  body.is-printing-search #keepaSearchQuota,
+  body.is-printing-search #keepaSearchStatus,
+  body.is-printing-search .panel:not(#keepaSearchResultPanel):not(#keepaBuyboxStatsPanel),
+  body.is-printing-search #keepaUseInPricingBtn,
+  body.is-printing-search .panel__toolbar,
+  body.is-printing-search .ia-widget {
+    display: none !important;
+  }
+  /* "Produtos monitorados": paginação não importa pra exportação — toda
+     linha que bate com a busca/filtro ativos entra (marcada como
+     print-show pelo JS antes de chamar print()), o resto some mesmo que
+     não estivesse escondido pela paginação normal. */
+  body.is-printing-tracked tr[data-asin] { display: none !important; }
+  body.is-printing-tracked tr.print-show { display: table-row !important; }
+  body.is-printing-tracked .portal-main,
+  body.is-printing-search .portal-main { width: 100%; }
+  body.is-printing-tracked .panel, body.is-printing-search .panel {
+    background: #fff; border-color: #ccc; box-shadow: none; color: #111;
+  }
+  body.is-printing-tracked .data-table th,
+  body.is-printing-search .kpi-card__label,
+  body.is-printing-search h3, body.is-printing-search h4 { color: #111; }
+  body.is-printing-tracked .data-table td, body.is-printing-tracked .data-table th { color: #111; border-color: #ddd; }
+  body.is-printing-search .kpi-card,
+  body.is-printing-search .kpi-grid .kpi-card:first-child {
+    border-color: #ccc; background: #fafafa !important;
+  }
+  body.is-printing-search .kpi-card__label,
+  body.is-printing-search .kpi-card__value,
+  body.is-printing-search .kpi-card__hint { color: #111 !important; }
+}
