@@ -11,6 +11,7 @@ import CtaFinal from './components/CtaFinal'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import FloatingButtons from './components/FloatingButtons'
+import CookieBanner from './components/CookieBanner'
 
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -31,6 +32,7 @@ export default function App() {
       </main>
       <Footer />
       {!menuOpen && <FloatingButtons />}
+      <CookieBanner />
     </>
   )
 }

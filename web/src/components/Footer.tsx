@@ -11,6 +11,7 @@ export default function Footer() {
           <div className="flex flex-col gap-2 text-sm text-text-muted">
             <a href="#servicos" className="hover:text-text">Serviços</a>
             <a href="#sobre" className="hover:text-text">Sobre</a>
+            <a href="#faq" className="hover:text-text">FAQ</a>
             <a href="/portal/login.html" className="hover:text-text">Área do Cliente</a>
           </div>
         </div>
@@ -30,6 +31,8 @@ export default function Footer() {
           <div className="flex flex-col gap-2 text-sm text-text-muted">
             <a href="mailto:contato@yalca.com.br" className="hover:text-text">contato@yalca.com.br</a>
             <a href="https://wa.me/5541987058237" target="_blank" rel="noopener" className="hover:text-text">WhatsApp</a>
+            <a href="/privacidade.html" className="hover:text-text">Política de Privacidade</a>
+            <a href="/termos.html" className="hover:text-text">Termos de Uso</a>
           </div>
         </div>
       </div>
