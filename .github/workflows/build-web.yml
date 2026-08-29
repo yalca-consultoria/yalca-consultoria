@@ -40,14 +40,18 @@ jobs:
         run: |
           rm -rf assets
           cp -r web/dist/assets assets
-          cp web/dist/*.html .
           cp -r web/public/fonts/. fonts/
+          # Tudo que o Vite gerou em dist/ na raiz, exceto a própria pasta
+          # assets/ (já copiada acima) — cobre index.html, sitemap.xml,
+          # favicon.svg e qualquer novo arquivo estático futuro em
+          # web/public/ sem precisar lembrar de listar aqui de novo.
+          find web/dist -maxdepth 1 -type f -exec cp {} . \;
 
       - name: Commitar se houve mudança
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ./*.html assets fonts
+          git add ./*.html ./*.svg ./*.xml ./*.txt assets fonts 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "Nada para publicar."
           else
