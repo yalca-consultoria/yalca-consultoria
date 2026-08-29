@@ -11,7 +11,7 @@
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
-<link rel="stylesheet" href="css/portal.min.css?v=1f5bf30d">
+<link rel="stylesheet" href="css/portal.min.css?v=9fe51cc3">
 </head>
 <body class="portal-body">
 
@@ -193,8 +193,6 @@
                     <th title="Quem está ganhando a buybox agora — 'ninguém' significa que nenhum vendedor está com a exibição principal no momento.">Buybox</th>
                     <th class="num" title="Quantos vendedores diferentes estão anunciando esse mesmo produto agora.">Ofertas</th>
                     <th class="num" title="Unidades vendidas no último mês, segundo a Amazon (ou estimado por quedas no ranking quando a Amazon não informa direto).">Comprado/mês</th>
-                    <th class="num" title="Quanto do tempo, nos últimos 90 dias, esse produto ficou sem nenhuma oferta disponível pra compra.">Fora de estoque (90d)</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody id="keepaTrackedBody"></tbody>
@@ -226,10 +224,13 @@
               ⛔ Este ASIN foi redirecionado pela Amazon (anúncio fundido ou descontinuado) — não compre estoque pra revender especificamente nele, pode não existir mais como está aqui.
             </div>
             <div class="panel__head">
-              <div>
-                <h3 id="keepaResultTitle">—</h3>
-                <p id="keepaResultMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
-                <p id="keepaResultConfidence" style="margin-top:8px;"></p>
+              <div style="display:flex; align-items:flex-start; gap:14px; min-width:0;">
+                <img id="keepaResultImage" src="" alt="" style="width:64px; height:64px; border-radius:10px; object-fit:contain; background:var(--surface-2); border:1px solid var(--border); flex-shrink:0;">
+                <div style="min-width:0;">
+                  <h3 id="keepaResultTitle">—</h3>
+                  <p id="keepaResultMeta" class="kpi-card__hint" style="margin-top:2px;"></p>
+                  <p id="keepaResultConfidence" style="margin-top:8px;"></p>
+                </div>
               </div>
             </div>
 
@@ -275,7 +276,7 @@
                 <thead>
                   <tr>
                     <th title="Vendedor que ganhou a buybox em algum momento do histórico desse produto.">Vendedor</th>
-                    <th class="num" title="Em quantas das últimas consultas do Keepa esse vendedor estava com a buybox — quanto maior, mais tempo ele domina a exibição principal.">% de vezes</th>
+                    <th class="num" title="Em quantas das últimas consultas esse vendedor estava com a buybox — quanto maior, mais tempo ele domina a exibição principal.">% de vezes</th>
                     <th class="num" title="Preço médio de quando esse vendedor esteve com a buybox.">Preço médio</th>
                     <th title="Condição do produto (Novo, Usado etc.) na oferta ativa desse vendedor agora — fica '—' se ele não tiver oferta ativa no momento.">Condição</th>
                     <th title="FBA = a Amazon guarda e envia o estoque desse vendedor. FBM = o próprio vendedor envia.">Tipo</th>
@@ -367,13 +368,13 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js?v=1f5bf30d"></script>
-<script src="js/portal-data.min.js?v=1f5bf30d"></script>
-<script src="js/portal-auth.min.js?v=1f5bf30d"></script>
-<script src="js/charts.min.js?v=1f5bf30d"></script>
-<script src="js/portal-shell.min.js?v=1f5bf30d"></script>
-<script src="js/ia.min.js?v=1f5bf30d"></script>
-<script src="js/concorrencia.min.js?v=1f5bf30d"></script>
-<script src="js/concorrencia-app.min.js?v=1f5bf30d"></script>
+<script src="js/supabase-config.min.js?v=9fe51cc3"></script>
+<script src="js/portal-data.min.js?v=9fe51cc3"></script>
+<script src="js/portal-auth.min.js?v=9fe51cc3"></script>
+<script src="js/charts.min.js?v=9fe51cc3"></script>
+<script src="js/portal-shell.min.js?v=9fe51cc3"></script>
+<script src="js/ia.min.js?v=9fe51cc3"></script>
+<script src="js/concorrencia.min.js?v=9fe51cc3"></script>
+<script src="js/concorrencia-app.min.js?v=9fe51cc3"></script>
 </body>
 </html>

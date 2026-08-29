@@ -999,19 +999,17 @@ body.portal-body {
    do próprio card do produto — não precisa mais de coluna própria. */
 @media (min-width: 641px) {
   .keepa-tracked-table { table-layout: fixed; }
-  .keepa-tracked-table th:nth-child(1), .keepa-tracked-table td:nth-child(1) { width: 27%; }
-  .keepa-tracked-table th:nth-child(2), .keepa-tracked-table td:nth-child(2) { width: 9%; }
-  .keepa-tracked-table th:nth-child(3), .keepa-tracked-table td:nth-child(3) { width: 7%; }
-  .keepa-tracked-table th:nth-child(4), .keepa-tracked-table td:nth-child(4) { width: 12%; }
-  .keepa-tracked-table th:nth-child(5), .keepa-tracked-table td:nth-child(5) { width: 7%; }
+  .keepa-tracked-table th:nth-child(1), .keepa-tracked-table td:nth-child(1) { width: 34%; }
+  .keepa-tracked-table th:nth-child(2), .keepa-tracked-table td:nth-child(2) { width: 12%; }
+  .keepa-tracked-table th:nth-child(3), .keepa-tracked-table td:nth-child(3) { width: 10%; }
+  .keepa-tracked-table th:nth-child(4), .keepa-tracked-table td:nth-child(4) { width: 20%; }
+  .keepa-tracked-table th:nth-child(5), .keepa-tracked-table td:nth-child(5) { width: 10%; }
   .keepa-tracked-table th:nth-child(6), .keepa-tracked-table td:nth-child(6) { width: 14%; }
-  .keepa-tracked-table th:nth-child(7), .keepa-tracked-table td:nth-child(7) { width: 16%; }
-  .keepa-tracked-table th:nth-child(8), .keepa-tracked-table td:nth-child(8) { width: 8%; }
-  /* Cabeçalhos longos ("Comprado/mês", "Fora de estoque (90d)") ganham
-     permissão de quebrar em 2 linhas em vez de estourar a largura da
-     coluna e colidir com o cabeçalho vizinho (bug reportado pelo
-     cliente, 2026-08-23) — os valores das células continuam numa linha
-     só (curtos: número/percentual), só os títulos das colunas quebram. */
+  /* Cabeçalhos longos ("Comprado/mês") ganham permissão de quebrar em 2
+     linhas em vez de estourar a largura da coluna e colidir com o
+     cabeçalho vizinho (bug reportado pelo cliente, 2026-08-23) — os
+     valores das células continuam numa linha só (curtos: número/
+     percentual), só os títulos das colunas quebram. */
   .keepa-tracked-table th { white-space: normal; line-height: 1.3; vertical-align: bottom; }
   /* A célula de Preço combina valor + badge de desconto, que juntos
      estouram a largura fixa da coluna e vazam visualmente por cima da
@@ -1100,6 +1098,16 @@ body.portal-body {
   color: var(--text-muted);
   line-height: 1.2;
 }
+/* "Ver na Amazon" no fim do nome do produto — antes era um ícone numa
+   coluna de ação separada (pedido do usuário, 2026-08-29). */
+.marketplace-cell__amazon-link {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--primary-2);
+  text-decoration: none;
+}
+.marketplace-cell__amazon-link:hover { text-decoration: underline; }
 .icon-btn {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -1163,6 +1171,13 @@ body.portal-body {
   background: var(--border);
 }
 .alert-item__icon { font-size: 1.1rem; line-height: 1; }
+/* Foto do produto no alerta (sempre presente, com placeholder quando não
+   há imagem ainda — pedido do usuário, 2026-08-29) — fica antes do ícone
+   de severidade, que continua dando o sinal rápido de crítico/atenção/bom. */
+.alert-item__thumb {
+  width: 36px; height: 36px; border-radius: 8px; object-fit: contain;
+  background: var(--surface); border: 1px solid var(--border); flex-shrink: 0;
+}
 .alert-item.critical { border-color: rgba(208,59,59,0.35); background: rgba(208,59,59,0.06); }
 .alert-item.critical::before { background: var(--critical); }
 .alert-item.warning { border-color: rgba(250,178,25,0.3); background: rgba(250,178,25,0.06); }

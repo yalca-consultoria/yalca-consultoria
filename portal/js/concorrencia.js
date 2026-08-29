@@ -5,6 +5,19 @@
    charts.js.
    ========================================= */
 
+// Placeholder (caixa, sem emoji) pra quando o produto ainda não tem foto —
+// usado sempre que uma imagem precisa aparecer (alertas, resultado de
+// pesquisa, popup de detalhe), pra nunca deixar o espaço vazio (pedido do
+// usuário, 2026-08-29).
+const KEEPA_PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5f6b85" stroke-width="1.6"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>');
+
+function yalcaSetProductImage(imgEl, imageUrl) {
+  if (!imgEl) return;
+  imgEl.src = imageUrl || KEEPA_PLACEHOLDER_IMAGE;
+  imgEl.style.display = '';
+  imgEl.style.padding = imageUrl ? '0' : '14px';
+}
+
 let KEEPA_DATA = { tracked: [], cache: {}, alerts: [], alertsTotal: 0, sellerMetrics: null };
 // Quantos alertas mostrar antes de precisar clicar em "ver mais" — o resto
 // dos que já foram buscados (até 100, ver reloadKeepaData) fica oculto até
@@ -175,7 +188,7 @@ function renderKeepaOwnKpis() {
   renderKpiGrid('keepaOwnKpis', [
     { label: 'Produtos monitorados', value: KEEPA_DATA.tracked.length, delta: null, hint: 'Total de anúncios acompanhados automaticamente pela Yalca.' },
     { label: 'Sem buybox agora', value: semBuybox, delta: null, hint: 'Nenhum vendedor está com a exibição principal nesses produtos no momento.' },
-    { label: 'Acima do preço competitivo', value: acimaCompetitivo, delta: null, hint: 'O preço atual está acima do limite que o Keepa calcula pra competir pela buybox — use o filtro "Acima do preço competitivo" na tabela abaixo pra ver quais são.' },
+    { label: 'Acima do preço competitivo', value: acimaCompetitivo, delta: null, hint: 'O preço atual está acima do limite pra competir pela buybox — use o filtro "Acima do preço competitivo" na tabela abaixo pra ver quais são.' },
   ]);
 }
 
@@ -184,7 +197,7 @@ function renderKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
   if (!tbody) return;
   if (KEEPA_DATA.tracked.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja no painel admin.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="alert-empty">Nenhum produto monitorado ainda. Peça pra Yalca cadastrar o seller ID da sua loja no painel admin.</td></tr>';
     return;
   }
   tbody.innerHTML = KEEPA_DATA.tracked.map(t => {
@@ -237,7 +250,6 @@ function renderKeepaTracked() {
       // cliente, 2026-08-22). Seta é suportada em qualquer fonte.
       vendasLabel = `${c.monthly_sold.toLocaleString('pt-BR')}${trend != null ? ` ${yalcaTrendArrow(trend)}` : ''}`;
     }
-    const outOfStockLabel = c?.out_of_stock_pct_90 != null ? `${c.out_of_stock_pct_90}%` : '—';
     // total_offer_count é a contagem oficial (pode passar de 20 — o
     // parâmetro offers=20 só limita quantas ofertas detalhadas a gente
     // recebe, não o total real de concorrentes vendendo esse produto).
@@ -260,10 +272,15 @@ function renderKeepaTracked() {
     // mais coluna própria) — libera espaço horizontal pro nome completo
     // aparecer, que é a informação que mais importa pra reconhecer o
     // produto de relance.
+    // Link "Ver na Amazon" agora fica no fim do próprio nome do produto,
+    // não mais numa coluna de ação separada (pedido do usuário,
+    // 2026-08-29) — stopPropagation pra não abrir o popup de detalhe (a
+    // linha inteira já é clicável) quando o cliente clica só no link.
     const productCell = `<div class="marketplace-cell">
       <span class="marketplace-cell__logo">${logoInner}</span>
       <div class="marketplace-cell__text">
         <strong title="${yalcaEscapeHtml(fullProductName)}">${yalcaEscapeHtml(fullProductName)}</strong>
+        <a class="marketplace-cell__amazon-link" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver na Amazon ↗</a>
         <span class="marketplace-cell__plan">${yalcaEscapeHtml(t.asin)}${variantParts.length ? ' · ' + yalcaEscapeHtml(variantParts.join(' · ')) : ''} · ${ageLabel}</span>
       </div>
     </div>`;
@@ -284,10 +301,6 @@ function renderKeepaTracked() {
       <td data-label="Buybox">${buyboxLabel}</td>
       <td data-label="Ofertas" class="num">${ofertasLabel}</td>
       <td data-label="Comprado/mês" class="num">${vendasLabel}</td>
-      <td data-label="Fora de estoque (90d)" class="num">${outOfStockLabel}</td>
-      <td class="row-actions">
-        <a class="icon-btn" title="Ver na Amazon" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">↗</a>
-      </td>
     </tr>`;
   }).join('');
 
@@ -478,9 +491,7 @@ async function openKeepaTrackedDetail(asin) {
 function renderKeepaTrackedDetailModal(result, t) {
   document.getElementById('keepaTrackedDetailTitle').textContent = (t && t.label) || result.title || result.asin;
 
-  const imgEl = document.getElementById('keepaTrackedDetailImage');
-  if (result.imageUrl) { imgEl.src = result.imageUrl; imgEl.style.display = ''; }
-  else { imgEl.style.display = 'none'; imgEl.removeAttribute('src'); }
+  yalcaSetProductImage(document.getElementById('keepaTrackedDetailImage'), result.imageUrl);
 
   const metaParts = [];
   if (result.brand) metaParts.push(result.brand);
@@ -607,6 +618,9 @@ function renderKeepaAlerts() {
       time: yalcaKeepaRelativeAge(a.created_at),
       asin: stillTracked ? a.asin : undefined,
       createdAt: a.created_at,
+      // Sempre manda uma imagem (placeholder quando o produto não tem foto
+      // ainda) — pedido do usuário, 2026-08-29.
+      image: KEEPA_DATA.cache[a.asin]?.image_url || KEEPA_PLACEHOLDER_IMAGE,
     };
   });
 
@@ -722,6 +736,7 @@ function renderKeepaSearchResult(result) {
   panel.style.display = '';
 
   document.getElementById('keepaResultTitle').textContent = result.title || result.asin;
+  yalcaSetProductImage(document.getElementById('keepaResultImage'), result.imageUrl);
 
   const metaParts = [];
   if (result.brand) metaParts.push(result.brand);

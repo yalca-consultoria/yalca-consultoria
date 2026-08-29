@@ -73,9 +73,10 @@ function yalcaEscapeHtml(str) {
 // `time` (texto tipo "há 2h", opcional) e `asin` (opcional — quando presente
 // o item vira clicável, com data-asin pro caller escutar o clique e abrir o
 // detalhe do produto) foram adicionados 2026-08-28 pros alertas de
-// concorrência (Keepa); os outros usos de renderAlertList (Visão Geral,
-// Estoque) continuam passando só {level, icon, title, sub} e renderizam
-// exatamente como antes, sem hora nem clique.
+// concorrência; `image` (opcional, URL da foto do produto) foi adicionado
+// 2026-08-29 pro mesmo lugar. Os outros usos de renderAlertList (Visão
+// Geral, Estoque) continuam passando só {level, icon, title, sub} e
+// renderizam exatamente como antes, sem hora/clique/foto.
 function renderAlertList(container, alerts) {
   if (alerts.length === 0) {
     container.innerHTML = '<p class="alert-empty">Nenhum alerta no momento. Tudo sob controle. ✅</p>';
@@ -83,6 +84,7 @@ function renderAlertList(container, alerts) {
   }
   container.innerHTML = alerts.map(a => `
     <div class="alert-item ${a.level}${a.asin ? ' alert-item--clickable' : ''}" ${a.asin ? `data-asin="${yalcaEscapeHtml(a.asin)}" role="button" tabindex="0"` : ''}>
+      ${a.image ? `<img class="alert-item__thumb" src="${yalcaEscapeHtml(a.image)}" alt="">` : ''}
       <span class="alert-item__icon">${a.icon}</span>
       <div class="alert-item__body">
         <strong>${yalcaEscapeHtml(a.title)}</strong>
