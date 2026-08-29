@@ -44,9 +44,11 @@ function initKeepaSection() {
   initKeepaTabs();
   initKeepaTrackedFilters();
 
+  // Sem opção de "parar de monitorar" aqui — pedido do usuário: essa lista
+  // é a vitrine inteira da loja na Amazon, sincronizada automaticamente
+  // pela Yalca, não uma lista que o cliente monta produto por produto (não
+  // fazia sentido remover um item individual dela).
   document.getElementById('keepaTrackedBody').addEventListener('click', (e) => {
-    const delBtn = e.target.closest('[data-action="deleteTrackedAsin"]');
-    if (delBtn) { handleDeleteTrackedAsin(delBtn.dataset.id); return; }
     const row = e.target.closest('[data-action="openTrackedDetail"]');
     if (row) openKeepaTrackedDetail(row.dataset.asin);
   });
@@ -285,46 +287,102 @@ function renderKeepaTracked() {
       <td data-label="Fora de estoque (90d)" class="num">${outOfStockLabel}</td>
       <td class="row-actions">
         <a class="icon-btn" title="Ver na Amazon" href="https://www.amazon.com.br/dp/${encodeURIComponent(t.asin)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">↗</a>
-        <button class="icon-btn" title="Parar de monitorar" data-action="deleteTrackedAsin" data-id="${t.id}" onclick="event.stopPropagation()">🗑</button>
       </td>
     </tr>`;
   }).join('');
 
-  yalcaApplyKeepaTrackedFilter();
+  yalcaApplyKeepaTrackedFilter(true);
 }
 
-// Busca + filtro da tabela "Produtos monitorados" — só esconde/mostra linhas
-// já renderizadas (nenhuma consulta nova), então funciona instantaneamente
-// mesmo com as 134+ linhas de uma conta real. Chamada de novo sempre que a
-// tabela é re-renderizada (ex: depois de remover um produto), pra manter o
+const KEEPA_TRACKED_PAGE_SIZE = 20;
+let KEEPA_TRACKED_PAGE = 1;
+
+// Busca + filtro + paginação da tabela "Produtos monitorados" — só
+// esconde/mostra linhas já renderizadas (nenhuma consulta nova), então
+// funciona instantaneamente mesmo com as 134+ linhas de uma conta real.
+// Chamada de novo sempre que a tabela é re-renderizada, pra manter o
 // filtro ativo em vez de "esquecer" o que o cliente tinha digitado.
-function yalcaApplyKeepaTrackedFilter() {
+// `resetPage` volta pra página 1 — usado quando a busca/filtro muda (senão
+// o cliente podia ficar "preso" numa página 4 que não existe mais depois
+// de filtrar) ou quando a tabela é recarregada do zero.
+function yalcaApplyKeepaTrackedFilter(resetPage) {
   const tbody = document.getElementById('keepaTrackedBody');
   const countEl = document.getElementById('keepaTrackedCount');
   if (!tbody || !countEl) return;
   const rows = [...tbody.querySelectorAll('tr[data-asin]')];
-  if (rows.length === 0) { countEl.textContent = ''; return; }
+  if (rows.length === 0) { countEl.textContent = ''; yalcaRenderKeepaTrackedPagination(0); return; }
+
+  if (resetPage) KEEPA_TRACKED_PAGE = 1;
 
   const query = (document.getElementById('keepaTrackedSearch')?.value || '').trim().toLowerCase();
   const filter = document.getElementById('keepaTrackedFilter')?.value || 'todos';
 
-  let visible = 0;
-  rows.forEach(row => {
+  const matched = rows.filter(row => {
     const matchesQuery = !query || (row.dataset.search || '').includes(query);
     const matchesFilter = filter === 'todos' || (row.dataset.tags || '').split(' ').includes(filter);
-    const show = matchesQuery && matchesFilter;
-    row.classList.toggle('is-hidden', !show);
-    if (show) visible++;
+    return matchesQuery && matchesFilter;
   });
 
-  countEl.textContent = (query || filter !== 'todos')
-    ? `Mostrando ${visible} de ${rows.length} produtos monitorados.`
-    : `${rows.length} produtos monitorados.`;
+  const totalPages = Math.max(1, Math.ceil(matched.length / KEEPA_TRACKED_PAGE_SIZE));
+  if (KEEPA_TRACKED_PAGE > totalPages) KEEPA_TRACKED_PAGE = totalPages;
+  const pageStart = (KEEPA_TRACKED_PAGE - 1) * KEEPA_TRACKED_PAGE_SIZE;
+  const pageEnd = pageStart + KEEPA_TRACKED_PAGE_SIZE;
+  const matchedSet = new Set(matched);
+
+  let shownOnPage = 0;
+  rows.forEach(row => {
+    if (!matchedSet.has(row)) { row.classList.add('is-hidden'); return; }
+    const indexInMatched = matched.indexOf(row);
+    const show = indexInMatched >= pageStart && indexInMatched < pageEnd;
+    row.classList.toggle('is-hidden', !show);
+    if (show) shownOnPage++;
+  });
+
+  countEl.textContent = matched.length === 0
+    ? 'Nenhum produto encontrado.'
+    : (query || filter !== 'todos')
+      ? `Mostrando ${shownOnPage} de ${matched.length} produtos filtrados (${rows.length} no total).`
+      : `Mostrando ${shownOnPage} de ${matched.length} produtos monitorados.`;
+
+  yalcaRenderKeepaTrackedPagination(matched.length);
+}
+
+// Páginas numeradas (1, 2, 3...) — com no máximo ~7 páginas numa conta real
+// (134 produtos / 20 por página), não precisa de reticências/truncamento,
+// só a lista inteira + anterior/próxima.
+function yalcaRenderKeepaTrackedPagination(totalMatched) {
+  const el = document.getElementById('keepaTrackedPagination');
+  if (!el) return;
+  const totalPages = Math.max(1, Math.ceil(totalMatched / KEEPA_TRACKED_PAGE_SIZE));
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  const pageBtn = (page, label, disabled, active) => `
+    <button type="button" class="pagination__btn${active ? ' is-active' : ''}" data-page="${page}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+  const numbers = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .map(p => pageBtn(p, p, false, p === KEEPA_TRACKED_PAGE))
+    .join('');
+
+  el.innerHTML = `
+    ${pageBtn(KEEPA_TRACKED_PAGE - 1, '‹ Anterior', KEEPA_TRACKED_PAGE <= 1, false)}
+    ${numbers}
+    ${pageBtn(KEEPA_TRACKED_PAGE + 1, 'Próxima ›', KEEPA_TRACKED_PAGE >= totalPages, false)}`;
+}
+
+function yalcaGoToKeepaTrackedPage(page) {
+  KEEPA_TRACKED_PAGE = page;
+  yalcaApplyKeepaTrackedFilter();
+  document.getElementById('keepaTrackedBody').closest('.panel')?.scrollIntoView({ block: 'nearest' });
 }
 
 function initKeepaTrackedFilters() {
-  document.getElementById('keepaTrackedSearch')?.addEventListener('input', yalcaApplyKeepaTrackedFilter);
-  document.getElementById('keepaTrackedFilter')?.addEventListener('change', yalcaApplyKeepaTrackedFilter);
+  document.getElementById('keepaTrackedSearch')?.addEventListener('input', () => yalcaApplyKeepaTrackedFilter(true));
+  document.getElementById('keepaTrackedFilter')?.addEventListener('change', () => yalcaApplyKeepaTrackedFilter(true));
+  document.getElementById('keepaTrackedPagination')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-page]');
+    if (!btn || btn.disabled) return;
+    yalcaGoToKeepaTrackedPage(Number(btn.dataset.page));
+  });
 }
 
 // Converte uma linha crua de keepa_asin_cache (colunas snake_case, vindas
@@ -584,20 +642,6 @@ function renderKeepaAlerts() {
       ? `<p class="alert-list-foot">Mostrando os ${formatted.length} alertas mais relevantes${fetchedNote}.</p>`
       : '';
   });
-}
-
-/* ---------- Remover ASIN monitorado ---------- */
-async function handleDeleteTrackedAsin(id) {
-  if (!confirm('Parar de monitorar este ASIN?')) return;
-  try {
-    await yalcaDeleteTrackedAsin(id);
-    await reloadKeepaData();
-    renderKeepaOwnKpis();
-    renderKeepaTracked();
-    renderKeepaAlerts();
-  } catch (err) {
-    alert('Não foi possível remover: ' + err.message);
-  }
 }
 
 /* ---------- "Pesquisar Produto" ----------

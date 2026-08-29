@@ -1018,6 +1018,10 @@ body.portal-body {
      coluna de BSR ao lado (bug reportado pelo cliente, 2026-08-24).
      Deixando essa célula quebrar linha em vez de manter nowrap. */
   .keepa-tracked-table td:nth-child(2) { white-space: normal; }
+  /* Mesmo problema na coluna Buybox: nome de vendedor comprido (ex:
+     "Avokado Nutrição Saudável") vazava por cima da coluna de Ofertas ao
+     lado, colidindo o texto (bug reportado pelo cliente, 2026-08-29). */
+  .keepa-tracked-table td:nth-child(4) { white-space: normal; word-break: break-word; }
 }
 .data-table th {
   text-align: left;
@@ -1215,6 +1219,19 @@ body.portal-body {
    raro e mais preciso que só "está acima do competitivo") — cor de dica
    (accent), não de alerta, pra não parecer tão grave quanto o warning. */
 .price-flag--suggestion { color: var(--accent); background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); }
+
+/* Paginação de "Produtos monitorados" (134 linhas — 20 por página). Mesma
+   linguagem visual dos chips de filtro já usados no portal. */
+.pagination { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; justify-content: center; }
+.pagination__btn {
+  min-width: 36px; height: 36px; padding: 0 10px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-muted); font-family: var(--font-body); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+.pagination__btn:hover:not(:disabled) { border-color: var(--primary-2); color: var(--text); }
+.pagination__btn.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pagination__btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Linhas escondidas pela busca/filtro de "Produtos monitorados" — troca só
    display, sem re-renderizar a tabela (ver yalcaApplyKeepaTrackedFilter). */
