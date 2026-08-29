@@ -1182,6 +1182,32 @@ body.portal-body {
 .alert-item--clickable:hover, .alert-item--clickable:focus-visible { border-color: var(--primary-2); }
 .alert-item--clickable:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
 .alert-empty { color: var(--text-muted); font-size: 0.88rem; padding: 8px 0; }
+/* Rodapé do card de alertas ("ver mais X alertas" / "mostrando N de M") —
+   fica fora do .alert-list porque só é trocado por conta própria (não
+   precisa re-renderizar a lista toda pra atualizar o texto). */
+.alert-list-foot { margin-top: 10px; font-size: 0.82rem; color: var(--text-muted); }
+#keepaAlertsExpandBtn { margin-top: 10px; }
+
+/* Selo "acima do preço competitivo" — Keepa já calcula esse número (mais
+   da metade dos produtos monitorados numa conta real têm), mas antes só
+   aparecia se você clicasse no produto; agora vai direto na célula de
+   preço da lista, que é onde se compara vários produtos de uma vez. */
+/* Wrapper próprio (não só o texto solto na célula): td.num vira flex row
+   no card mobile (.data-table--cards td), então preço + selo precisam ser
+   UM item de flex só que empilha por conta própria — senão o selo virava
+   um item-irmão do texto do preço na mesma linha e estourava a largura do
+   card (achado testando com dados reais de exemplo). */
+.price-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.price-flag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  color: var(--warning); background: rgba(250,178,25,0.1); border: 1px solid rgba(250,178,25,0.3);
+  padding: 2px 7px; border-radius: 6px;
+}
+
+/* Linhas escondidas pela busca/filtro de "Produtos monitorados" — troca só
+   display, sem re-renderizar a tabela (ver yalcaApplyKeepaTrackedFilter). */
+tr.is-hidden { display: none; }
 
 /* ---------- Gráficos ---------- */
 .chart-card { display: flex; flex-direction: column; gap: 14px; }

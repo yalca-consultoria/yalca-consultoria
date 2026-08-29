@@ -11,7 +11,7 @@
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
-<link rel="stylesheet" href="css/portal.min.css?v=2ee8e469">
+<link rel="stylesheet" href="css/portal.min.css?v=b561600f">
 </head>
 <body class="portal-body">
 
@@ -158,6 +158,7 @@
           <div class="panel">
             <div class="panel__head"><div><h3>Alertas recentes</h3></div></div>
             <div class="alert-list" id="keepaAlerts"></div>
+            <div id="keepaAlertsFoot"></div>
           </div>
 
           <div class="panel">
@@ -166,7 +167,16 @@
                 <h3>Produtos monitorados</h3>
                 <p>Preço, ranking e buybox atualizados automaticamente em lote (não ao vivo) — pra preservar a cota de consultas do dia. A Yalca cadastra o seller ID da sua loja no painel admin e essa lista é populada e atualizada automaticamente a partir da sua vitrine na Amazon.</p>
               </div>
+              <div class="panel__toolbar">
+                <input type="text" class="search-input" id="keepaTrackedSearch" placeholder="Buscar por nome ou ASIN">
+                <select class="select-chip" id="keepaTrackedFilter">
+                  <option value="todos">Todos os produtos</option>
+                  <option value="sembuybox">Sem buybox</option>
+                  <option value="acima">Acima do preço competitivo</option>
+                </select>
+              </div>
             </div>
+            <p id="keepaTrackedCount" class="kpi-card__hint" style="margin-top:-8px; margin-bottom:14px;"></p>
             <div class="table-scroll">
               <table class="data-table data-table--cards keepa-tracked-table">
                 <thead>
@@ -349,13 +359,13 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js?v=2ee8e469"></script>
-<script src="js/portal-data.min.js?v=2ee8e469"></script>
-<script src="js/portal-auth.min.js?v=2ee8e469"></script>
-<script src="js/charts.min.js?v=2ee8e469"></script>
-<script src="js/portal-shell.min.js?v=2ee8e469"></script>
-<script src="js/ia.min.js?v=2ee8e469"></script>
-<script src="js/concorrencia.min.js?v=2ee8e469"></script>
-<script src="js/concorrencia-app.min.js?v=2ee8e469"></script>
+<script src="js/supabase-config.min.js?v=b561600f"></script>
+<script src="js/portal-data.min.js?v=b561600f"></script>
+<script src="js/portal-auth.min.js?v=b561600f"></script>
+<script src="js/charts.min.js?v=b561600f"></script>
+<script src="js/portal-shell.min.js?v=b561600f"></script>
+<script src="js/ia.min.js?v=b561600f"></script>
+<script src="js/concorrencia.min.js?v=b561600f"></script>
+<script src="js/concorrencia-app.min.js?v=b561600f"></script>
 </body>
 </html>

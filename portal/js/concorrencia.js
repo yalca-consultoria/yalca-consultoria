@@ -5,7 +5,11 @@
    charts.js.
    ========================================= */
 
-let KEEPA_DATA = { tracked: [], cache: {}, alerts: [], sellerMetrics: null };
+let KEEPA_DATA = { tracked: [], cache: {}, alerts: [], alertsTotal: 0, sellerMetrics: null };
+// Quantos alertas mostrar antes de precisar clicar em "ver mais" — o resto
+// dos que já foram buscados (até 100, ver reloadKeepaData) fica oculto até
+// o clique, sem precisar de nova consulta.
+const KEEPA_ALERTS_COLLAPSED_COUNT = 8;
 let LAST_KEEPA_SEARCH_RESULT = null;
 // Reputação de vendedor já buscada nesta sessão — mantida entre pesquisas
 // (um vendedor já visto fica "de graça" o resto da sessão). O cache de
@@ -34,6 +38,7 @@ function initKeepaTabs() {
 /* ---------- Inicialização (formulários) ---------- */
 function initKeepaSection() {
   initKeepaTabs();
+  initKeepaTrackedFilters();
 
   document.getElementById('keepaTrackedBody').addEventListener('click', (e) => {
     const delBtn = e.target.closest('[data-action="deleteTrackedAsin"]');
@@ -67,15 +72,23 @@ function initKeepaSection() {
 async function reloadKeepaData() {
   const tracked = await yalcaFetchTrackedAsins();
   const asins = [...new Set(tracked.map(t => t.asin))];
-  const [cacheRows, alerts, sellerMetrics] = await Promise.all([
+  // Limite subiu de 10 pra 100: com poucos alertas visíveis, um crítico de
+  // alguns dias atrás ficava enterrado atrás de ruído rotineiro recente
+  // (mudança de buybox entre concorrentes, "voltou ao estoque") — agora
+  // busca bastante coisa de uma vez e o RENDER (não a busca) decide o que
+  // mostrar primeiro, por severidade. alertsTotal é só a contagem real,
+  // pra rotular corretamente quando existem mais alertas do que os 100
+  // buscados (raro, mas acontece em contas com muito histórico).
+  const [cacheRows, alerts, alertsTotal, sellerMetrics] = await Promise.all([
     yalcaFetchKeepaCache(asins),
-    yalcaFetchKeepaAlerts(asins, 10),
+    yalcaFetchKeepaAlerts(asins, 100),
+    yalcaFetchKeepaAlertsCount(asins),
     // Só existe depois que um admin cadastra o seller ID e sincroniza a
     // vitrine pelo menos uma vez — null até lá, tratado no render.
     YALCA_PROFILE ? yalcaFetchSellerMetrics(YALCA_PROFILE.user_id).catch(() => null) : Promise.resolve(null),
   ]);
   const cacheByAsin = Object.fromEntries(cacheRows.map(c => [c.asin, c]));
-  KEEPA_DATA = { tracked, cache: cacheByAsin, alerts, sellerMetrics };
+  KEEPA_DATA = { tracked, cache: cacheByAsin, alerts, alertsTotal, sellerMetrics };
 
   // Resolve o nome de quem está com a buybox de cada anúncio monitorado —
   // sem isso a coluna "Buybox" da tabela mostra só o ID técnico do
@@ -134,6 +147,14 @@ function renderKeepaTracked() {
     const priceLabel = c && c.current_price != null
       ? `${yalcaFormatCurrency(c.current_price)}${c.saving_pct ? ` <span class="badge badge--ok" style="margin-left:4px;">-${c.saving_pct}%</span>` : ''}`
       : '—';
+    // Preço-limite pra competir: o Keepa já calcula isso (76 dos seus 145
+    // produtos em cache têm esse número), mas antes só aparecia se você
+    // clicasse no produto — agora fica visível direto na lista, que é onde
+    // você de fato compara os 134 produtos entre si.
+    const priceAboveThreshold = c && c.current_price != null && c.competitive_price_threshold != null && c.current_price > c.competitive_price_threshold;
+    const priceFlagHtml = priceAboveThreshold
+      ? `<div class="price-flag">⚠ ${yalcaFormatCurrency(c.current_price - c.competitive_price_threshold)} acima do competitivo</div>`
+      : '';
     const bsrLabel = c && c.bsr != null ? c.bsr.toLocaleString('pt-BR') : '—';
     const isOwnBuybox = c && c.buybox_seller && t.own_seller_name && c.buybox_seller === t.own_seller_name;
     const buyboxSellerName = c?.buybox_seller ? KEEPA_SELLER_REPUTATION[c.buybox_seller]?.sellerName : null;
@@ -185,10 +206,18 @@ function renderKeepaTracked() {
       </div>
     </div>`;
 
+    // Atributos usados só pela busca/filtro (ver wireKeepaTrackedFilters) —
+    // não afetam o que é exibido, só o que fica escondido com is-hidden.
+    const searchTags = [fullProductName, t.asin].join(' ').toLowerCase();
+    const filterTags = [
+      c && !c.buybox_seller ? 'sembuybox' : '',
+      priceAboveThreshold ? 'acima' : '',
+    ].filter(Boolean).join(' ');
+
     return `
-    <tr class="is-clickable-row" data-action="openTrackedDetail" data-asin="${yalcaEscapeHtml(t.asin)}" title="Ver detalhes completos">
+    <tr class="is-clickable-row" data-action="openTrackedDetail" data-asin="${yalcaEscapeHtml(t.asin)}" data-search="${yalcaEscapeHtml(searchTags)}" data-tags="${filterTags}" title="Ver detalhes completos">
       <td data-label="Produto">${productCell}</td>
-      <td data-label="Preço" class="num">${priceLabel}</td>
+      <td data-label="Preço" class="num"><div class="price-cell">${priceLabel}${priceFlagHtml}</div></td>
       <td data-label="BSR" class="num">${bsrLabel}</td>
       <td data-label="Buybox">${buyboxLabel}</td>
       <td data-label="Ofertas" class="num">${ofertasLabel}</td>
@@ -200,6 +229,42 @@ function renderKeepaTracked() {
       </td>
     </tr>`;
   }).join('');
+
+  yalcaApplyKeepaTrackedFilter();
+}
+
+// Busca + filtro da tabela "Produtos monitorados" — só esconde/mostra linhas
+// já renderizadas (nenhuma consulta nova), então funciona instantaneamente
+// mesmo com as 134+ linhas de uma conta real. Chamada de novo sempre que a
+// tabela é re-renderizada (ex: depois de remover um produto), pra manter o
+// filtro ativo em vez de "esquecer" o que o cliente tinha digitado.
+function yalcaApplyKeepaTrackedFilter() {
+  const tbody = document.getElementById('keepaTrackedBody');
+  const countEl = document.getElementById('keepaTrackedCount');
+  if (!tbody || !countEl) return;
+  const rows = [...tbody.querySelectorAll('tr[data-asin]')];
+  if (rows.length === 0) { countEl.textContent = ''; return; }
+
+  const query = (document.getElementById('keepaTrackedSearch')?.value || '').trim().toLowerCase();
+  const filter = document.getElementById('keepaTrackedFilter')?.value || 'todos';
+
+  let visible = 0;
+  rows.forEach(row => {
+    const matchesQuery = !query || (row.dataset.search || '').includes(query);
+    const matchesFilter = filter === 'todos' || (row.dataset.tags || '').split(' ').includes(filter);
+    const show = matchesQuery && matchesFilter;
+    row.classList.toggle('is-hidden', !show);
+    if (show) visible++;
+  });
+
+  countEl.textContent = (query || filter !== 'todos')
+    ? `Mostrando ${visible} de ${rows.length} produtos monitorados.`
+    : `${rows.length} produtos monitorados.`;
+}
+
+function initKeepaTrackedFilters() {
+  document.getElementById('keepaTrackedSearch')?.addEventListener('input', yalcaApplyKeepaTrackedFilter);
+  document.getElementById('keepaTrackedFilter')?.addEventListener('change', yalcaApplyKeepaTrackedFilter);
 }
 
 // Converte uma linha crua de keepa_asin_cache (colunas snake_case, vindas
@@ -360,8 +425,15 @@ function yalcaKeepaRelativeAge(iso) {
   return `há ${Math.floor(hours / 24)}d`;
 }
 
+// Ordem de prioridade pra decidir quem aparece primeiro — sem isso a lista
+// só ordenava por data, e um alerta crítico de dias atrás ficava enterrado
+// atrás de ruído recente (mudança de buybox entre concorrentes, "voltou ao
+// estoque"), que juntos são a maioria dos alertas de uma conta típica.
+const KEEPA_ALERT_LEVEL_RANK = { critical: 0, warning: 1, good: 2 };
+
 function renderKeepaAlerts() {
   const container = document.getElementById('keepaAlerts');
+  const foot = document.getElementById('keepaAlertsFoot');
   if (!container) return;
   const ownSellerByAsin = Object.fromEntries(KEEPA_DATA.tracked.filter(t => t.own_seller_name).map(t => [t.asin, t.own_seller_name]));
   const trackedLabelByAsin = Object.fromEntries(KEEPA_DATA.tracked.map(t => [t.asin, t.label || t.asin]));
@@ -382,6 +454,7 @@ function renderKeepaAlerts() {
     else if (a.alert_type === 'price_increase') { icon = '📈'; }
     else if (a.alert_type === 'out_of_stock') { level = 'critical'; icon = '⛔'; }
     else if (a.alert_type === 'rating_drop') { icon = '⭐'; }
+    else if (a.alert_type === 'back_in_stock') { icon = '📦'; }
 
     // Só vira clicável se o produto ainda está sendo monitorado — um
     // alerta antigo de um ASIN que o cliente já removeu do monitoramento
@@ -395,10 +468,42 @@ function renderKeepaAlerts() {
       sub: message,
       time: yalcaKeepaRelativeAge(a.created_at),
       asin: stillTracked ? a.asin : undefined,
+      createdAt: a.created_at,
     };
   });
 
-  renderAlertList(container, formatted);
+  formatted.sort((a, b) => {
+    const rankDiff = KEEPA_ALERT_LEVEL_RANK[a.level] - KEEPA_ALERT_LEVEL_RANK[b.level];
+    if (rankDiff !== 0) return rankDiff;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const collapsed = formatted.slice(0, KEEPA_ALERTS_COLLAPSED_COUNT);
+  const rest = formatted.slice(KEEPA_ALERTS_COLLAPSED_COUNT);
+  renderAlertList(container, collapsed);
+
+  if (!foot) return;
+  if (formatted.length === 0) { foot.innerHTML = ''; return; }
+
+  const total = KEEPA_DATA.alertsTotal ?? formatted.length;
+  const fetchedNote = total > formatted.length
+    ? ` de ${total} no total`
+    : '';
+
+  if (rest.length === 0) {
+    foot.innerHTML = total > formatted.length
+      ? `<p class="alert-list-foot">Mostrando os ${formatted.length} alertas mais relevantes${fetchedNote}.</p>`
+      : '';
+    return;
+  }
+
+  foot.innerHTML = `<button type="button" class="table-view-toggle" id="keepaAlertsExpandBtn">Ver mais ${rest.length} alerta${rest.length > 1 ? 's' : ''}${fetchedNote}</button>`;
+  document.getElementById('keepaAlertsExpandBtn').addEventListener('click', () => {
+    renderAlertList(container, formatted);
+    foot.innerHTML = total > formatted.length
+      ? `<p class="alert-list-foot">Mostrando os ${formatted.length} alertas mais relevantes${fetchedNote}.</p>`
+      : '';
+  });
 }
 
 /* ---------- Remover ASIN monitorado ---------- */

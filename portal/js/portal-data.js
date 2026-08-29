@@ -150,6 +150,14 @@ async function yalcaFetchKeepaAlerts(asins, limit) {
   if (!asins || asins.length === 0) return [];
   return yalcaCheck(await supabaseClient.from('keepa_asin_alerts').select('*').in('asin', asins).order('created_at', { ascending: false }).limit(limit || 10)) || [];
 }
+// Contagem total (sem trazer as linhas) — usada só pra rotular "mostrando X
+// de Y" quando o total de alertas passa do limite buscado; head:true faz o
+// Supabase responder só o count, sem gastar banda com os dados.
+async function yalcaFetchKeepaAlertsCount(asins) {
+  if (!asins || asins.length === 0) return 0;
+  const { count, error } = await supabaseClient.from('keepa_asin_alerts').select('id', { count: 'exact', head: true }).in('asin', asins);
+  return error ? null : count;
+}
 // API própria em Node (keepa-api.yalca.com.br), não mais Edge Function do
 // Supabase — motivo: o edge-runtime self-hosted causou vários problemas
 // reais (auth manual porque @supabase/server não funcionava nesse deploy,
