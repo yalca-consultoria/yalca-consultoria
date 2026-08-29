@@ -1726,7 +1726,20 @@ tr.is-hidden { display: none; }
   .print-header__logo span { color: var(--accent); }
   .print-header__meta { font-size: 0.78rem; color: #555; white-space: nowrap; }
 
+  /* Redefine os tokens de cor (não só background/color do body) — quase
+     todo componente do portal usa var(--text)/var(--text-muted)/
+     var(--surface)/var(--border) pra se colorir, e esses tokens são claros
+     (feitos pro fundo ESCURO do portal). Sem redefini-los aqui, qualquer
+     componente que eu não tivesse pensado em sobrescrever individualmente
+     (ex: a tabela "Quem domina a buybox", os "Detalhes do produto") saía
+     com texto quase branco sobre fundo branco — ilegível (bug real
+     relatado pelo usuário, 2026-08-29: "não está aparecendo todas as
+     informações", quando na verdade a informação estava lá, só invisível
+     pelo contraste). Redefinir os tokens central cascade pra TODOS os
+     componentes de uma vez, em vez de caçar seletor por seletor. */
   body.is-printing-tracked, body.is-printing-search {
+    --bg: #fff; --bg-alt: #fff; --surface: #fff; --surface-2: #fafafa;
+    --border: #ccc; --text: #111; --text-muted: #555;
     background: #fff; color: #111;
   }
   body.is-printing-tracked .portal-sidebar,
@@ -1768,19 +1781,36 @@ tr.is-hidden { display: none; }
   body.is-printing-tracked .portal-main,
   body.is-printing-search .portal-main { width: 100%; }
   body.is-printing-tracked .panel, body.is-printing-search .panel {
-    background: #fff; border-color: #ccc; box-shadow: none; color: #111;
+    box-shadow: none;
   }
-  body.is-printing-tracked .data-table th,
-  body.is-printing-search .kpi-card__label,
-  body.is-printing-search h3, body.is-printing-search h4 { color: #111; }
-  body.is-printing-tracked .data-table td, body.is-printing-tracked .data-table th { color: #111; border-color: #ddd; }
-  body.is-printing-search .kpi-card,
-  body.is-printing-search .kpi-grid .kpi-card:first-child {
-    border-color: #ccc; background: #fafafa !important;
+  /* O destaque em gradiente roxo do primeiro card de KPI usa uma cor fixa
+     (rgba, não token) por cima do --surface já redefinido acima — sem
+     isso ficava um roxo lavado difícil de ler no papel. */
+  body.is-printing-search .kpi-grid .kpi-card:first-child { background: #fafafa !important; }
+
+  /* Tabelas largas (ex: "Quem domina a buybox", 8 colunas) — na tela
+     rolam na horizontal (.table-scroll), mas rolagem não existe no papel:
+     ficavam com metade das colunas cortadas fora da página, faltando
+     informação de verdade (bug relatado pelo usuário, 2026-08-29). Reusa
+     o MESMO modo "card" (rótulo à esquerda, valor à direita, empilhado)
+     que a tela pequena já usa via .data-table--cards, forçado aqui
+     independente da largura real do papel. */
+  body.is-printing-tracked .table-scroll, body.is-printing-search .table-scroll { overflow: visible; mask-image: none; }
+  body.is-printing-tracked .data-table--cards, body.is-printing-search .data-table--cards { min-width: 0; }
+  body.is-printing-tracked .data-table--cards thead, body.is-printing-search .data-table--cards thead { display: none; }
+  body.is-printing-tracked .data-table--cards tbody tr, body.is-printing-search .data-table--cards tbody tr {
+    display: block; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 8px; padding: 10px 12px;
+    break-inside: avoid;
   }
-  body.is-printing-search .kpi-card__label,
-  body.is-printing-search .kpi-card__value,
-  body.is-printing-search .kpi-card__hint { color: #111 !important; }
+  body.is-printing-tracked .data-table--cards td, body.is-printing-search .data-table--cards td {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 5px 0; border-bottom: 1px dashed #ddd; white-space: normal; text-align: right;
+  }
+  body.is-printing-tracked .data-table--cards td:last-child, body.is-printing-search .data-table--cards td:last-child { border-bottom: none; }
+  body.is-printing-tracked .data-table--cards td::before, body.is-printing-search .data-table--cards td::before {
+    content: attr(data-label); color: #555; font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.04em; text-align: left; flex-shrink: 0;
+  }
 
   /* O texto explicativo de cada KPI (data-tip) só existia como bolha de
      tooltip no hover/foco — inútil numa folha impressa, onde nada é
