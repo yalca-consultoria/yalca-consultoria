@@ -5,6 +5,17 @@
    de enviar precisa travar até a resposta voltar.
    ========================================= */
 
+function yalcaLoadIaHistory(storageId) {
+  try {
+    const raw = localStorage.getItem(storageId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function initIaSection() {
   initIaTabs();
   initIaDiagnostico({ btnId: 'iaDiagnosticoBtn', resultId: 'iaDiagnosticoResult', statusId: 'iaDiagnosticoStatus' });
@@ -12,6 +23,12 @@ function initIaSection() {
     listId: 'suporteChatList', formId: 'suporteChatForm', inputId: 'suporteChatInput', statusId: 'suporteChatStatus',
     apiFn: yalcaIaSuporte,
     emptyText: 'Pergunte sobre a calculadora de preço, controle de estoque, fluxo de caixa ou qualquer dúvida sobre o portal.',
+    storageKey: 'suporte',
+    suggestions: [
+      'Como funciona a calculadora de preço?',
+      'Como registro uma entrada no fluxo de caixa?',
+      'Como faço pra exportar um relatório em PDF?',
+    ],
   });
 }
 
@@ -30,18 +47,28 @@ function initIaTabs() {
 // enableAttachments (opcional): injeta botão de foto + microfone antes do
 // campo de texto — só usado pelo widget de agente por página; os outros
 // chats (Assistente/Suporte) continuam sem, passando undefined.
-function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enableAttachments }) {
+function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enableAttachments, storageKey, suggestions, contextHint }) {
   const list = document.getElementById(listId);
   const form = document.getElementById(formId);
   const input = document.getElementById(inputId);
   const statusEl = document.getElementById(statusId);
   if (!form) return;
 
-  const history = [];
+  // Sem isso a conversa some ao trocar de página ou dar refresh — cada chat
+  // guarda seu próprio histórico no navegador do usuário (nunca sai daqui,
+  // não é enviado a lugar nenhum além do que o próprio chat já envia).
+  const storageId = storageKey ? `yalca_ia_${storageKey}` : null;
+  const history = (storageId && yalcaLoadIaHistory(storageId)) || [];
+
   let pendingImageDataUrl = null;
   let pendingAudio = null; // { base64, mimeType }
   let mediaRecorder = null;
   let recordedChunks = [];
+
+  function saveHistory() {
+    if (!storageId) return;
+    try { localStorage.setItem(storageId, JSON.stringify(history.slice(-20))); } catch { /* quota/privado: ignora */ }
+  }
 
   function renderMessage(role, text) {
     const row = document.createElement('div');
@@ -51,11 +78,42 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enabl
     list.scrollTop = list.scrollHeight;
   }
 
-  if (emptyText && list.children.length === 0) {
+  function renderEmptyState() {
+    if (emptyText) {
+      const hint = document.createElement('p');
+      hint.className = 'alert-empty';
+      hint.textContent = emptyText;
+      list.appendChild(hint);
+    }
+    if (suggestions?.length) {
+      const box = document.createElement('div');
+      box.className = 'ia-suggestions';
+      suggestions.forEach((text) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ia-suggestion-chip';
+        chip.textContent = text;
+        chip.addEventListener('click', () => {
+          input.value = text;
+          form.requestSubmit();
+        });
+        box.appendChild(chip);
+      });
+      list.appendChild(box);
+    }
+  }
+
+  if (contextHint) {
     const hint = document.createElement('p');
-    hint.className = 'alert-empty';
-    hint.textContent = emptyText;
-    list.appendChild(hint);
+    hint.className = 'ia-context-hint';
+    hint.textContent = contextHint;
+    form.parentNode.insertBefore(hint, list);
+  }
+
+  if (history.length) {
+    history.forEach((msg) => renderMessage(msg.role === 'user' ? 'user' : 'assistant', msg.content));
+  } else if (list.children.length === 0) {
+    renderEmptyState();
   }
 
   let attachBtn, micBtn, imageInput, attachPreview;
@@ -122,8 +180,8 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enabl
     const message = input.value.trim();
     if (!message && !pendingImageDataUrl && !pendingAudio) return;
 
-    const emptyHint = list.querySelector('.alert-empty');
-    if (emptyHint) emptyHint.remove();
+    list.querySelector('.alert-empty')?.remove();
+    list.querySelector('.ia-suggestions')?.remove();
 
     const attachments = (pendingImageDataUrl || pendingAudio)
       ? { imageDataUrl: pendingImageDataUrl, audioBase64: pendingAudio?.base64, audioMimeType: pendingAudio?.mimeType }
@@ -169,6 +227,7 @@ function initIaChat({ listId, formId, inputId, statusId, apiFn, emptyText, enabl
         return;
       }
       history.push({ role: 'user', content: message || userLabel }, { role: 'assistant', content: result.reply });
+      saveHistory();
       statusEl.textContent = '';
     } catch (err) {
       if (started) bubbleRow.remove();
@@ -196,6 +255,19 @@ const IA_AGENT_LABELS = {
   estoque: 'Assistente de Estoque',
   precificacao: 'Assistente de Precificação',
   concorrencia: 'Assistente de Compras & Concorrência',
+};
+
+// Perguntas prontas por página — reduz a barreira de "não sei o que
+// perguntar" e mostra na prática que o assistente enxerga os dados reais
+// desta tela (não é um chat genérico).
+const IA_AGENT_SUGGESTIONS = {
+  overview: ['O que mais precisa da minha atenção agora?', 'Resuma como está o negócio este mês.'],
+  financeiro: ['Minha margem está saudável?', 'Onde estão minhas maiores despesas?'],
+  fluxocaixa: ['Vou ter saldo suficiente no fim do mês?', 'Quais contas a pagar estão mais próximas?'],
+  marketplaces: ['Qual canal está vendendo melhor?', 'Algum anúncio parado ou sem estoque?'],
+  estoque: ['Quais produtos estão perto de acabar?', 'Tem produto parado há muito tempo?'],
+  precificacao: ['Meu preço atual cobre bem os custos?', 'Como melhorar minha margem nesse produto?'],
+  concorrencia: ['Estou perdendo a buybox em algum produto?', 'Que produto merece atenção agora?'],
 };
 
 function initIaAgentWidget(agentKey) {
@@ -235,6 +307,9 @@ function initIaAgentWidget(agentKey) {
     apiFn: (message, history, onChunk, attachments) => yalcaIaAgente(agentKey, message, history, onChunk, attachments),
     emptyText: 'Pergunte algo sobre os dados desta página, ou anexe uma foto/áudio.',
     enableAttachments: true,
+    storageKey: `agente_${agentKey}`,
+    suggestions: IA_AGENT_SUGGESTIONS[agentKey],
+    contextHint: 'Este assistente já enxerga os dados reais desta página.',
   });
 }
 

@@ -1565,6 +1565,12 @@ tr.is-hidden { display: none; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: var(--p-space-3); }
   .kpi-card { padding: var(--p-space-4); }
 
+  /* Card ímpar sobrando sozinho numa grade 2 colunas parece bug (meia linha
+     vazia do lado) — ocupa a linha inteira em vez de ficar órfão. Funciona
+     pra qualquer página com KPI grid, mesmo com contagem variável (ex: busca
+     do Compras & Concorrência). */
+  .kpi-grid .kpi-card:last-child:nth-child(odd) { grid-column: span 2; }
+
   .data-table { font-size: 0.82rem; }
 
   /* Tabelas de maior uso: viram lista de cards (rótulo à esquerda, valor à
@@ -1648,6 +1654,32 @@ tr.is-hidden { display: none; }
 }
 .ia-msg--user .ia-msg__bubble { background: var(--gradient); color: #fff; border-bottom-right-radius: 4px; }
 .ia-msg--assistant .ia-msg__bubble { background: var(--surface-2); color: var(--text); border-bottom-left-radius: 4px; }
+.ia-context-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--p-space-2);
+  padding: 6px 10px;
+  width: fit-content;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+.ia-context-hint::before { content: "●"; color: var(--good, #2ecc71); font-size: 0.6rem; }
+.ia-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--p-space-2); }
+.ia-suggestion-chip {
+  padding: 7px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ia-suggestion-chip:hover { border-color: var(--primary-2); color: var(--primary-2); }
 .ia-chat-form { display: flex; gap: var(--p-space-2); margin-top: var(--p-space-3); }
 .ia-chat-form textarea {
   flex: 1;

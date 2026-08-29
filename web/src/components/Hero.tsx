@@ -9,7 +9,7 @@ export default function Hero() {
 
   return (
     <section id="top" className="relative isolate overflow-hidden pt-10 pb-14 sm:pt-14 lg:pt-20">
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-12 px-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 sm:gap-10 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
         <motion.div
           className="flex-[0_1_560px] lg:pt-10"
           initial={{ opacity: 0, y: 24 }}
@@ -70,7 +70,7 @@ export default function Hero() {
         </motion.div>
 
         <motion.div
-          className="mx-auto hidden w-full max-w-[420px] shrink-0 sm:block lg:mx-0"
+          className="mx-auto hidden w-full max-w-[420px] shrink-0 sm:mx-0 sm:block"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.3, ease: 'easeOut' }}

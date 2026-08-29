@@ -21,7 +21,7 @@ const items = [
 
 export default function FloatLogos() {
   return (
-    <div className="relative h-[380px] w-full max-w-[420px] sm:h-[480px]" aria-hidden="true">
+    <div className="relative h-[380px] w-full max-w-[420px] sm:h-[400px] lg:h-[480px]" aria-hidden="true">
       {items.map((item, i) => (
         <motion.div
           key={item.alt}

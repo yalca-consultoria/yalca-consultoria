@@ -6,6 +6,13 @@ type HeaderProps = {
   onMenuOpenChange: (open: boolean) => void
 }
 
+const NAV_LINKS = [
+  { href: '#servicos', label: 'Serviços' },
+  { href: '#sobre', label: 'Sobre' },
+  { href: '#faq', label: 'FAQ' },
+  { href: '#contato', label: 'Contato' },
+]
+
 export default function Header({ menuOpen, onMenuOpenChange: setMenuOpen }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false)
 
@@ -38,6 +45,18 @@ export default function Header({ menuOpen, onMenuOpenChange: setMenuOpen }: Head
         <a href="#top" className="font-heading text-xl font-bold" onClick={() => setMenuOpen(false)}>
           Yalca<span className="text-accent">.</span>
         </a>
+
+        <nav className="hidden items-center gap-6 lg:flex">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-medium text-text-muted transition hover:text-text"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
 
         {/* Abaixo de sm (640px) os dois links viram um menu hambúrguer — antes
             ficavam escondidos sem alternativa nenhuma no header em mobile
@@ -103,6 +122,16 @@ export default function Header({ menuOpen, onMenuOpenChange: setMenuOpen }: Head
             className="overflow-hidden border-t border-border bg-bg sm:hidden"
           >
             <div className="flex flex-col gap-3 px-6 py-5">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center rounded-full px-4 py-3 text-sm font-medium text-text-muted"
+                >
+                  {link.label}
+                </a>
+              ))}
               <a
                 href="/portal/login.html"
                 onClick={() => setMenuOpen(false)}
