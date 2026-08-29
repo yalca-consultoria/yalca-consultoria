@@ -11,6 +11,10 @@ let KEEPA_DATA = { tracked: [], cache: {}, alerts: [], alertsTotal: 0, sellerMet
 // o clique, sem precisar de nova consulta.
 const KEEPA_ALERTS_COLLAPSED_COUNT = 8;
 let LAST_KEEPA_SEARCH_RESULT = null;
+// Espelha LAST_KEEPA_SEARCH_RESULT, mas pro popup de detalhe de um produto
+// já monitorado (aba "Meus Anúncios") — usado pelo botão "Usar este preço
+// na Calculadora de Preço" de dentro do modal.
+let LAST_KEEPA_TRACKED_DETAIL_RESULT = null;
 // Reputação de vendedor já buscada nesta sessão — mantida entre pesquisas
 // (um vendedor já visto fica "de graça" o resto da sessão). O cache de
 // verdade é no servidor (keepa_seller_cache); isso aqui só evita uma
@@ -63,7 +67,8 @@ function initKeepaSection() {
 
   document.getElementById('keepaSearchForm').addEventListener('submit', handleKeepaSearchSubmit);
 
-  document.getElementById('keepaUseInPricingBtn').addEventListener('click', useKeepaResultInPricingCalculator);
+  document.getElementById('keepaUseInPricingBtn').addEventListener('click', () => useKeepaResultInPricingCalculator());
+  document.getElementById('keepaTrackedDetailUseInPricingBtn').addEventListener('click', () => useKeepaResultInPricingCalculator(LAST_KEEPA_TRACKED_DETAIL_RESULT));
 
   document.getElementById('keepaLoadSellerRepBtn').addEventListener('click', handleLoadSellerReputation);
 }
@@ -131,6 +136,32 @@ async function yalcaResolveSellerNames(sellerIds) {
   }
 }
 
+// Resumo sempre visível (calculado dos dados já carregados, sem consulta
+// nova) — antes só existia resumo quando a Yalca sincronizava o seller ID
+// da vitrine (keepaSellerMetricsPanel), então a maioria dos clientes não
+// tinha nenhum número de topo, só a lista crua de 134 produtos pra olhar
+// um por um.
+function renderKeepaOwnKpis() {
+  const container = document.getElementById('keepaOwnKpis');
+  if (!container) return;
+  if (KEEPA_DATA.tracked.length === 0) { container.innerHTML = ''; return; }
+
+  let semBuybox = 0;
+  let acimaCompetitivo = 0;
+  KEEPA_DATA.tracked.forEach(t => {
+    const c = KEEPA_DATA.cache[t.asin];
+    if (!c) return;
+    if (!c.buybox_seller) semBuybox++;
+    if (c.current_price != null && c.competitive_price_threshold != null && c.current_price > c.competitive_price_threshold) acimaCompetitivo++;
+  });
+
+  renderKpiGrid('keepaOwnKpis', [
+    { label: 'Produtos monitorados', value: KEEPA_DATA.tracked.length, delta: null, hint: 'Total de anúncios acompanhados automaticamente pela Yalca.' },
+    { label: 'Sem buybox agora', value: semBuybox, delta: null, hint: 'Nenhum vendedor está com a exibição principal nesses produtos no momento.' },
+    { label: 'Acima do preço competitivo', value: acimaCompetitivo, delta: null, hint: 'O preço atual está acima do limite que o Keepa calcula pra competir pela buybox — use o filtro "Acima do preço competitivo" na tabela abaixo pra ver quais são.' },
+  ]);
+}
+
 /* ---------- "Meus Anúncios" ---------- */
 function renderKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
@@ -147,15 +178,29 @@ function renderKeepaTracked() {
     const priceLabel = c && c.current_price != null
       ? `${yalcaFormatCurrency(c.current_price)}${c.saving_pct ? ` <span class="badge badge--ok" style="margin-left:4px;">-${c.saving_pct}%</span>` : ''}`
       : '—';
-    // Preço-limite pra competir: o Keepa já calcula isso (76 dos seus 145
+    // Preço-limite pra competir: o Keepa já calcula isso (76 dos 145
     // produtos em cache têm esse número), mas antes só aparecia se você
     // clicasse no produto — agora fica visível direto na lista, que é onde
-    // você de fato compara os 134 produtos entre si.
+    // você de fato compara os produtos entre si. suggestedLowerPrice (mais
+    // raro, poucos produtos) é mais específico — um preço exato sugerido,
+    // não só "você está acima" — então tem prioridade quando existe.
     const priceAboveThreshold = c && c.current_price != null && c.competitive_price_threshold != null && c.current_price > c.competitive_price_threshold;
-    const priceFlagHtml = priceAboveThreshold
-      ? `<div class="price-flag">⚠ ${yalcaFormatCurrency(c.current_price - c.competitive_price_threshold)} acima do competitivo</div>`
-      : '';
-    const bsrLabel = c && c.bsr != null ? c.bsr.toLocaleString('pt-BR') : '—';
+    const priceFlagHtml = c && c.suggested_lower_price != null
+      ? `<div class="price-flag price-flag--suggestion">💡 Preço sugerido: ${yalcaFormatCurrency(c.suggested_lower_price)}</div>`
+      : priceAboveThreshold
+        ? `<div class="price-flag">⚠ ${yalcaFormatCurrency(c.current_price - c.competitive_price_threshold)} acima do competitivo</div>`
+        : '';
+    // Tendência de ranking: compara com o penúltimo ponto do histórico —
+    // BSR MENOR é melhor (vende mais), então o sinal passado pra
+    // yalcaTrendArrow é invertido (queda de BSR = seta verde pra cima).
+    // Antes só o preço e o "Comprado/mês" tinham seta, o BSR (a métrica
+    // mais olhada da tabela) não tinha nenhum indicador de direção.
+    let bsrTrendHtml = '';
+    if (c?.bsr != null && Array.isArray(c.bsr_history) && c.bsr_history.length >= 2) {
+      const prevBsr = c.bsr_history[c.bsr_history.length - 2]?.value;
+      if (prevBsr != null && prevBsr !== c.bsr) bsrTrendHtml = ` ${yalcaTrendArrow(prevBsr - c.bsr)}`;
+    }
+    const bsrLabel = c && c.bsr != null ? `${c.bsr.toLocaleString('pt-BR')}${bsrTrendHtml}` : '—';
     const isOwnBuybox = c && c.buybox_seller && t.own_seller_name && c.buybox_seller === t.own_seller_name;
     const buyboxSellerName = c?.buybox_seller ? KEEPA_SELLER_REPUTATION[c.buybox_seller]?.sellerName : null;
     const buyboxLabel = c && c.buybox_seller
@@ -211,7 +256,7 @@ function renderKeepaTracked() {
     const searchTags = [fullProductName, t.asin].join(' ').toLowerCase();
     const filterTags = [
       c && !c.buybox_seller ? 'sembuybox' : '',
-      priceAboveThreshold ? 'acima' : '',
+      priceAboveThreshold || c?.suggested_lower_price != null ? 'acima' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -338,6 +383,7 @@ async function openKeepaTrackedDetail(asin) {
     return;
   }
   const result = yalcaCacheRowToResult(c);
+  LAST_KEEPA_TRACKED_DETAIL_RESULT = result;
 
   // Resolve o nome de todos os vendedores que aparecem nesse produto (buybox
   // + ofertas ativas + histórico de quem domina a buybox) ANTES de
@@ -512,6 +558,7 @@ async function handleDeleteTrackedAsin(id) {
   try {
     await yalcaDeleteTrackedAsin(id);
     await reloadKeepaData();
+    renderKeepaOwnKpis();
     renderKeepaTracked();
     renderKeepaAlerts();
   } catch (err) {
@@ -1010,9 +1057,15 @@ function yalcaKeepaMinutesLabel(minutes) {
    Keepa e Precificação são páginas separadas agora — a "ponte" precisa
    ser uma navegação de verdade. O preço viaja via sessionStorage e
    precificacao-app.js consome (e limpa) essa chave ao carregar. */
-function useKeepaResultInPricingCalculator() {
-  if (!LAST_KEEPA_SEARCH_RESULT) return;
-  const price = LAST_KEEPA_SEARCH_RESULT.buybox?.price ?? LAST_KEEPA_SEARCH_RESULT.currentPrice;
+// Aceita um `result` opcional (mesmo "shape" de yalcaCacheRowToResult) — sem
+// isso só funcionava pro resultado da aba "Pesquisar Produto"
+// (LAST_KEEPA_SEARCH_RESULT), mas o botão equivalente no popup de detalhe de
+// um produto JÁ monitorado (ver LAST_KEEPA_TRACKED_DETAIL_RESULT) precisa do
+// mesmo comportamento sem duplicar a função inteira.
+function useKeepaResultInPricingCalculator(result) {
+  const source = result || LAST_KEEPA_SEARCH_RESULT;
+  if (!source) return;
+  const price = source.buybox?.price ?? source.currentPrice;
   if (price == null) {
     alert('Esse produto não tem preço disponível pra usar na calculadora.');
     return;

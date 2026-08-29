@@ -1197,13 +1197,24 @@ body.portal-body {
    UM item de flex só que empilha por conta própria — senão o selo virava
    um item-irmão do texto do preço na mesma linha e estourava a largura do
    card (achado testando com dados reais de exemplo). */
-.price-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.price-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; max-width: 100%; }
+/* white-space:normal (não nowrap): a coluna "Preço" no desktop é bem mais
+   estreita que o texto do selo ("⚠ R$ 4,00 acima do competitivo") — com
+   nowrap, o texto ficava mais largo que a própria coluna e, como
+   align-items:flex-end ancora pela direita, o excesso vazava pra ESQUERDA,
+   flutuando por cima da coluna de Produto vizinha (achado testando com
+   dados de exemplo no desktop). Quebrando linha normalmente, o selo fica
+   contido na largura real da coluna. */
 .price-flag {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  font-size: 0.72rem; font-weight: 700; white-space: normal; text-align: right; max-width: 100%;
   color: var(--warning); background: rgba(250,178,25,0.1); border: 1px solid rgba(250,178,25,0.3);
   padding: 2px 7px; border-radius: 6px;
 }
+/* suggested_lower_price é um número específico calculado pelo Keepa (mais
+   raro e mais preciso que só "está acima do competitivo") — cor de dica
+   (accent), não de alerta, pra não parecer tão grave quanto o warning. */
+.price-flag--suggestion { color: var(--accent); background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); }
 
 /* Linhas escondidas pela busca/filtro de "Produtos monitorados" — troca só
    display, sem re-renderizar a tabela (ver yalcaApplyKeepaTrackedFilter). */

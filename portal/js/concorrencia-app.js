@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Keepa:', err);
   }
   renderKeepaSellerMetrics();
+  renderKeepaOwnKpis();
   renderKeepaTracked();
   renderKeepaAlerts();
 });
