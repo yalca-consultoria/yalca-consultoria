@@ -40,14 +40,14 @@ jobs:
         run: |
           rm -rf assets
           cp -r web/dist/assets assets
-          cp web/dist/index.html index.html
+          cp web/dist/*.html .
           cp -r web/public/fonts/. fonts/
 
       - name: Commitar se houve mudança
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html assets fonts
+          git add ./*.html assets fonts
           if git diff --cached --quiet; then
             echo "Nada para publicar."
           else
