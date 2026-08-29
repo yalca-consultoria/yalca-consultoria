@@ -100,8 +100,23 @@ async function reloadKeepaData() {
   // vendedor (ex: A2L77EE7U53NWQ), que não ajuda em nada na decisão do
   // cliente. Cabe numa única requisição (cache compartilhado de 30 dias no
   // servidor, então repetir não gasta token de novo).
-  const buyboxSellerIds = [...new Set(cacheRows.map(c => c.buybox_seller).filter(Boolean))];
+  //
+  // Os vendedores citados nos alertas (previous_value/new_value.seller)
+  // entram na MESMA leva — sem isso, "Alertas recentes" mostrava a mensagem
+  // crua do banco tipo "A buybox mudou de A636W0WS3BFJK para
+  // A2PM70OJR2Z7AW", ilegível pro cliente (bug real relatado, 2026-08-29).
+  const alertSellerIds = alerts.flatMap(a => [a.previous_value?.seller, a.new_value?.seller]).filter(id => id && id !== 'Amazon');
+  const buyboxSellerIds = [...new Set([...cacheRows.map(c => c.buybox_seller), ...alertSellerIds].filter(Boolean))];
   await yalcaResolveSellerNames(buyboxSellerIds);
+}
+
+// "Amazon" não é um seller ID de verdade (é como o backend marca quando a
+// própria Amazon está com a buybox) — passa direto. Sem nome resolvido em
+// cache, cai no ID técnico como último recurso (melhor que travar/sumir).
+function yalcaSellerLabel(sellerId) {
+  if (!sellerId) return 'ninguém';
+  if (sellerId === 'Amazon') return 'Amazon';
+  return KEEPA_SELLER_REPUTATION[sellerId]?.sellerName || sellerId;
 }
 
 // Busca (e guarda em KEEPA_SELLER_REPUTATION) o nome/reputação de uma lista
@@ -482,7 +497,12 @@ function renderKeepaAlerts() {
   const foot = document.getElementById('keepaAlertsFoot');
   if (!container) return;
   const ownSellerByAsin = Object.fromEntries(KEEPA_DATA.tracked.filter(t => t.own_seller_name).map(t => [t.asin, t.own_seller_name]));
-  const trackedLabelByAsin = Object.fromEntries(KEEPA_DATA.tracked.map(t => [t.asin, t.label || t.asin]));
+  // Cai pro título do cache (Keepa) quando o produto não tem apelido
+  // cadastrado — hoje NENHUM dos produtos monitorados tem `label`
+  // preenchido, então antes disso todo alerta mostrava o ASIN cru
+  // (ex: "B0K3F9M2X1") em vez do nome do produto (bug real relatado,
+  // 2026-08-29). Mesmo fallback que a tabela "Produtos monitorados" já usava.
+  const trackedLabelByAsin = Object.fromEntries(KEEPA_DATA.tracked.map(t => [t.asin, t.label || KEEPA_DATA.cache[t.asin]?.title || t.asin]));
 
   const formatted = KEEPA_DATA.alerts.map(a => {
     const ownSeller = ownSellerByAsin[a.asin];
@@ -490,12 +510,26 @@ function renderKeepaAlerts() {
     let icon = 'ℹ️';
     let message = a.message;
 
+    // As mensagens abaixo montam o texto na mão (em vez de usar a.message
+    // cru do banco) porque a.message vem com o ID técnico do vendedor
+    // direto do Keepa (ex: "A buybox mudou de A636W0WS3BFJK para
+    // A2PM70OJR2Z7AW") — ilegível pro cliente. yalcaSellerLabel troca pelo
+    // nome resolvido quando disponível (ver reloadKeepaData).
     if (a.alert_type === 'buybox_lost' && ownSeller && a.previous_value && a.previous_value.seller === ownSeller) {
       level = 'critical'; icon = '⛔'; message = 'Você perdeu a buybox — ninguém está vendendo agora.';
     } else if (a.alert_type === 'buybox_changed' && ownSeller && a.previous_value && a.previous_value.seller === ownSeller) {
-      level = 'critical'; icon = '⛔'; message = `Você perdeu a buybox pra ${a.new_value?.seller ?? 'outro vendedor'}.`;
+      level = 'critical'; icon = '⛔'; message = `Você perdeu a buybox pra ${yalcaSellerLabel(a.new_value?.seller)}.`;
     } else if (a.alert_type === 'buybox_regained' && ownSeller && a.new_value && a.new_value.seller === ownSeller) {
       level = 'good'; icon = '✅'; message = 'Você recuperou a buybox!';
+    } else if (a.alert_type === 'buybox_changed' && ownSeller && a.new_value && a.new_value.seller === ownSeller) {
+      // O mesmo alert_type "buybox_changed" também dispara quando é o
+      // cliente que GANHA a buybox (não só quando perde) — sem esse
+      // branch, essa boa notícia caía no genérico "Buybox mudou de X pra
+      // Y" (nível neutro), igualzinho a uma mudança entre dois
+      // concorrentes que não te diz respeito.
+      level = 'good'; icon = '✅'; message = `Você conquistou a buybox de ${yalcaSellerLabel(a.previous_value?.seller)}!`;
+    } else if (a.alert_type === 'buybox_changed') {
+      icon = 'ℹ️'; message = `Buybox mudou de ${yalcaSellerLabel(a.previous_value?.seller)} para ${yalcaSellerLabel(a.new_value?.seller)}.`;
     } else if (a.alert_type === 'price_drop') { icon = '📉'; }
     else if (a.alert_type === 'price_increase') { icon = '📈'; }
     else if (a.alert_type === 'out_of_stock') { level = 'critical'; icon = '⛔'; }
@@ -993,10 +1027,19 @@ function renderKeepaCategoryRanks(ranks, panelId, listId) {
     return;
   }
   panel.style.display = '';
+  // .alert-item__body (não uma <div> solta): mesma classe que o resto do
+  // .alert-item usa pra estilar strong/span — sem ela, "strong" perdia o
+  // display:block (a regra ficou específica de .alert-item__body quando os
+  // alertas ganharam hora/clique) e o rótulo "categoria principal" colava
+  // sem espaço no fim do nome da categoria (bug real, achado testando
+  // visualmente, 2026-08-29).
   list.innerHTML = ranks.map(r => `
     <div class="alert-item">
       <span class="alert-item__icon">${r.isPrimary ? '🏆' : '📊'}</span>
-      <div><strong>#${r.rank.toLocaleString('pt-BR')} em ${yalcaEscapeHtml(r.categoryName)}</strong>${r.isPrimary ? '<span>categoria principal</span>' : ''}</div>
+      <div class="alert-item__body">
+        <strong>#${r.rank.toLocaleString('pt-BR')} em ${yalcaEscapeHtml(r.categoryName)}</strong>
+        ${r.isPrimary ? '<span>categoria principal</span>' : ''}
+      </div>
     </div>`).join('');
 }
 
