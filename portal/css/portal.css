@@ -1712,7 +1712,20 @@ tr.is-hidden { display: none; }
    em "Exportar PDF" (ver yalcaPrintKeepaTracked/yalcaPrintKeepaSearchResult
    em concorrencia.js) — sem elas, Ctrl+P normal do cliente imprime a tela
    inteira como está, sem esse tratamento especial. */
+.print-header { display: none; }
+@page { margin: 1.5cm; }
 @media print {
+  /* Cabeçalho com a logo — só existe pra impressão, invisível na tela
+     normal (display:none acima, sobrescrito aqui só quando alguma das
+     duas classes de impressão está ativa). */
+  body.is-printing-tracked .print-header, body.is-printing-search .print-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 2px solid #111;
+  }
+  .print-header__logo { font-family: var(--font-heading); font-weight: 800; font-size: 1.3rem; color: #111; }
+  .print-header__logo span { color: var(--accent); }
+  .print-header__meta { font-size: 0.78rem; color: #555; white-space: nowrap; }
+
   body.is-printing-tracked, body.is-printing-search {
     background: #fff; color: #111;
   }
@@ -1768,4 +1781,26 @@ tr.is-hidden { display: none; }
   body.is-printing-search .kpi-card__label,
   body.is-printing-search .kpi-card__value,
   body.is-printing-search .kpi-card__hint { color: #111 !important; }
+
+  /* O texto explicativo de cada KPI (data-tip) só existia como bolha de
+     tooltip no hover/foco — inútil numa folha impressa, onde nada é
+     "passado o mouse". Aqui ele vira texto visível de verdade, abaixo do
+     rótulo (flex-basis:100% força a quebra de linha dentro do mesmo flex
+     row do rótulo, sem precisar mudar a estrutura do HTML). */
+  body.is-printing-search .kpi-card__label { flex-wrap: wrap; align-items: flex-start; }
+  body.is-printing-search .info-tip {
+    width: auto; height: auto; border: none; flex: 1 0 100%; order: 2; cursor: default;
+  }
+  body.is-printing-search .info-tip__icon { display: none; }
+  body.is-printing-search .info-tip::after {
+    content: attr(data-tip);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: #555;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
 }

@@ -100,21 +100,38 @@ function initKeepaSection() {
 // "Produtos monitorados" respeita a busca/filtro ativos (exporta só o que
 // bate com o que o cliente já filtrou) mas ignora a paginação — exportar
 // só a página atual (20 de 134) seria inútil pra esse fim.
+// Data/hora + (quando aplicável) o que está sendo exportado, no cabeçalho
+// de impressão — só texto mesmo, sem gráfico nenhum, pra não competir com
+// a logo.
+function yalcaSetPrintHeaderMeta(text) {
+  const el = document.getElementById('printHeaderMeta');
+  if (!el) return;
+  const now = new Date();
+  const stamp = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  el.textContent = text ? `${text} · ${stamp}` : stamp;
+}
+
 function yalcaPrintKeepaTracked() {
   const tbody = document.getElementById('keepaTrackedBody');
   const rows = [...tbody.querySelectorAll('tr[data-asin]')];
   const query = (document.getElementById('keepaTrackedSearch')?.value || '').trim().toLowerCase();
   const filter = document.getElementById('keepaTrackedFilter')?.value || 'todos';
+  let count = 0;
   rows.forEach(row => {
     const matchesQuery = !query || (row.dataset.search || '').includes(query);
     const matchesFilter = filter === 'todos' || (row.dataset.tags || '').split(' ').includes(filter);
-    row.classList.toggle('print-show', matchesQuery && matchesFilter);
+    const show = matchesQuery && matchesFilter;
+    row.classList.toggle('print-show', show);
+    if (show) count++;
   });
+  yalcaSetPrintHeaderMeta(`Produtos monitorados — ${count} produto${count === 1 ? '' : 's'}`);
   document.body.classList.add('is-printing-tracked');
   window.print();
 }
 
 function yalcaPrintKeepaSearchResult() {
+  const title = document.getElementById('keepaResultTitle')?.textContent?.trim();
+  yalcaSetPrintHeaderMeta(title && title !== '—' ? title : 'Pesquisar produto');
   document.body.classList.add('is-printing-search');
   window.print();
 }

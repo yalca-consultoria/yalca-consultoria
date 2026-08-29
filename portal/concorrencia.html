@@ -11,9 +11,18 @@
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
-<link rel="stylesheet" href="css/portal.min.css?v=644e2ac3">
+<link rel="stylesheet" href="css/portal.min.css?v=1c232739">
 </head>
 <body class="portal-body">
+
+<!-- Cabeçalho só de impressão (Exportar PDF) — invisível na tela normal,
+     aparece só via @media print (ver css/portal.css). A logo aqui é a
+     mesma marca de texto usada em todo o site (sem imagem/arquivo), então
+     já sai "sem fundo" por natureza. -->
+<div class="print-header">
+  <span class="print-header__logo">Yalca<span>.</span></span>
+  <span class="print-header__meta" id="printHeaderMeta"></span>
+</div>
 
 <div class="demo-banner">
   Seus dados ficam salvos na sua conta Yalca. Use <strong>"Carregar dados de exemplo"</strong> no menu lateral para conhecer as ferramentas antes de cadastrar dados reais.
@@ -372,13 +381,13 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js?v=644e2ac3"></script>
-<script src="js/portal-data.min.js?v=644e2ac3"></script>
-<script src="js/portal-auth.min.js?v=644e2ac3"></script>
-<script src="js/charts.min.js?v=644e2ac3"></script>
-<script src="js/portal-shell.min.js?v=644e2ac3"></script>
-<script src="js/ia.min.js?v=644e2ac3"></script>
-<script src="js/concorrencia.min.js?v=644e2ac3"></script>
-<script src="js/concorrencia-app.min.js?v=644e2ac3"></script>
+<script src="js/supabase-config.min.js?v=1c232739"></script>
+<script src="js/portal-data.min.js?v=1c232739"></script>
+<script src="js/portal-auth.min.js?v=1c232739"></script>
+<script src="js/charts.min.js?v=1c232739"></script>
+<script src="js/portal-shell.min.js?v=1c232739"></script>
+<script src="js/ia.min.js?v=1c232739"></script>
+<script src="js/concorrencia.min.js?v=1c232739"></script>
+<script src="js/concorrencia-app.min.js?v=1c232739"></script>
 </body>
 </html>
