@@ -158,14 +158,18 @@ async function yalcaFetchKeepaAlertsCount(asins) {
   const { count, error } = await supabaseClient.from('keepa_asin_alerts').select('id', { count: 'exact', head: true }).in('asin', asins);
   return error ? null : count;
 }
-// API própria em Node (keepa-api.yalca.com.br), não mais Edge Function do
-// Supabase — motivo: o edge-runtime self-hosted causou vários problemas
-// reais (auth manual porque @supabase/server não funcionava nesse deploy,
-// respostas OPTIONS quebradas, e o SDK supabase-js descartando a mensagem
-// de erro customizada pra qualquer status não-2xx). Um fetch() direto não
-// tem nenhuma dessas pegadinhas: o corpo JSON vem completo em qualquer
-// status, então nem precisa de tratamento especial de erro aqui.
-const KEEPA_API_URL = 'https://keepa-api.yalca.com.br';
+// API própria em Node (data-api.yalca.com.br — nome do subdomínio não
+// referencia o fornecedor de dados por trás, de propósito: até então
+// "keepa-api" aparecia em texto puro no header CSP, visível a qualquer um
+// que inspecionasse a aba Network, mesmo com a marca escondida na UI),
+// não mais Edge Function do Supabase — motivo: o edge-runtime self-hosted
+// causou vários problemas reais (auth manual porque @supabase/server não
+// funcionava nesse deploy, respostas OPTIONS quebradas, e o SDK
+// supabase-js descartando a mensagem de erro customizada pra qualquer
+// status não-2xx). Um fetch() direto não tem nenhuma dessas pegadinhas: o
+// corpo JSON vem completo em qualquer status, então nem precisa de
+// tratamento especial de erro aqui.
+const KEEPA_API_URL = 'https://data-api.yalca.com.br';
 
 async function yalcaKeepaApiCall(path, body) {
   const { data: sessionData } = await supabaseClient.auth.getSession();
