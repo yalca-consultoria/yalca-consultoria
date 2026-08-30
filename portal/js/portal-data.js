@@ -225,8 +225,8 @@ async function yalcaAnvisaApiCall(path, body) {
   return json;
 }
 // categoria: 'alimentos' (única disponível por enquanto) | tipo: cnpj/nome/registro/processo
-async function yalcaAnvisaSearch(categoria, tipo, valor) {
-  return yalcaAnvisaApiCall('/search', { categoria, tipo, valor });
+async function yalcaAnvisaSearch(categoria, tipo, valor, page) {
+  return yalcaAnvisaApiCall('/search', { categoria, tipo, valor, page: page || 1 });
 }
 async function yalcaKeepaSellerLookup(sellerIds) {
   return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });

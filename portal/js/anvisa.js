@@ -7,12 +7,20 @@
    (portal/anvisa-api/lib/anvisa-categories.js) sem mexer aqui.
    ========================================= */
 
-const ANVISA_TIPO_LABELS = { cnpj: 'CNPJ', nome: 'Nome/marca', registro: 'Nº de registro', processo: 'Nº de processo' };
+// Guarda a última busca feita, pra paginação re-consultar sem o usuário
+// preencher o formulário de novo — diferente do Keepa (paginação sobre
+// dados já carregados), aqui cada página é uma chamada nova ao backend.
+let ANVISA_LAST_SEARCH = null; // { categoria, tipo, valor }
 
 function initAnvisaSection() {
   const form = document.getElementById('anvisaSearchForm');
   if (!form) return;
   form.addEventListener('submit', handleAnvisaSearchSubmit);
+  document.getElementById('anvisaResultPagination')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-page]');
+    if (!btn || btn.disabled) return;
+    runAnvisaSearch(Number(btn.dataset.page));
+  });
 }
 
 function yalcaEscapeHtmlAnvisa(text) {
@@ -25,11 +33,8 @@ async function handleAnvisaSearchSubmit(e) {
   e.preventDefault();
   const categoria = document.getElementById('anvisaCategoria').value;
   const tipo = document.getElementById('anvisaTipo').value;
-  const valorInput = document.getElementById('anvisaValor');
-  const valor = valorInput.value.trim();
+  const valor = document.getElementById('anvisaValor').value.trim();
   const statusEl = document.getElementById('anvisaSearchStatus');
-  const resultPanel = document.getElementById('anvisaResultPanel');
-  const submitBtn = e.target.querySelector('button[type="submit"]');
 
   if (!valor) {
     statusEl.textContent = 'Digite um valor para pesquisar.';
@@ -37,21 +42,35 @@ async function handleAnvisaSearchSubmit(e) {
     return;
   }
 
+  ANVISA_LAST_SEARCH = { categoria, tipo, valor };
+  await runAnvisaSearch(1);
+}
+
+async function runAnvisaSearch(page) {
+  if (!ANVISA_LAST_SEARCH) return;
+  const { categoria, tipo, valor } = ANVISA_LAST_SEARCH;
+  const statusEl = document.getElementById('anvisaSearchStatus');
+  const resultPanel = document.getElementById('anvisaResultPanel');
+  const submitBtn = document.querySelector('#anvisaSearchForm button[type="submit"]');
+
   statusEl.textContent = '';
-  resultPanel.style.display = 'none';
+  if (page === 1) resultPanel.style.display = 'none';
   submitBtn.disabled = true;
   submitBtn.textContent = 'Pesquisando...';
 
   try {
-    const result = await yalcaAnvisaSearch(categoria, tipo, valor);
+    const result = await yalcaAnvisaSearch(categoria, tipo, valor, page);
     if (!result.ok) {
       statusEl.textContent = result.message || 'Não foi possível pesquisar agora.';
       statusEl.style.color = 'var(--warning)';
       return;
     }
-    renderAnvisaResults(result.results || [], result.source);
+    renderAnvisaResults(result);
   } catch (err) {
-    statusEl.textContent = 'Não foi possível consultar agora: ' + err.message;
+    // Erro de rede/timeout já vem com mensagem tratada de
+    // yalcaAnvisaApiCall (portal-data.js) — só cai aqui algo
+    // inesperado, então mantém genérico mas sem vazar objeto de erro cru.
+    statusEl.textContent = err.message || 'Não foi possível consultar agora. Tente novamente.';
     statusEl.style.color = 'var(--critical)';
   } finally {
     submitBtn.disabled = false;
@@ -59,20 +78,22 @@ async function handleAnvisaSearchSubmit(e) {
   }
 }
 
-function renderAnvisaResults(results, source) {
+function renderAnvisaResults(result) {
+  const { results = [], source, page = 1, totalPages = 1, totalElements = results.length } = result;
   const resultPanel = document.getElementById('anvisaResultPanel');
   const body = document.getElementById('anvisaResultBody');
   const countEl = document.getElementById('anvisaResultCount');
   const statusEl = document.getElementById('anvisaSearchStatus');
 
-  if (results.length === 0) {
-    statusEl.textContent = 'Nenhum produto encontrado para essa busca.';
+  if (results.length === 0 && page === 1) {
+    statusEl.textContent = 'Nenhum produto encontrado para essa busca. Confira se digitou o CNPJ, registro ou processo corretamente.';
     statusEl.style.color = 'var(--text-muted)';
     resultPanel.style.display = 'none';
+    document.getElementById('anvisaResultPagination').innerHTML = '';
     return;
   }
 
-  countEl.textContent = `${results.length} produto${results.length === 1 ? '' : 's'} encontrado${results.length === 1 ? '' : 's'}${source === 'cache' ? ' (resultado em cache)' : ''}`;
+  countEl.textContent = `${totalElements} produto${totalElements === 1 ? '' : 's'} encontrado${totalElements === 1 ? '' : 's'}${source === 'cache' ? ' (resultado em cache)' : ''}`;
   body.innerHTML = results.map((r) => {
     const situacaoClass = r.situacaoRegistro === 'Ativo' ? 'ativo' : 'pausado';
     return `
@@ -88,6 +109,28 @@ function renderAnvisaResults(results, source) {
       </tr>`;
   }).join('');
 
+  renderAnvisaPagination(page, totalPages);
   resultPanel.style.display = '';
-  document.getElementById('anvisaSearchStatus').textContent = '';
+  resultPanel.scrollIntoView({ block: 'nearest' });
+  statusEl.textContent = '';
+}
+
+function renderAnvisaPagination(page, totalPages) {
+  const el = document.getElementById('anvisaResultPagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  const pageBtn = (p, label, disabled, active) => `
+    <button type="button" class="pagination__btn${active ? ' is-active' : ''}" data-page="${p}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+  // No máximo 20 páginas visíveis pra não explodir a barra numa busca
+  // muito grande — próximo/anterior sempre cobre o resto.
+  const numbers = Array.from({ length: Math.min(totalPages, 20) }, (_, i) => i + 1)
+    .map((p) => pageBtn(p, p, false, p === page))
+    .join('');
+
+  el.innerHTML = `
+    ${pageBtn(page - 1, '‹ Anterior', page <= 1, false)}
+    ${numbers}
+    ${pageBtn(page + 1, 'Próxima ›', page >= totalPages, false)}`;
 }

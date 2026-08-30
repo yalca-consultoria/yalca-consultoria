@@ -146,21 +146,30 @@ async function handleAnvisaSearch(req, res) {
   const categoria = typeof body.categoria === 'string' ? body.categoria.trim() : '';
   const tipo = typeof body.tipo === 'string' ? body.tipo.trim() : '';
   const valor = typeof body.valor === 'string' ? body.valor.trim() : '';
+  // Só a página 1 é cacheada (chave simples) — páginas seguintes de uma
+  // busca grande são raras o bastante pra não valer a complexidade de
+  // cachear cada uma; sempre vão direto na Anvisa.
+  const page = Number.isInteger(body.page) && body.page > 0 ? body.page : 1;
   const categoryDef = CATEGORIES[categoria];
   const validTipos = ['cnpj', 'nome', 'registro', 'processo'];
   if (!categoryDef) { sendJson(res, 400, { ok: false, reason: 'invalid_category', message: 'Categoria de consulta inválida ou ainda não disponível.' }); return; }
   if (!validTipos.includes(tipo) || !valor) { sendJson(res, 400, { ok: false, reason: 'invalid_query', message: 'Informe um CNPJ, nome, número de registro ou de processo válido.' }); return; }
 
-  // --- cache primeiro ---
+  // --- cache primeiro (só página 1) ---
   const config = await db.restGetOne('anvisa_config', 'id=eq.1&select=*');
   const cacheMaxAgeMs = (config?.query_cache_max_age_hours ?? 24) * 3600 * 1000;
   const cacheKey = normalizeCacheKey(categoria, tipo, valor);
-  const cached = await db.restGetOne('anvisa_query_cache', `cache_key=eq.${cacheKey}&select=*`);
-  const cacheAgeMs = cached?.fetched_at ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
-  if (cached && cacheAgeMs < cacheMaxAgeMs) {
-    await db.restInsert('anvisa_query_log', [{ user_id: user.id, categoria, tipo, resulted_in_live_call: false }]);
-    sendJson(res, 200, { ok: true, source: 'cache', categoria, results: cached.results ?? [] });
-    return;
+  if (page === 1) {
+    const cached = await db.restGetOne('anvisa_query_cache', `cache_key=eq.${cacheKey}&select=*`);
+    const cacheAgeMs = cached?.fetched_at ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
+    if (cached && cacheAgeMs < cacheMaxAgeMs) {
+      await db.restInsert('anvisa_query_log', [{ user_id: user.id, categoria, tipo, resulted_in_live_call: false }]);
+      sendJson(res, 200, {
+        ok: true, source: 'cache', categoria, results: cached.results ?? [],
+        page: 1, totalPages: cached.total_pages ?? 1, totalElements: cached.total_elements ?? (cached.results ?? []).length,
+      });
+      return;
+    }
   }
 
   // --- limite diário do cliente ---
@@ -189,29 +198,58 @@ async function handleAnvisaSearch(req, res) {
     } else {
       const token = await getAnvisaToken();
       const filter = categoryDef.buildFilter(tipo, valor);
+      // "size" e "page" precisam estar na RAIZ do corpo, não dentro de
+      // "filter" — testado direto contra a API real (2026-08-30): size
+      // dentro de filter é ignorado silenciosamente (a Anvisa sempre
+      // volta com pageSize=10 default nesse caso). "page" é 1-indexado
+      // na ENTRADA (page:1 = primeira página) — a resposta reporta
+      // "pageNumber":0 internamente pra página 1, o que engana a pensar
+      // que a entrada também é 0-indexada; testado e confirmado: mandar
+      // page:0 pra primeira página quebra com 500 ("Page index must not
+      // be less than zero").
       const kres = await fetch(`${ANVISA_GATEWAY}${categoryDef.endpoint}`, {
         method: 'POST',
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page: 1, filter: { ...filter, size: 20 } }),
+        body: JSON.stringify({ page, size: 20, filter }),
         signal: AbortSignal.timeout(ANVISA_FETCH_TIMEOUT_MS),
       });
-      if (!kres.ok) throw new Error(`Anvisa respondeu ${kres.status}`);
-      rawResponse = await kres.json();
+      if (!kres.ok) {
+        // Erros reais observados em produção (2026-08-30): a Anvisa
+        // responde 404 pra filtro malformado (ex: CNPJ com pontuação —
+        // já corrigido em anvisa-categories.js) em vez de 400/422. Trata
+        // como "sem resultado" em vez de erro de servidor, já que na
+        // prática qualquer 404 daqui pra frente é uma consulta que não
+        // bate com nada, não uma falha de infraestrutura.
+        if (kres.status === 404) { rawResponse = { content: [], totalElements: 0, totalPages: 0 }; }
+        else throw new Error(`Anvisa respondeu ${kres.status}`);
+      } else {
+        rawResponse = await kres.json();
+      }
     }
   } catch (err) {
     await db.restInsert('anvisa_query_log', [{ user_id: user.id, categoria, tipo, resulted_in_live_call: true, success: false, error_message: String(err.message || err) }]);
-    sendJson(res, 502, { ok: false, reason: 'anvisa_error', message: 'Não foi possível consultar a Anvisa agora. Tente novamente em instantes.' });
+    const timedOut = err.name === 'TimeoutError' || err.name === 'AbortError';
+    sendJson(res, 502, {
+      ok: false, reason: 'anvisa_error',
+      message: timedOut
+        ? 'A consulta na Anvisa demorou demais e foi cancelada. Tente novamente.'
+        : 'Não foi possível consultar a Anvisa agora. Tente novamente em instantes.',
+    });
     return;
   }
 
   const results = (rawResponse.content ?? []).map((raw) => categoryDef.parse(raw));
+  const totalElements = rawResponse.totalElements ?? results.length;
+  const totalPages = rawResponse.totalPages ?? 1;
   const nowIso = new Date().toISOString();
 
-  await db.restUpsert('anvisa_query_cache', [{ cache_key: cacheKey, categoria, tipo, valor, results, fetched_at: nowIso }], 'cache_key');
+  if (page === 1) {
+    await db.restUpsert('anvisa_query_cache', [{ cache_key: cacheKey, categoria, tipo, valor, results, total_elements: totalElements, total_pages: totalPages, fetched_at: nowIso }], 'cache_key');
+  }
   await db.restUpdate('anvisa_request_budget', 'id=eq.1', { requests_spent_today: spentToday + 1, spend_day: todayStr, last_checked_at: nowIso });
   await db.restInsert('anvisa_query_log', [{ user_id: user.id, categoria, tipo, resulted_in_live_call: true, success: true }]);
 
-  sendJson(res, 200, { ok: true, source: 'live', categoria, results });
+  sendJson(res, 200, { ok: true, source: 'live', categoria, results, page, totalPages, totalElements });
 }
 
 async function handleAnvisaCategories(req, res) {

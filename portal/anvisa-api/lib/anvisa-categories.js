@@ -16,13 +16,20 @@ const CATEGORIES = {
     parse: parseAlimentoProduct,
     mock: mockAlimentoResponse,
     // Mapeia os campos genéricos que o front-end manda (tipo de busca) pro
-    // nome de filtro exato que essa categoria espera.
+    // nome de filtro exato que essa categoria espera. BUG REAL encontrado
+    // em produção (2026-08-30, via log real de uso): CNPJ formatado com
+    // pontuação (ex: "05.802.880/0001-33") faz a Anvisa responder 404 —
+    // ela só aceita dígitos puros (confirmado testando os dois formatos
+    // direto na API). CNPJ e nº de processo costumam vir formatados de
+    // quem copia e cola do site da Receita/Anvisa, então normaliza pra só
+    // dígitos aqui em vez de exigir que o cliente digite sem pontuação.
     buildFilter(tipo, valor) {
+      const digitsOnly = (v) => v.replace(/\D/g, '');
       switch (tipo) {
-        case 'cnpj': return { detentorRegistro: valor };
+        case 'cnpj': return { detentorRegistro: digitsOnly(valor) };
         case 'nome': return { nomeProduto: valor };
-        case 'registro': return { numeroRegistroNotificacao: valor };
-        case 'processo': return { numeroProcesso: valor };
+        case 'registro': return { numeroRegistroNotificacao: digitsOnly(valor) };
+        case 'processo': return { numeroProcesso: digitsOnly(valor) };
         default: return {};
       }
     },
