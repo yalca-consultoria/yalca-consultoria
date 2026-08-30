@@ -43,15 +43,19 @@ jobs:
           cp -r web/public/fonts/. fonts/
           # Tudo que o Vite gerou em dist/ na raiz, exceto a própria pasta
           # assets/ (já copiada acima) — cobre index.html, sitemap.xml,
-          # favicon.svg e qualquer novo arquivo estático futuro em
-          # web/public/ sem precisar lembrar de listar aqui de novo.
+          # favicon.* e qualquer novo arquivo estático futuro em
+          # web/public/ sem precisar lembrar de listar aqui de novo. A
+          # mesma lista de nomes é reusada no "git add" abaixo (bug real
+          # visto 2x: o cp já era genérico, mas o add ainda listava
+          # extensões fixas e deixava arquivo novo de fora do commit).
+          find web/dist -maxdepth 1 -type f -printf '%f\n' > /tmp/dist-root-files.txt
           find web/dist -maxdepth 1 -type f -exec cp {} . \;
 
       - name: Commitar se houve mudança
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ./*.html ./*.svg ./*.xml ./*.txt assets fonts 2>/dev/null || true
+          git add assets fonts $(cat /tmp/dist-root-files.txt)
           if git diff --cached --quiet; then
             echo "Nada para publicar."
           else
