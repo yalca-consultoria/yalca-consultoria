@@ -28,6 +28,14 @@ const CATEGORIES = {
       switch (tipo) {
         case 'cnpj': return { detentorRegistro: digitsOnly(valor) };
         case 'nome': return { nomeProduto: valor };
+        // "marca" é um campo separado de "nomeProduto" na Anvisa — o nome
+        // do produto raramente contém a marca comercial (ex: o produto se
+        // chama "Suplemento à base de proteína..." mas a marca "Vitafor"
+        // só aparece no campo próprio). Bug real relatado pelo usuário
+        // (2026-08-30): buscar "Vitafor"/"Cimed"/"Carmed" etc. em "nome"
+        // não achava nada — confirmado testando os dois campos direto na
+        // API (marca=Vitafor -> 7 resultados; nomeProduto=Vitafor -> 0).
+        case 'marca': return { marca: valor };
         case 'registro': return { numeroRegistroNotificacao: digitsOnly(valor) };
         case 'processo': return { numeroProcesso: digitsOnly(valor) };
         default: return {};

@@ -151,9 +151,9 @@ async function handleAnvisaSearch(req, res) {
   // cachear cada uma; sempre vão direto na Anvisa.
   const page = Number.isInteger(body.page) && body.page > 0 ? body.page : 1;
   const categoryDef = CATEGORIES[categoria];
-  const validTipos = ['cnpj', 'nome', 'registro', 'processo'];
+  const validTipos = ['cnpj', 'nome', 'marca', 'registro', 'processo'];
   if (!categoryDef) { sendJson(res, 400, { ok: false, reason: 'invalid_category', message: 'Categoria de consulta inválida ou ainda não disponível.' }); return; }
-  if (!validTipos.includes(tipo) || !valor) { sendJson(res, 400, { ok: false, reason: 'invalid_query', message: 'Informe um CNPJ, nome, número de registro ou de processo válido.' }); return; }
+  if (!validTipos.includes(tipo) || !valor) { sendJson(res, 400, { ok: false, reason: 'invalid_query', message: 'Informe um CNPJ, nome, marca, número de registro ou de processo válido.' }); return; }
 
   // --- cache primeiro (só página 1) ---
   const config = await db.restGetOne('anvisa_config', 'id=eq.1&select=*');
