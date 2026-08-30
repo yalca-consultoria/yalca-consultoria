@@ -7,7 +7,7 @@ export default function Footer() {
           <p className="mt-3 text-sm text-text-muted">Assessoria completa de ecommerce: da negociação com fornecedores ao contábil, em um só time.</p>
         </div>
         <div>
-          <h4 className="mb-3 font-bold">Navegação</h4>
+          <h3 className="mb-3 font-bold">Navegação</h3>
           <div className="flex flex-col gap-2 text-sm text-text-muted">
             <a href="#servicos" className="hover:text-text">Serviços</a>
             <a href="#sobre" className="hover:text-text">Sobre</a>
@@ -16,7 +16,7 @@ export default function Footer() {
           </div>
         </div>
         <div>
-          <h4 className="mb-3 font-bold">Serviços</h4>
+          <h3 className="mb-3 font-bold">Serviços</h3>
           <div className="flex flex-col gap-2 text-sm text-text-muted">
             <a href="#servicos" className="hover:text-text">Negociação com Indústria</a>
             <a href="#servicos" className="hover:text-text">Gestão de Marketplaces</a>
@@ -27,7 +27,7 @@ export default function Footer() {
           </div>
         </div>
         <div>
-          <h4 className="mb-3 font-bold">Contato</h4>
+          <h3 className="mb-3 font-bold">Contato</h3>
           <div className="flex flex-col gap-2 text-sm text-text-muted">
             <a href="mailto:contato@yalca.com.br" className="hover:text-text">contato@yalca.com.br</a>
             <a href="https://wa.me/5541987058237" target="_blank" rel="noopener" className="hover:text-text">WhatsApp</a>

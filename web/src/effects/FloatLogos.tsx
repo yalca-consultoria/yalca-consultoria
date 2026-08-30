@@ -43,7 +43,7 @@ export default function FloatLogos() {
             y: { duration: 4 + i * 0.4, repeat: Infinity, ease: 'easeInOut', delay: i * 0.12 },
           }}
         >
-          <img src={item.src} alt={item.alt} className="h-full w-full object-contain" />
+          <img src={item.src} alt={item.alt} width={item.size} height={item.size} className="h-full w-full object-contain" />
         </motion.div>
       ))}
     </div>

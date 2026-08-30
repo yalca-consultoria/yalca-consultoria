@@ -31,7 +31,7 @@ export default function LogoLoop({ logos }: { logos: LogoItem[] }) {
           >
             {/* Fundo branco fixo no chip — vários logos (Bling, Tiny,
                 Americanas etc.) usam arte escura pensada pra fundo claro. */}
-            <img src={logo.src} alt={logo.alt} loading="lazy" className="max-h-8 w-auto" />
+            <img src={logo.src} alt={logo.alt} loading="lazy" width={32} height={32} className="max-h-8 w-auto" />
           </div>
         ))}
       </motion.div>

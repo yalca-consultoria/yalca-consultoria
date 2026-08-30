@@ -21,7 +21,7 @@ export default function About() {
         <div className="space-y-6">
           {points.map((p, i) => (
             <Reveal key={p.title} delay={i * 0.1} className="rounded-xl border border-border bg-surface p-5">
-              <h4 className="font-bold">{p.title}</h4>
+              <h3 className="font-bold">{p.title}</h3>
               <p className="mt-1 text-sm text-text-muted">{p.desc}</p>
             </Reveal>
           ))}
