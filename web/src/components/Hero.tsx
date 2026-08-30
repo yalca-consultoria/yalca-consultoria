@@ -37,21 +37,15 @@ export default function Hero() {
             </span>
           </h1>
 
-          {/* Antes esperava a digitação inteira do título terminar (2-3s+)
-              pra só então aparecer — o LCP real da página (medido pelo
-              PageSpeed, 2026-08-30) era esse parágrafo, e ficava preso
-              atrás desse atraso proposital. Agora entra com um delay curto
-              e fixo, independente de quanto tempo o título leva pra
-              terminar de digitar. */}
-          <motion.p
-            className="mt-5 max-w-lg text-lg text-text-muted"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
+          {/* Sem animação de entrada — este é o elemento de LCP da página em
+              mobile (confirmado pelo PageSpeed, 2026-08-30). Qualquer fade
+              com delay aqui soma direto no LCP; antes ficava preso atrás da
+              digitação inteira do título (2-3s+), depois ainda sobrava ~1s
+              de fade decorativo. Aparece assim que o React renderiza. */}
+          <p className="mt-5 max-w-lg text-lg text-text-muted">
             Da negociação com fornecedores à parte contábil, passando pela gestão dos seus marketplaces
             e pelo tráfego pago — tudo com um time só, pra você crescer com previsibilidade e margem saudável.
-          </motion.p>
+          </p>
 
           <motion.div
             className="mt-8 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center"
