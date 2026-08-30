@@ -196,6 +196,38 @@ async function yalcaKeepaApiCall(path, body) {
 async function yalcaKeepaSearch(query) {
   return yalcaKeepaApiCall('/keepa-search', query.asin ? { asin: query.asin.toUpperCase() } : { code: query.code });
 }
+
+// API própria em Node pra Consulta Anvisa (anvisa-api.yalca.com.br) —
+// mesmo padrão do keepa-api acima, serviço separado. Diferente do Keepa,
+// não exige cliente aprovado (só logado) — consulta Anvisa é informação
+// pública do órgão regulador, não expõe dado sensível do próprio negócio
+// do cliente.
+const ANVISA_API_URL = 'https://anvisa-api.yalca.com.br';
+
+async function yalcaAnvisaApiCall(path, body) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Sessão inválida. Faça login novamente.');
+  let res;
+  try {
+    res = await fetch(`${ANVISA_API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    if (err.name === 'TimeoutError') throw new Error('A consulta demorou demais e foi cancelada. Tente novamente.');
+    throw new Error('Não foi possível consultar agora. Verifique sua conexão e tente novamente.');
+  }
+  const json = await res.json().catch(() => null);
+  if (!json) throw new Error('Não foi possível consultar agora. Tente novamente em instantes.');
+  return json;
+}
+// categoria: 'alimentos' (única disponível por enquanto) | tipo: cnpj/nome/registro/processo
+async function yalcaAnvisaSearch(categoria, tipo, valor) {
+  return yalcaAnvisaApiCall('/search', { categoria, tipo, valor });
+}
 async function yalcaKeepaSellerLookup(sellerIds) {
   return yalcaKeepaApiCall('/keepa-seller-lookup', { sellerIds });
 }

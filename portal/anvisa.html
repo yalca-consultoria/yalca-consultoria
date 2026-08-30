@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Gestão de Marketplaces | Yalca Consultoria</title>
+<title>Consulta Anvisa | Yalca Consultoria</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -80,7 +80,7 @@
           <svg class="portal-nav__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="portal-nav__group-items">
-          <a class="portal-nav__item is-active" href="marketplaces.html">
+          <a class="portal-nav__item" href="marketplaces.html">
             <span class="portal-nav__label">Gestão de Marketplaces</span>
           </a>
           <a class="portal-nav__item" href="concorrencia.html">
@@ -92,7 +92,7 @@
           <a class="portal-nav__item" href="estoque.html">
             <span class="portal-nav__label">Controle de Estoque</span>
           </a>
-          <a class="portal-nav__item" href="anvisa.html">
+          <a class="portal-nav__item is-active" href="anvisa.html">
             <span class="portal-nav__label">Consulta Anvisa</span>
           </a>
         </div>
@@ -128,7 +128,7 @@
         <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" aria-controls="portalSidebar" aria-expanded="false">☰</button>
         <div>
           <span class="portal-topbar__eyebrow">Painel do Cliente</span>
-          <h2>Gestão de Marketplaces</h2>
+          <h2>Consulta Anvisa</h2>
         </div>
       </div>
     </header>
@@ -136,89 +136,56 @@
     <div class="portal-content">
       <section class="portal-section is-active">
         <div class="section-intro">
-          <p>Seus produtos em cada canal de venda, com margem líquida estimada já considerando taxa do marketplace, imposto e frete.</p>
-        </div>
-
-        <div class="kpi-grid" id="marketplaceKpis"></div>
-
-        <div class="panel chart-card">
-          <div class="panel__head">
-            <div>
-              <h3>Margem média por marketplace</h3>
-              <p>Ajuda a decidir onde vale mais a pena concentrar esforço.</p>
-            </div>
-          </div>
-          <div id="marketplaceMarginChart"></div>
+          <p>Consulte o status de registro/notificação de um produto direto na base da Anvisa — por CNPJ da empresa, nome/marca do produto, número de registro ou de processo.</p>
         </div>
 
         <div class="panel">
-          <div class="panel__head">
-            <div>
-              <h3>Produtos por marketplace</h3>
-              <p>Itens com margem negativa aparecem destacados — é dinheiro saindo do bolso a cada venda.</p>
+          <div class="panel__head"><div><h3>Pesquisar produto</h3><p>Categoria disponível hoje: Alimentos e Suplementos. Mais categorias em breve.</p></div></div>
+          <form id="anvisaSearchForm" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field" style="min-width:200px;">
+              <label for="anvisaCategoria">Categoria</label>
+              <select id="anvisaCategoria" class="select-chip">
+                <option value="alimentos">Alimentos e Suplementos</option>
+              </select>
             </div>
-            <div class="panel__toolbar">
-              <input type="text" class="search-input" id="marketplaceSearch" placeholder="Buscar por SKU ou nome">
-              <select class="select-chip" id="marketplaceFilter"></select>
-              <button class="btn btn--primary btn--sm" id="addProductBtn">+ Novo produto</button>
+            <div class="field" style="min-width:180px;">
+              <label for="anvisaTipo">Buscar por</label>
+              <select id="anvisaTipo" class="select-chip">
+                <option value="cnpj">CNPJ da empresa</option>
+                <option value="nome">Nome/marca do produto</option>
+                <option value="registro">Número de registro/notificação</option>
+                <option value="processo">Número de processo</option>
+              </select>
             </div>
-          </div>
+            <div class="field" style="flex:1; min-width:200px;">
+              <label for="anvisaValor">Valor</label>
+              <input type="text" id="anvisaValor" maxlength="200" placeholder="Ex: 00.000.000/0001-00, WHEY PROTEIN..." required>
+            </div>
+            <button type="submit" class="btn btn--primary btn--sm">Pesquisar</button>
+          </form>
+          <p class="kpi-card__hint" style="margin-top:10px;">As consultas têm um limite diário pra preservar a capacidade de consulta.</p>
+          <p id="anvisaSearchStatus" style="margin-top:6px; font-size:0.88rem;"></p>
+        </div>
+
+        <div class="panel panel--highlight" id="anvisaResultPanel" style="display:none;">
+          <div class="panel__head"><div><h3>Resultado</h3><p id="anvisaResultCount"></p></div></div>
           <div class="table-scroll">
             <table class="data-table data-table--cards">
               <thead>
                 <tr>
-                  <th>SKU</th><th>Produto</th><th>Marketplace</th><th class="num">Custo</th><th class="num">Preço</th><th class="num">Margem líquida</th><th class="num">Vendidos/mês</th><th>Status</th><th></th>
+                  <th>Produto</th>
+                  <th>Empresa</th>
+                  <th>Situação</th>
+                  <th>Vencimento</th>
+                  <th>Processo</th>
                 </tr>
               </thead>
-              <tbody id="productsTableBody"></tbody>
+              <tbody id="anvisaResultBody"></tbody>
             </table>
           </div>
         </div>
       </section>
     </div>
-  </div>
-</div>
-
-<!-- MODAL: novo/editar produto -->
-<div class="modal-backdrop" id="productModal">
-  <div class="modal">
-    <div class="modal__head">
-      <h3 id="productModalTitle">Novo produto</h3>
-      <button class="modal__close" data-close-modal="productModal">×</button>
-    </div>
-    <form id="productForm">
-      <input type="hidden" id="prodId">
-      <div class="field-row">
-        <div class="field"><label for="prodSku">SKU</label><input type="text" id="prodSku" required></div>
-        <div class="field"><label for="prodName">Nome do produto</label><input type="text" id="prodName" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="prodMarketplace">Marketplace</label>
-          <select id="prodMarketplace"></select>
-        </div>
-        <div class="field"><label for="prodCategory">Categoria</label><input type="text" id="prodCategory" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodCost">Custo (R$)</label><input type="number" id="prodCost" min="0" step="0.01" required></div>
-        <div class="field"><label for="prodPrice">Preço de venda (R$)</label><input type="number" id="prodPrice" min="0" step="0.01" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodStock">Estoque atual</label><input type="number" id="prodStock" min="0" step="1" required></div>
-        <div class="field"><label for="prodMinStock">Estoque mínimo</label><input type="number" id="prodMinStock" min="0" step="1" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="prodSoldMonth">Vendidos no mês</label><input type="number" id="prodSoldMonth" min="0" step="1" required></div>
-        <div class="field">
-          <label for="prodStatus">Status do anúncio</label>
-          <select id="prodStatus"><option value="Ativo">Ativo</option><option value="Pausado">Pausado</option></select>
-        </div>
-      </div>
-      <div class="modal__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-close-modal="productModal">Cancelar</button>
-        <button type="submit" class="btn btn--primary btn--sm">Salvar</button>
-      </div>
-    </form>
   </div>
 </div>
 
@@ -245,9 +212,8 @@
 <script src="js/supabase-config.min.js?v=e77d3c19"></script>
 <script src="js/portal-data.min.js?v=e77d3c19"></script>
 <script src="js/portal-auth.min.js?v=e77d3c19"></script>
-<script src="js/charts.min.js?v=e77d3c19"></script>
 <script src="js/portal-shell.min.js?v=e77d3c19"></script>
-<script src="js/ia.min.js?v=e77d3c19"></script>
-<script src="js/marketplaces-app.min.js?v=e77d3c19"></script>
+<script src="js/anvisa.min.js?v=e77d3c19"></script>
+<script src="js/anvisa-app.min.js?v=e77d3c19"></script>
 </body>
 </html>
