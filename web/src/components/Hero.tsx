@@ -20,11 +20,18 @@ export default function Hero() {
             Assessoria de Ecommerce
           </span>
 
+          {/* Grid com os dois textos na mesma célula: a altura reservada vem do
+              texto completo (invisível, sempre no tamanho final), então a
+              digitação progressiva nunca estica o elemento e empurra o resto
+              da página — sem precisar chutar um min-height por breakpoint
+              (o chute anterior ficava baixo em telas maiores, causando o
+              maior salto de layout (CLS) medido no PageSpeed, 2026-08-30). */}
           <h1
-            className="font-urbanist mt-4 min-h-[180px] text-4xl font-semibold leading-tight tracking-tight sm:min-h-[100px] lg:min-h-[192px] lg:text-[64px] lg:leading-[64px] lg:tracking-[-1.5px]"
+            className="font-urbanist mt-4 grid text-4xl font-semibold leading-tight tracking-tight lg:text-[64px] lg:leading-[64px] lg:tracking-[-1.5px]"
             aria-label={HEADLINE}
           >
-            <span aria-hidden="true">
+            <span className="invisible col-start-1 row-start-1" aria-hidden="true">{HEADLINE}</span>
+            <span className="col-start-1 row-start-1" aria-hidden="true">
               {visible}
               {!done && <span className="typewriter-cursor h-[1em] translate-y-[0.15em]" />}
             </span>

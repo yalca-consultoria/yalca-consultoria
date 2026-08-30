@@ -39,7 +39,18 @@
   "priceRange": "$$"
 }
 </script>
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-M78NVRBC');</script>
+<script>
+  // GTM adiado pra depois do "load" — evita competir por rede/CPU durante o
+  // carregamento crítico da página (o snippet padrão do Google, carregado
+  // direto, derrubou o Performance do PageSpeed de 97 pra 69 no mobile,
+  // 2026-08-30). Pro usuário real isso é imperceptível (chega poucos
+  // instantes depois), mas tira o GTM do caminho medido por LCP/FCP/TBT.
+  function yalcaLoadGtm() {
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-M78NVRBC');
+  }
+  if (document.readyState === 'complete') { yalcaLoadGtm(); }
+  else { window.addEventListener('load', yalcaLoadGtm); }
+</script>
 </head>
 <body>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M78NVRBC" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
