@@ -243,8 +243,18 @@ async function handleAnvisaSearch(req, res) {
   const totalPages = rawResponse.totalPages ?? 1;
   const nowIso = new Date().toISOString();
 
+  // Escrita no cache não pode derrubar a resposta se falhar — o cliente
+  // já tem o resultado real da Anvisa em mãos nesse ponto. BUG REAL
+  // encontrado em produção (2026-08-30): faltava 'marca' no CHECK
+  // constraint da tabela, e como esse upsert não tinha try/catch
+  // próprio, uma violação de constraint aqui derrubava a resposta
+  // inteira com "Erro interno" mesmo com o resultado certo já pronto.
   if (page === 1) {
-    await db.restUpsert('anvisa_query_cache', [{ cache_key: cacheKey, categoria, tipo, valor, results, total_elements: totalElements, total_pages: totalPages, fetched_at: nowIso }], 'cache_key');
+    try {
+      await db.restUpsert('anvisa_query_cache', [{ cache_key: cacheKey, categoria, tipo, valor, results, total_elements: totalElements, total_pages: totalPages, fetched_at: nowIso }], 'cache_key');
+    } catch (err) {
+      console.error('anvisa_query_cache upsert falhou (não fatal):', err.message || err);
+    }
   }
   await db.restUpdate('anvisa_request_budget', 'id=eq.1', { requests_spent_today: spentToday + 1, spend_day: todayStr, last_checked_at: nowIso });
   await db.restInsert('anvisa_query_log', [{ user_id: user.id, categoria, tipo, resulted_in_live_call: true, success: true }]);
