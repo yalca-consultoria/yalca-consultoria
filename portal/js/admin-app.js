@@ -81,6 +81,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('notesForm').addEventListener('submit', saveNotes);
   document.getElementById('sellerIdForm').addEventListener('submit', saveSellerId);
   document.getElementById('sellerIdSyncBtn').addEventListener('click', syncSellerStorefront);
+  document.getElementById('keepaImportProductsInput').addEventListener('change', (e) =>
+    handleKeepaImportFile(e.target, yalcaParseKeepaProductFinderFile, yalcaKeepaImportProducts, 'Localizador de Produtos'));
+  document.getElementById('keepaImportSellersInput').addEventListener('change', (e) =>
+    handleKeepaImportFile(e.target, yalcaParseKeepaSellerListFile, yalcaKeepaImportSellers, 'Lista de Vendedores'));
 
   document.getElementById('keepaTokenRefreshBtn').addEventListener('click', loadKeepaTokenStatus);
   loadKeepaTokenStatus();
@@ -569,6 +573,35 @@ async function syncSellerStorefront() {
     statusEl.textContent = 'Não foi possível sincronizar: ' + err.message;
   } finally {
     btn.disabled = false; btn.textContent = 'Sincronizar vitrine agora';
+  }
+}
+
+// Import em massa dos exports do Keepa (Localizador de Produtos / Lista de
+// Vendedores) — parser fica em admin-keepa-import.js, aqui só orquestra
+// input de arquivo -> parse -> upload em lotes -> feedback de progresso.
+async function handleKeepaImportFile(input, parseFn, apiFn, label) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('keepaImportStatus');
+  input.disabled = true;
+  statusEl.style.color = '';
+  statusEl.textContent = `Lendo arquivo (${label})...`;
+  try {
+    const rows = await parseFn(file);
+    if (rows.length === 0) throw new Error('Nenhuma linha válida encontrada no arquivo.');
+    statusEl.textContent = `Importando ${rows.length} linha(s) de ${label}...`;
+    const result = await yalcaRunKeepaImport(rows, apiFn, (done, total) => {
+      statusEl.textContent = `Importando ${label}... ${done}/${total}`;
+    });
+    statusEl.style.color = 'var(--good)';
+    statusEl.textContent = `${label}: ${result.imported} importado(s), ${result.skipped} ignorado(s) de ${result.total} linha(s) no arquivo.`;
+    await logAdminAction('keepa_import', null, { label, imported: result.imported, skipped: result.skipped, total: result.total });
+  } catch (err) {
+    statusEl.style.color = 'var(--critical)';
+    statusEl.textContent = `Falha ao importar ${label}: ` + err.message;
+  } finally {
+    input.disabled = false;
+    input.value = '';
   }
 }
 

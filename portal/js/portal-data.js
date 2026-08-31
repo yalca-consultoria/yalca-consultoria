@@ -242,6 +242,39 @@ async function yalcaKeepaSyncStorefront(targetUserId) {
 async function yalcaKeepaTokenStatus() {
   return yalcaKeepaApiCall('/keepa-token-status', {});
 }
+
+// Timeout maior que yalcaKeepaApiCall (20s) porque cada lote faz upsert de
+// até 300 linhas no Postgres — só usado pelos dois imports abaixo.
+async function yalcaKeepaImportApiCall(path, body) {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Sessão inválida. Faça login novamente.');
+  let res;
+  try {
+    res = await fetch(`${KEEPA_API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (err) {
+    if (err.name === 'TimeoutError') throw new Error('O lote demorou demais e foi cancelado. Tente novamente.');
+    throw new Error('Não foi possível importar agora. Verifique sua conexão e tente novamente.');
+  }
+  const json = await res.json().catch(() => null);
+  if (!json) throw new Error('Não foi possível importar agora. Tente novamente em instantes.');
+  return json;
+}
+// Só admin — importa um lote já parseado (admin-keepa-import.js) de linhas
+// do export "Localizador de Produtos" do Keepa pra keepa_asin_cache.
+async function yalcaKeepaImportProducts(rows) {
+  return yalcaKeepaImportApiCall('/keepa-import-products', { rows });
+}
+// Só admin — mesma ideia, export "Lista de Principais Vendedores" pra
+// keepa_seller_cache.
+async function yalcaKeepaImportSellers(rows) {
+  return yalcaKeepaImportApiCall('/keepa-import-sellers', { rows });
+}
 // "Meus Anúncios" (cliente) lê a própria linha; admin lê qualquer uma —
 // RLS de keepa_seller_metrics já cobre os dois casos.
 async function yalcaFetchSellerMetrics(userId) {

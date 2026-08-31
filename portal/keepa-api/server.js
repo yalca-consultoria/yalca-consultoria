@@ -90,14 +90,14 @@ function sendJson(res, status, body) {
 // Corpo grande demais devolve 413 explícito em vez de só destruir a conexão
 // (req.destroy() sozinho derruba o socket sem resposta HTTP nenhuma — o
 // cliente via um erro de rede cru em vez de uma mensagem tratável).
-function readJsonBody(req, res) {
+function readJsonBody(req, res, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
     let data = '';
     let tooLarge = false;
     req.on('data', (chunk) => {
       if (tooLarge) return;
       data += chunk;
-      if (data.length > 1_000_000) {
+      if (data.length > maxBytes) {
         tooLarge = true;
         sendJson(res, 413, { ok: false, reason: 'payload_too_large', message: 'Requisição grande demais.' });
         req.destroy();
@@ -652,6 +652,112 @@ async function handleSyncSellerStorefront(req, res) {
   });
 }
 
+// Import em massa de exports do Keepa (Localizador de Produtos / Lista de
+// Vendedores), feitos manualmente pelo admin fora do orçamento de tokens
+// do plano — o navegador já faz o parse do XLSX e manda só os campos
+// mapeados (não o arquivo cru), em lotes. Aqui só valida e grava; marcar
+// cheap_data_updated_at/buybox_data_updated_at como "agora" é o que faz
+// handleKeepaSearch tratar isso como cache fresco e não gastar token na
+// próxima busca por esse ASIN — esse é o ganho real da funcionalidade.
+const MAX_IMPORT_BODY_BYTES = 20_000_000;
+const IMPORT_CHUNK_SIZE = 500;
+
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function handleKeepaImportProducts(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireAdmin(user.id, res))) return;
+
+  let body;
+  try { body = await readJsonBody(req, res, MAX_IMPORT_BODY_BYTES); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  if (rows.length === 0) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Nenhuma linha pra importar.' }); return; }
+
+  const nowIso = new Date().toISOString();
+  const valid = [];
+  let skipped = 0;
+  for (const r of rows) {
+    const asin = typeof r.asin === 'string' ? r.asin.trim().toUpperCase() : '';
+    if (!ASIN_RE.test(asin)) { skipped += 1; continue; }
+    valid.push({
+      asin, title: r.title ?? null, image_url: r.image_url ?? null,
+      current_price: r.current_price ?? null, buybox_price: r.buybox_price ?? null,
+      buybox_seller: r.buybox_seller ?? null, buybox_is_amazon: r.buybox_is_amazon ?? null,
+      bsr: r.bsr ?? null, category: r.category ?? null, category_breadcrumb: r.category_breadcrumb ?? [],
+      rating: r.rating ?? null, review_count: r.review_count ?? null,
+      offers_count: r.offers_count ?? null, total_offer_count: r.total_offer_count ?? null,
+      brand: r.brand ?? null, manufacturer: r.manufacturer ?? null, model: r.model ?? null,
+      color: r.color ?? null, size: r.size ?? null,
+      description: r.description ?? null, features: r.features ?? [],
+      ean: r.ean ?? null,
+      package_weight_kg: r.package_weight_kg ?? null,
+      package_length_cm: r.package_length_cm ?? null, package_width_cm: r.package_width_cm ?? null, package_height_cm: r.package_height_cm ?? null,
+      batteries_required: r.batteries_required ?? null, batteries_included: r.batteries_included ?? null,
+      is_adult_product: r.is_adult_product ?? null,
+      listed_since: r.listed_since ?? null, list_price: r.list_price ?? null,
+      competitive_price_threshold: r.competitive_price_threshold ?? null, suggested_lower_price: r.suggested_lower_price ?? null,
+      parent_asin: r.parent_asin ?? null, variations_count: r.variations_count ?? null,
+      cheap_data_updated_at: nowIso, buybox_data_updated_at: nowIso,
+      last_synced_by: 'admin_upload', last_error: null,
+    });
+  }
+
+  let imported = 0;
+  for (const chunk of chunkArray(valid, IMPORT_CHUNK_SIZE)) {
+    try {
+      await db.restUpsert('keepa_asin_cache', chunk, 'asin');
+      imported += chunk.length;
+    } catch (err) {
+      console.error('keepa_asin_cache import (lote) falhou:', err.message || err);
+    }
+  }
+
+  sendJson(res, 200, { ok: true, imported, skipped, total: rows.length });
+}
+
+async function handleKeepaImportSellers(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!(await requireAdmin(user.id, res))) return;
+
+  let body;
+  try { body = await readJsonBody(req, res, MAX_IMPORT_BODY_BYTES); } catch (err) { if (!err.alreadyResponded) sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Requisição inválida.' }); return; }
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  if (rows.length === 0) { sendJson(res, 400, { ok: false, reason: 'invalid_body', message: 'Nenhuma linha pra importar.' }); return; }
+
+  const nowIso = new Date().toISOString();
+  const valid = [];
+  let skipped = 0;
+  for (const r of rows) {
+    const sellerId = typeof r.seller_id === 'string' ? r.seller_id.trim() : '';
+    if (!sellerId) { skipped += 1; continue; }
+    valid.push({
+      seller_id: sellerId, seller_name: r.seller_name ?? null,
+      current_rating: r.current_rating ?? null, current_rating_count: r.current_rating_count ?? null,
+      has_fba: r.has_fba ?? null, rating_breakdown: r.rating_breakdown ?? null,
+      total_storefront_asins: r.total_storefront_asins ?? null,
+      fetched_at: nowIso, last_error: null,
+    });
+  }
+
+  let imported = 0;
+  for (const chunk of chunkArray(valid, IMPORT_CHUNK_SIZE)) {
+    try {
+      await db.restUpsert('keepa_seller_cache', chunk, 'seller_id');
+      imported += chunk.length;
+    } catch (err) {
+      console.error('keepa_seller_cache import (lote) falhou:', err.message || err);
+    }
+  }
+
+  sendJson(res, 200, { ok: true, imported, skipped, total: rows.length });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') { sendJson(res, 204, null); return; }
@@ -660,6 +766,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/keepa-seller-lookup') { await handleKeepaSellerLookup(req, res); return; }
     if (req.method === 'POST' && url === '/keepa-sync-storefront') { await handleSyncSellerStorefront(req, res); return; }
     if (req.method === 'POST' && url === '/keepa-token-status') { await handleKeepaTokenStatus(req, res); return; }
+    if (req.method === 'POST' && url === '/keepa-import-products') { await handleKeepaImportProducts(req, res); return; }
+    if (req.method === 'POST' && url === '/keepa-import-sellers') { await handleKeepaImportSellers(req, res); return; }
     if (req.method === 'GET' && url === '/health') { sendJson(res, 200, { ok: true }); return; }
     sendJson(res, 404, { ok: false, reason: 'not_found', message: 'Rota não encontrada.' });
   } catch (err) {

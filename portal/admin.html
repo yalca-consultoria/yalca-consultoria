@@ -12,7 +12,7 @@
 <link rel="preload" href="../fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../css/style.min.css">
-<link rel="stylesheet" href="css/portal.min.css?v=fd8ea744">
+<link rel="stylesheet" href="css/portal.min.css?v=f141b1cb">
 </head>
 <body class="portal-body">
 
@@ -76,6 +76,26 @@
         </form>
         <p id="assistantChatStatus" style="margin-top:6px; font-size:0.85rem;"></p>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <div>
+          <h3>Importar dados do Keepa</h3>
+          <p>Sobe exports baixados manualmente no site do Keepa direto pro banco da Yalca — a próxima busca ao vivo por esses ASINs/vendedores usa o cache e não gasta token.</p>
+        </div>
+        <div class="panel__toolbar">
+          <label class="btn-tool" style="cursor:pointer;">
+            Importar Localizador de Produtos
+            <input type="file" id="keepaImportProductsInput" accept=".xlsx,.xls,.csv" style="display:none;">
+          </label>
+          <label class="btn-tool" style="cursor:pointer;">
+            Importar Lista de Vendedores
+            <input type="file" id="keepaImportSellersInput" accept=".xlsx,.xls,.csv" style="display:none;">
+          </label>
+        </div>
+      </div>
+      <p id="keepaImportStatus" style="margin-top:10px; font-size:0.85rem;"></p>
     </div>
 
     <div class="panel chart-card">
@@ -240,11 +260,13 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.min.js?v=fd8ea744"></script>
-<script src="js/portal-data.min.js?v=fd8ea744"></script>
-<script src="js/portal-auth.min.js?v=fd8ea744"></script>
-<script src="js/charts.min.js?v=fd8ea744"></script>
-<script src="js/ia.min.js?v=fd8ea744"></script>
-<script src="js/admin-app.min.js?v=fd8ea744"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/supabase-config.min.js?v=f141b1cb"></script>
+<script src="js/portal-data.min.js?v=f141b1cb"></script>
+<script src="js/portal-auth.min.js?v=f141b1cb"></script>
+<script src="js/charts.min.js?v=f141b1cb"></script>
+<script src="js/ia.min.js?v=f141b1cb"></script>
+<script src="js/admin-keepa-import.min.js?v=f141b1cb"></script>
+<script src="js/admin-app.min.js?v=f141b1cb"></script>
 </body>
 </html>
