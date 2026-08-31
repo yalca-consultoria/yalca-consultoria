@@ -463,6 +463,8 @@ function yalcaCacheRowToResult(c) {
     offersCount: c.offers_count, availabilityStatus: c.availability_status,
     priceHistory: c.price_history ?? { amazon: [], new: [], buybox: [] },
     bsrHistory: c.bsr_history ?? [],
+    ratingHistory: c.rating_history ?? [],
+    reviewCountHistory: c.review_count_history ?? [],
     monthlySold: c.monthly_sold ?? null,
     referralFeePct: c.referral_fee_pct ?? null,
     fbaFeeTotal: [c.fba_pick_pack_fee, c.fba_pick_pack_fee_tax, c.fba_storage_fee, c.fba_storage_fee_tax]
@@ -561,7 +563,7 @@ function renderKeepaTrackedDetailModal(result, t) {
   renderKpiGrid('keepaTrackedDetailKpis', buildKeepaKpis(result));
   document.getElementById('keepaTrackedDetailBadges').innerHTML = buildKeepaPriceBadges(result.stats || {});
 
-  renderKeepaPriceCharts(result, 'keepaTrackedDetailPriceChart', 'keepaTrackedDetailRankWrap', 'keepaTrackedDetailRankChart');
+  renderKeepaPriceCharts(result, 'keepaTrackedDetailPriceChart', 'keepaTrackedDetailRankWrap', 'keepaTrackedDetailRankChart', 'keepaTrackedDetailRatingWrap', 'keepaTrackedDetailRatingChart', 'keepaTrackedDetailRatingHint');
 
   renderKeepaDetailPanel(result, 'keepaTrackedDetailDetails');
 
@@ -815,7 +817,7 @@ function renderKeepaSearchResult(result) {
 
   document.getElementById('keepaPriceBadges').innerHTML = buildKeepaPriceBadges(stats);
 
-  renderKeepaPriceCharts(result, 'keepaPriceHistoryChart', 'keepaRankHistoryWrap', 'keepaRankHistoryChart');
+  renderKeepaPriceCharts(result, 'keepaPriceHistoryChart', 'keepaRankHistoryWrap', 'keepaRankHistoryChart', 'keepaRatingHistoryWrap', 'keepaRatingHistoryChart', 'keepaRatingHistoryHint');
 
   renderKeepaBuyboxStatsTable(stats.buyBoxStats || [], result.offers || [], 'keepaBuyboxStatsPanel', 'keepaBuyboxStatsBody');
   renderKeepaCategoryRanks(result.categoryRanks || [], 'keepaCategoryRanksPanel', 'keepaCategoryRanksList');
@@ -943,7 +945,7 @@ function buildKeepaPriceBadges(stats) {
 // Keepa usa de verdade — laranja=Amazon, azul=outros vendedores, magenta=
 // buybox) em vez de uma linha genérica única. Ranking (BSR) fica num
 // gráfico SEPARADO (escalas incompatíveis — nunca eixo duplo).
-function renderKeepaPriceCharts(result, priceChartId, rankWrapId, rankChartId) {
+function renderKeepaPriceCharts(result, priceChartId, rankWrapId, rankChartId, ratingWrapId, ratingChartId, ratingHintId) {
   const priceChartContainer = document.getElementById(priceChartId);
   const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
   const priceSeries = [];
@@ -966,6 +968,30 @@ function renderKeepaPriceCharts(result, priceChartId, rankWrapId, rankChartId) {
     });
   } else {
     rankWrap.style.display = 'none';
+  }
+
+  // Rating (0-5) e contagem de reviews têm escalas incompatíveis demais pra
+  // um gráfico só (uma teria que espremer a outra) — mostra o rating como
+  // gráfico e a evolução da contagem de reviews como texto logo acima.
+  if (!ratingWrapId) return;
+  const ratingWrap = document.getElementById(ratingWrapId);
+  const ratingChartContainer = document.getElementById(ratingChartId);
+  const ratingHintEl = ratingHintId ? document.getElementById(ratingHintId) : null;
+  const rh = result.ratingHistory || [];
+  if (rh.length > 1) {
+    ratingWrap.style.display = '';
+    yalcaRenderLineChart(ratingChartContainer, {
+      series: [{ name: 'Avaliação', color: YALCA_COLORS.series6, data: rh.map(p => ({ date: p.date, value: p.value })) }],
+      formatValue: (v) => v.toFixed(1),
+    });
+    const rc = result.reviewCountHistory || [];
+    if (ratingHintEl) {
+      ratingHintEl.textContent = rc.length > 1
+        ? `Avaliações: de ${rc[0].value.toLocaleString('pt-BR')} para ${rc[rc.length - 1].value.toLocaleString('pt-BR')} no período.`
+        : '';
+    }
+  } else {
+    ratingWrap.style.display = 'none';
   }
 }
 

@@ -156,6 +156,8 @@ function formatResult(cache) {
     availabilityStatus: cache.availability_status,
     priceHistory: cache.price_history ?? { amazon: [], new: [], buybox: [] },
     bsrHistory: cache.bsr_history ?? [],
+    ratingHistory: cache.rating_history ?? [],
+    reviewCountHistory: cache.review_count_history ?? [],
     monthlySold: cache.monthly_sold ?? null,
     referralFeePct: cache.referral_fee_pct ?? null,
     fbaFees: (cache.fba_pick_pack_fee ?? cache.fba_storage_fee) != null ? {
@@ -223,7 +225,8 @@ function buildCacheRow(asin, parsed, nowIso) {
     fba_pick_pack_fee: parsed.fbaFees?.pickAndPack ?? null, fba_pick_pack_fee_tax: parsed.fbaFees?.pickAndPackTax ?? null,
     fba_storage_fee: parsed.fbaFees?.storage ?? null, fba_storage_fee_tax: parsed.fbaFees?.storageTax ?? null,
     offers: parsed.offers, buybox_rotation_90d: parsed.buyboxRotation90d, category_ranks: parsed.categoryRanks,
-    bsr_history: parsed.bsrHistory, brand: parsed.brand, color: parsed.color, size: parsed.size, listed_since: parsed.listedSince,
+    bsr_history: parsed.bsrHistory, rating_history: parsed.ratingHistory, review_count_history: parsed.reviewCountHistory,
+    brand: parsed.brand, color: parsed.color, size: parsed.size, listed_since: parsed.listedSince,
     package_weight_kg: parsed.packageWeightKg,
     package_length_cm: parsed.packageDimensionsCm?.length ?? null, package_width_cm: parsed.packageDimensionsCm?.width ?? null, package_height_cm: parsed.packageDimensionsCm?.height ?? null,
     price_avg_30: parsed.stats?.avg30 ?? null, price_avg_90: parsed.stats?.avg90 ?? null, price_avg_180: parsed.stats?.avg180 ?? null,
@@ -292,7 +295,19 @@ async function handleKeepaSearch(req, res) {
   if (hasAsin) {
     const cached = await db.restGetOne('keepa_asin_cache', `asin=eq.${asinInput}&select=*`);
     const cacheAgeMs = cached?.cheap_data_updated_at ? Date.now() - new Date(cached.cheap_data_updated_at).getTime() : Infinity;
-    if (cached && cacheAgeMs < cacheMaxAgeMs) {
+    // Linhas vindas de import em massa (admin_upload) só têm o snapshot do
+    // export do Keepa (preço/BSR/rating atuais) — sem histórico de preço,
+    // ofertas, buybox stats ou ranking por categoria (o export não traz
+    // isso, só a API completa do Keepa traz). Tratar essas linhas como
+    // "cache completo" fazia a busca devolver um resultado com todos os
+    // gráficos vazios, bem diferente do que a Keepa mostra de verdade (bug
+    // real encontrado comparando com prints da tela do Keepa, 2026-08-31).
+    // Por isso: a primeira busca real de um ASIN importado sempre passa
+    // pela chamada ao vivo (gasta 1 token, só nesse produto específico, só
+    // uma vez) — depois disso last_synced_by vira 'search' e o cache normal
+    // volta a valer.
+    const hasFullData = cached && cached.last_synced_by !== 'admin_upload';
+    if (hasFullData && cacheAgeMs < cacheMaxAgeMs) {
       await db.restInsert('keepa_search_log', [{ user_id: user.id, asin: asinInput, resulted_in_live_call: false }]);
       sendJson(res, 200, { ok: true, source: 'cache', ...formatResult(cached) });
       return;

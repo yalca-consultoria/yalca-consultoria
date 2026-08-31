@@ -253,6 +253,12 @@ function parseKeepaProduct(p) {
     category,
     rating: lastValue(ratingHistory) !== null ? lastValue(ratingHistory) / 10 : null,
     reviewCount: lastValue(reviewCountHistory),
+    // Histórico de avaliação/reviews — a Keepa já manda isso no csv[16]/
+    // csv[17], mas até agora só usávamos o último valor (rating/reviewCount
+    // acima) e descartávamos a série inteira. Rating vem *10 no CSV (ex: 45
+    // = 4.5 estrelas), por isso a divisão aqui também.
+    ratingHistory: ratingHistory.slice(-90).map(p => ({ date: p.date, value: p.value / 10 })),
+    reviewCountHistory: reviewCountHistory.slice(-90),
     buyboxSeller: buyboxSellerId,
     buyboxIsAmazon: buyboxOfferMatch ? !!buyboxOfferMatch.isAmazon : false,
     buyboxPrice,
