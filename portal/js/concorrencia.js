@@ -949,7 +949,13 @@ function renderKeepaPriceCharts(result, priceChartId, rankWrapId, rankChartId, r
   const priceChartContainer = document.getElementById(priceChartId);
   const ph = result.priceHistory || { amazon: [], new: [], buybox: [] };
   const priceSeries = [];
-  if (ph.buybox?.length > 1) priceSeries.push({ name: 'Buybox', color: YALCA_COLORS.series5, data: ph.buybox.map(p => ({ date: p.date, value: p.value })) });
+  if (ph.buybox?.length > 1) priceSeries.push({
+    name: 'Buybox', color: YALCA_COLORS.series5,
+    data: ph.buybox.map(p => ({
+      date: p.date, value: p.value,
+      extra: p.sellerId ? `Vendedor: ${p.sellerName || p.sellerId}` : undefined,
+    })),
+  });
   if (ph.amazon?.length > 1) priceSeries.push({ name: 'Amazon', color: YALCA_COLORS.series2, data: ph.amazon.map(p => ({ date: p.date, value: p.value })) });
   if (ph.new?.length > 1) priceSeries.push({ name: 'Outros vendedores', color: YALCA_COLORS.series1, data: ph.new.map(p => ({ date: p.date, value: p.value })) });
   if (priceSeries.length > 0) {

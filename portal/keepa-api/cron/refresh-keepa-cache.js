@@ -66,6 +66,21 @@ async function restGet(table, query) {
   if (!res.ok) throw new Error(`GET ${table} falhou: ${res.status} ${await res.text()}`);
   return res.json();
 }
+const SELLER_ID_RE = /^[A-Z0-9]{1,20}$/;
+// Mesma lógica do server.js (busca sob demanda) — resolve o nome de cada
+// vendedor do histórico de buybox contra keepa_seller_cache, sem gastar
+// token do Keepa.
+async function attachBuyboxSellerNames(priceHistory) {
+  const points = priceHistory?.buybox;
+  if (!Array.isArray(points) || points.length === 0) return;
+  const ids = [...new Set(points.map(p => p.sellerId).filter(id => typeof id === 'string' && SELLER_ID_RE.test(id)))];
+  if (ids.length === 0) return;
+  const rows = await restGet('keepa_seller_cache', `seller_id=in.(${ids.join(',')})&select=seller_id,seller_name`);
+  const nameById = new Map(rows.map(r => [r.seller_id, r.seller_name]));
+  for (const p of points) {
+    if (p.sellerId && nameById.has(p.sellerId)) p.sellerName = nameById.get(p.sellerId) || null;
+  }
+}
 async function restUpsert(table, rows, onConflict) {
   const res = await fetch(`${REST}/${table}?on_conflict=${onConflict}`, {
     method: 'POST',
@@ -189,6 +204,37 @@ function lastBuyboxSellerFromHistory(history) {
   return seller && seller !== 'undefined' ? seller : null;
 }
 
+// Mesma série de lastBuyboxSellerFromHistory, mas devolvendo todos os
+// pontos — usado pra cruzar com o histórico de preço e saber quem tinha a
+// buybox em CADA ponto do gráfico, não só o vendedor atual.
+function parseBuyboxSellerHistory(history) {
+  let flat = [];
+  if (typeof history === 'string' && history.length > 0) flat = history.split(',');
+  else if (Array.isArray(history)) flat = history;
+  else return [];
+  const out = [];
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const time = Number(flat[i]);
+    const sellerId = String(flat[i + 1]);
+    if (Number.isNaN(time) || !sellerId || sellerId === 'undefined') continue;
+    out.push({ date: keepaTimeToIso(time), sellerId });
+  }
+  return out;
+}
+
+function attachSellerToBuyboxHistory(pricePoints, sellerHistory) {
+  if (sellerHistory.length === 0) return pricePoints;
+  const sorted = [...sellerHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+  return pricePoints.map((p) => {
+    let sellerId = null;
+    for (const s of sorted) {
+      if (s.date > p.date) break;
+      sellerId = s.sellerId;
+    }
+    return sellerId ? { ...p, sellerId } : p;
+  });
+}
+
 function computeBuyboxRotation(history, windowDays) {
   let flat = [];
   if (typeof history === 'string' && history.length > 0) flat = history.split(',');
@@ -293,10 +339,11 @@ function parseKeepaProduct(p) {
   const currentPrice = buyboxPrice ?? lastValue(priceHistoryNew) ?? lastValue(priceHistoryAmazon);
   // Três séries separadas (Amazon/outros vendedores/buybox), mesmo formato
   // usado pela Edge Function keepa-search — necessário pro gráfico multi-série.
+  const buyboxSellerHistory = parseBuyboxSellerHistory(p.buyBoxSellerIdHistory);
   const priceHistory = {
     amazon: priceHistoryAmazon.slice(-90),
     new: priceHistoryNew.slice(-90),
-    buybox: priceHistoryBuyBox.slice(-90),
+    buybox: attachSellerToBuyboxHistory(priceHistoryBuyBox.slice(-90), buyboxSellerHistory),
   };
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
   const categoryBreadcrumb = Array.isArray(p.categoryTree) ? p.categoryTree.map(c => c?.name).filter(Boolean) : [];
@@ -551,6 +598,7 @@ async function main() {
     try {
       const { product, tokensLeft, tokensConsumed } = await callKeepa(asin);
       const parsed = parseKeepaProduct(product);
+      await attachBuyboxSellerNames(parsed.priceHistory);
       const oldRow = cacheByAsin[asin] || null;
 
       const alerts = diffAlerts(asin, oldRow, parsed, config.price_alert_threshold_pct);

@@ -212,6 +212,26 @@ function formatResult(cache) {
   };
 }
 
+const SELLER_ID_RE = /^[A-Z0-9]{1,20}$/;
+
+// Resolve o nome de cada vendedor que apareceu no histórico da buybox
+// (result.priceHistory.buybox[i].sellerId) contra keepa_seller_cache —
+// consulta só no nosso Postgres, sem gastar token do Keepa. Com os 28 mil
+// vendedores já importados em massa, a maioria resolve de graça; quando não
+// acha, o front-end mostra o ID puro em vez do nome (ainda é informação
+// útil, só menos legível).
+async function attachBuyboxSellerNames(priceHistory) {
+  const points = priceHistory?.buybox;
+  if (!Array.isArray(points) || points.length === 0) return;
+  const ids = [...new Set(points.map(p => p.sellerId).filter(id => typeof id === 'string' && SELLER_ID_RE.test(id)))];
+  if (ids.length === 0) return;
+  const rows = await db.restGet('keepa_seller_cache', `seller_id=in.(${ids.join(',')})&select=seller_id,seller_name`);
+  const nameById = new Map(rows.map(r => [r.seller_id, r.seller_name]));
+  for (const p of points) {
+    if (p.sellerId && nameById.has(p.sellerId)) p.sellerName = nameById.get(p.sellerId) || null;
+  }
+}
+
 // Monta a linha completa pro upsert em keepa_asin_cache a partir do
 // resultado já parseado — um campo novo só precisa ser adicionado AQUI
 // (formatResult lê as mesmas chaves de volta).
@@ -368,6 +388,7 @@ async function handleKeepaSearch(req, res) {
     }
     if (rawProduct.asin) resolvedAsin = String(rawProduct.asin).toUpperCase();
     parsed = parseKeepaProduct(rawProduct);
+    await attachBuyboxSellerNames(parsed.priceHistory);
   } catch (err) {
     await db.restInsert('keepa_token_usage_log', [{ triggered_by: 'on_demand_search', asin: resolvedAsin || null, success: false, error_message: String(err.message || err) }]);
     if (tokensLeft !== null) {

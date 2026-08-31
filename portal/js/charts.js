@@ -572,7 +572,8 @@ function yalcaRenderTimeLineChart(container, opts) {
       const rect = svg.getBoundingClientRect();
       const px = (Number(hit.getAttribute('cx')) / W) * rect.width;
       const py = (Number(hit.getAttribute('cy')) / H) * rect.height;
-      yalcaShowTooltip(wrap, tip, px, py, `<strong>${yalcaEscapeHtml(yalcaFormatAxisDate(new Date(d.date)))}</strong><br>${yalcaEscapeHtml(s.name)}: ${formatValue(d.value)}`);
+      const extraHtml = d.extra ? `<br>${yalcaEscapeHtml(d.extra)}` : '';
+      yalcaShowTooltip(wrap, tip, px, py, `<strong>${yalcaEscapeHtml(yalcaFormatAxisDate(new Date(d.date)))}</strong><br>${yalcaEscapeHtml(s.name)}: ${formatValue(d.value)}${extraHtml}`);
     });
     hit.addEventListener('mouseleave', () => yalcaHideTooltip(tip));
   });

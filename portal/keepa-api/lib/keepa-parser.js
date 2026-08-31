@@ -94,6 +94,44 @@ function lastBuyboxSellerFromHistory(history) {
   return seller && seller !== 'undefined' ? seller : null;
 }
 
+// Mesmo formato flat [tempo, sellerId, tempo, sellerId, ...] usado por
+// lastBuyboxSellerFromHistory/computeBuyboxRotation, mas devolvendo a série
+// inteira — usado pra saber quem tinha a buybox em CADA ponto do gráfico de
+// preço, não só o vendedor atual.
+function parseBuyboxSellerHistory(history) {
+  let flat = [];
+  if (typeof history === 'string' && history.length > 0) flat = history.split(',');
+  else if (Array.isArray(history)) flat = history;
+  else return [];
+  const out = [];
+  for (let i = 0; i + 1 < flat.length; i += 2) {
+    const time = Number(flat[i]);
+    const sellerId = String(flat[i + 1]);
+    if (Number.isNaN(time) || !sellerId || sellerId === 'undefined') continue;
+    out.push({ date: keepaTimeToIso(time), sellerId });
+  }
+  return out;
+}
+
+// Cruza os pontos do preço da buybox com o histórico de troca de vendedor
+// — cada ponto de preço recebe o sellerId de quem estava com a buybox
+// naquele momento (o último registro de troca com data <= a do ponto).
+// Os dois históricos têm datas diferentes entre si (preço só muda quando o
+// valor muda, vendedor só muda quando a buybox troca de mão), por isso o
+// cruzamento por "mais recente até aqui" em vez de comparar índice a índice.
+function attachSellerToBuyboxHistory(pricePoints, sellerHistory) {
+  if (sellerHistory.length === 0) return pricePoints;
+  const sorted = [...sellerHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+  return pricePoints.map((p) => {
+    let sellerId = null;
+    for (const s of sorted) {
+      if (s.date > p.date) break;
+      sellerId = s.sellerId;
+    }
+    return sellerId ? { ...p, sellerId } : p;
+  });
+}
+
 function computeBuyboxRotation(history, windowDays) {
   let flat = [];
   if (typeof history === 'string' && history.length > 0) flat = history.split(',');
@@ -230,10 +268,11 @@ function parseKeepaProduct(p) {
   // Três séries separadas (Amazon/outros vendedores/buybox) — necessário
   // pro gráfico multi-série (cada linha com sua própria cor/significado,
   // igual ao gráfico real do Keepa).
+  const buyboxSellerHistory = parseBuyboxSellerHistory(p.buyBoxSellerIdHistory);
   const priceHistory = {
     amazon: priceHistoryAmazon.slice(-90),
     new: priceHistoryNew.slice(-90),
-    buybox: priceHistoryBuyBox.slice(-90),
+    buybox: attachSellerToBuyboxHistory(priceHistoryBuyBox.slice(-90), buyboxSellerHistory),
   };
   const category = Array.isArray(p.categoryTree) && p.categoryTree.length > 0 ? p.categoryTree[p.categoryTree.length - 1]?.name ?? null : null;
   // Trilha completa (ex: "Saúde e Bem-Estar > Vitaminas e Suplementos"),
@@ -520,7 +559,8 @@ function mockSellerStorefrontResponse(sellerId) {
 module.exports = {
   keepaTimeToIso, nowKeepaTime, centsToReais, extractCsvSeries, lastValue,
   AVAILABILITY_LABELS, CONDITION_LABELS, CSV_TYPE_BUYBOX_SHIPPING,
-  parseOffers, computeBuyboxRotation, parseCategoryRanks, parseBuyBoxStats, parseStats,
+  parseOffers, computeBuyboxRotation, parseBuyboxSellerHistory, attachSellerToBuyboxHistory,
+  parseCategoryRanks, parseBuyBoxStats, parseStats,
   mmToCm, gToKg, parseKeepaProduct, mockKeepaResponse,
   normalizeSellersResponse, parseSeller, mockSellerResponse,
   parseSellerStorefront, mockSellerStorefrontResponse,
