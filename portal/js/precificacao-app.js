@@ -63,6 +63,13 @@ const PRICING_VARIANTS_DEFAULT = [
     brackets: [{ maxPrice: Infinity, pct: 14, fixedFee: 4.00 }],
     sourceUrl: 'https://seller.shopee.com.br/edu/article/18483/como-funciona-a-politica-de-comissao-para-vendedores-shopee',
     verified: false,
+    // "Preço de lista" inflado + desconto — tática comum de vendedor Shopee:
+    // cadastra o anúncio com um preço "riscado" mais alto e um cupom/desconto
+    // fixo que já deixa o preço final igual ao calculado acima, pra aparecer
+    // com a etiqueta "% OFF" na vitrine sem mudar a margem real. Não é uma
+    // taxa cobrada pela Shopee — é só matemática reversa do desconto padrão
+    // que o vendedor configura, por isso não afeta feeForPrice/netProfit.
+    listPriceDiscountPct: 50,
     note: 'A Central do Vendedor da Shopee exige login e carrega por JavaScript — não conseguimos confirmar a comissão exata direto na página oficial. Fontes especializadas citam ~14% + taxa fixa que cresce com o preço (usamos R$4 como referência). Vendedores CPF com mais de 450 pedidos em 90 dias pagam +R$3,00 por item. Confirme no seu painel.'
   },
   {
@@ -263,10 +270,17 @@ function calcPricingVariant(variant, inputs) {
     const taxValue = price * (tax / 100);
     const netProfit = price - cost - shipping - feeValue - taxValue;
     const marginPct = price > 0 ? (netProfit / price) * 100 : 0;
+    // listPrice = preço "riscado" que, com o desconto padrão do canal,
+    // resulta exatamente no preço calculado acima (matemática reversa —
+    // ver nota no cadastro do canal em PRICING_VARIANTS_DEFAULT).
+    const listPrice = variant.listPriceDiscountPct
+      ? price / (1 - variant.listPriceDiscountPct / 100)
+      : null;
     return {
       key: variant.key, label: variant.label, channel: variant.channel, planLabel: variant.planLabel,
       verified: variant.verified, sourceUrl: variant.sourceUrl,
-      price, feeValue, taxValue, netProfit, marginPct
+      price, feeValue, taxValue, netProfit, marginPct,
+      listPrice, listPriceDiscountPct: variant.listPriceDiscountPct ?? null
     };
   };
 
@@ -325,7 +339,10 @@ function recalcPricing() {
           </div>
         </div>
       </td>
-      <td class="num">${yalcaFormatCurrency(r.price)}</td>
+      <td class="num">
+        ${yalcaFormatCurrency(r.price)}
+        ${r.listPrice != null ? `<div style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Publicar como ${yalcaFormatCurrency(r.listPrice)} <span style="color:var(--warning);">${r.listPriceDiscountPct}% OFF</span></div>` : ''}
+      </td>
       <td class="num ${r.netProfit < 0 ? 'text-critical' : ''}">${yalcaFormatCurrency(r.netProfit)}</td>
       <td class="num ${marginClass}">${r.marginPct.toFixed(1)}%</td>
       <td class="row-actions">
@@ -377,7 +394,8 @@ function renderPricingDetail(result, inputs) {
     <div class="calc-result__row"><span>Imposto</span><strong>${yalcaFormatCurrency(result.taxValue)}</strong></div>
     <div class="calc-result__row"><span>Lucro líquido</span><strong style="color:${gaugeColor};">${yalcaFormatCurrency(result.netProfit)}</strong></div>
     <div class="calc-result__row total"><span>Preço de venda${result.mode === 'reverse' ? ' (informado)' : ' sugerido'}</span><strong>${yalcaFormatCurrency(result.price)}</strong></div>
-    <div class="calc-result__row"><span>Margem líquida</span><strong style="color:${gaugeColor};">${result.marginPct.toFixed(1)}%</strong></div>`;
+    <div class="calc-result__row"><span>Margem líquida</span><strong style="color:${gaugeColor};">${result.marginPct.toFixed(1)}%</strong></div>
+    ${result.listPrice != null ? `<div class="calc-result__row"><span>Preço de lista (com ${result.listPriceDiscountPct}% OFF)</span><strong>${yalcaFormatCurrency(result.listPrice)}</strong></div>` : ''}`;
 }
 
 function openSaveAsProduct(marketplace, price, cost) {
