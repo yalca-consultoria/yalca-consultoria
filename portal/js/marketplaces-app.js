@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   renderMarketplaces();
 
-  document.getElementById('productsTableBody').addEventListener('click', (e) => {
+  document.getElementById('productsCardGrid').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
@@ -114,34 +114,41 @@ function renderMarketplaces() {
     ? products.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search))
     : products;
 
-  const tbody = document.getElementById('productsTableBody');
+  const grid = document.getElementById('productsCardGrid');
   if (searchedProducts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="alert-empty">${products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado para essa busca.'}</td></tr>`;
+    grid.innerHTML = `<p class="alert-empty product-card__empty">${products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado para essa busca.'}</p>`;
     return;
   }
-  tbody.innerHTML = searchedProducts.map(p => {
+  grid.innerHTML = searchedProducts.map(p => {
     const { marginPct } = yalcaProductMargin(p, SHELL_DATA.settings);
     const marginClass = marginPct < 0 ? 'text-critical' : (marginPct < 15 ? '' : 'text-good');
     const gaugeColor = marginPct < 0 ? 'var(--critical)' : (marginPct < 15 ? 'var(--warning)' : 'var(--good)');
     const gaugeWidth = Math.max(0, Math.min(100, marginPct));
     return `
-    <tr>
-      <td data-label="SKU">${yalcaEscapeHtml(p.sku)}</td>
-      <td data-label="Produto">${yalcaEscapeHtml(p.name)}</td>
-      <td data-label="Marketplace"><div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div></td>
-      <td class="num" data-label="Custo">${yalcaFormatCurrency(p.cost)}</td>
-      <td class="num" data-label="Preço">${yalcaFormatCurrency(p.price)}</td>
-      <td class="num ${marginClass}" data-label="Margem líquida">
-        ${marginPct.toFixed(1)}%
+    <div class="product-card${marginPct < 0 ? ' is-negative-margin' : ''}">
+      <div class="product-card__head">
+        <div class="marketplace-cell">${renderChannelBadge(p.marketplace)}<div class="marketplace-cell__text"><strong>${yalcaEscapeHtml(p.marketplace)}</strong></div></div>
+        <div class="product-card__actions">
+          <button class="icon-btn" title="Editar" data-action="editProduct" data-id="${p.id}">✎</button>
+          <button class="icon-btn" title="Excluir" data-action="deleteProductRow" data-id="${p.id}">🗑</button>
+        </div>
+      </div>
+      <div class="product-card__name">${yalcaEscapeHtml(p.name)}</div>
+      <div class="product-card__sku">SKU ${yalcaEscapeHtml(p.sku)}</div>
+      <div class="product-card__price-row">
+        <div class="product-card__price">${yalcaFormatCurrency(p.price)}</div>
+        ${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}
+      </div>
+      <div class="product-card__rows">
+        <div class="product-card__row"><span>Custo</span><strong>${yalcaFormatCurrency(p.cost)}</strong></div>
+        <div class="product-card__row">
+          <span>Margem líquida</span>
+          <strong class="${marginClass}">${marginPct.toFixed(1)}%</strong>
+        </div>
         <div class="margin-gauge margin-gauge--sm"><div class="margin-gauge__fill" style="width:${gaugeWidth}%; background:${gaugeColor};"></div></div>
-      </td>
-      <td class="num" data-label="Vendidos/mês">${p.unitsSoldMonth}</td>
-      <td data-label="Status">${p.status === 'Ativo' ? '<span class="badge badge--ativo">Ativo</span>' : '<span class="badge badge--pausado">Pausado</span>'}</td>
-      <td class="row-actions">
-        <button class="icon-btn" title="Editar" data-action="editProduct" data-id="${p.id}">✎</button>
-        <button class="icon-btn" title="Excluir" data-action="deleteProductRow" data-id="${p.id}">🗑</button>
-      </td>
-    </tr>`;
+        <div class="product-card__row"><span>Vendidos/mês</span><strong>${p.unitsSoldMonth}</strong></div>
+      </div>
+    </div>`;
   }).join('');
 }
 
