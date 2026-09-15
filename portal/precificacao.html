@@ -139,51 +139,45 @@
           <p>Descubra o preço ideal em cada marketplace considerando custo, frete, imposto e a taxa real de cada canal. Taxas levantadas nas páginas oficiais de cada vendedor sempre que possível — quando não deu para confirmar ao vivo, aparece um aviso ⚠ e o link da fonte em "Ajustar taxas dos marketplaces".</p>
         </div>
 
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel__head"><div><h3>Dados do produto</h3></div></div>
-            <form id="pricingForm" style="display:flex; flex-direction:column; gap:16px;">
-              <div class="field-row">
-                <div class="field">
-                  <label for="pCost">Custo do produto (R$)</label>
-                  <input type="number" id="pCost" min="0" step="0.01" value="50" required>
-                </div>
-                <div class="field">
-                  <label for="pShipping">Frete (R$)</label>
-                  <input type="number" id="pShipping" min="0" step="0.01" value="12" required>
-                </div>
-              </div>
-              <div class="field-row">
-                <div class="field">
-                  <label for="pTax">Imposto (%)</label>
-                  <input type="number" id="pTax" min="0" step="0.1" value="6" required>
-                </div>
-                <div class="field">
-                  <label for="pMargin">Margem de lucro desejada: <strong id="pMarginValue">20%</strong></label>
-                  <input type="range" id="pMargin" min="0" max="60" step="0.5" value="20" required>
-                  <div class="field__scale"><span>0%</span><span>30%</span><span>60%</span></div>
-                </div>
-              </div>
-              <p style="font-size:0.8rem; color:var(--text-muted);">Ou informe um preço de venda para ver a margem resultante em cada marketplace:</p>
-              <div class="field">
-                <label for="pManualPrice">Preço de venda (opcional)</label>
-                <input type="number" id="pManualPrice" min="0" step="0.01" placeholder="Deixe em branco para calcular automaticamente">
-              </div>
-            </form>
-
-            <button type="button" class="table-view-toggle" id="toggleFeeEditor" style="margin-top:20px;">⚙ Ajustar taxas dos marketplaces</button>
-            <div class="fee-editor" id="feeEditor" style="display:none; margin-top:14px;"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel__head">
-              <div>
-                <h3>Comparação entre marketplaces e planos</h3>
-                <p>Inclui Clássico/Premium do Mercado Livre e FBM/FBA da Amazon. Clique num card pra ver o detalhamento completo do preço.</p>
-              </div>
+        <div class="panel">
+          <div class="panel__head"><div><h3>Dados do produto</h3></div></div>
+          <form id="pricingForm" class="field-row" style="align-items:flex-end;">
+            <div class="field">
+              <label for="pCost">Custo do produto (R$)</label>
+              <input type="number" id="pCost" min="0" step="0.01" value="50" required>
             </div>
-            <div class="pricing-card-grid" id="pricingComparisonBody"></div>
+            <div class="field">
+              <label for="pShipping">Frete (R$)</label>
+              <input type="number" id="pShipping" min="0" step="0.01" value="12" required>
+            </div>
+            <div class="field">
+              <label for="pTax">Imposto (%)</label>
+              <input type="number" id="pTax" min="0" step="0.1" value="6" required>
+            </div>
+            <div class="field" style="min-width:200px;">
+              <label for="pMargin">Margem de lucro desejada: <strong id="pMarginValue">20%</strong></label>
+              <input type="range" id="pMargin" min="0" max="60" step="0.5" value="20" required>
+              <div class="field__scale"><span>0%</span><span>30%</span><span>60%</span></div>
+            </div>
+            <div class="field">
+              <label for="pManualPrice">Preço de venda (opcional)</label>
+              <input type="number" id="pManualPrice" min="0" step="0.01" placeholder="Calcular automaticamente">
+            </div>
+          </form>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px;">Deixe "Preço de venda" em branco pra calcular automaticamente a partir da margem desejada, ou preencha pra ver a margem resultante em cada marketplace.</p>
+
+          <button type="button" class="table-view-toggle" id="toggleFeeEditor" style="margin-top:20px;">⚙ Ajustar taxas dos marketplaces</button>
+          <div class="fee-editor" id="feeEditor" style="display:none; margin-top:14px;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <h3>Comparação entre marketplaces e planos</h3>
+              <p>Inclui Clássico/Premium do Mercado Livre e FBM/FBA da Amazon. Clique num card pra ver o detalhamento completo do preço.</p>
+            </div>
           </div>
+          <div class="pricing-card-grid" id="pricingComparisonBody"></div>
         </div>
 
         <div class="panel panel--highlight">
