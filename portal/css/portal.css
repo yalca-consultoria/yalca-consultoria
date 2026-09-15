@@ -682,6 +682,14 @@ body.portal-body {
 .kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 4; }
 @media (max-width: 1180px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+/* Regra do card órfão em 3 colunas só entre 1180px e 641px: abaixo disso a
+   grade já vira 2 colunas (regra mais abaixo) e "span 3" não existe mais —
+   sem esse limite inferior, a regra ficava "vazando" pro breakpoint mobile
+   também (matches em max-width:1180 continuam true em telas menores), e um
+   card que devia só ficar span:2 lá virava span:3, sobrando numa 3ª coluna
+   implícita que não existe de verdade — bagunçava a grade inteira. */
+@media (max-width: 1180px) and (min-width: 641px) {
   .kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 3; }
   .kpi-grid .kpi-card:last-child:nth-child(3n+1) { grid-column: span 3; }
 }
@@ -1492,10 +1500,19 @@ tr.is-hidden { display: none; }
 }
 /* Ocupa a linha inteira mas SEM esticar o conteúdo interno (as linhas
    label/valor do card ficam com um vão enorme no meio se o card vira 3x
-   mais largo) — centraliza o card no tamanho normal dele dentro da linha. */
-.product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 3; max-width: 380px; margin: 0 auto; width: 100%; }
+   mais largo) — centraliza o card no tamanho normal dele dentro da linha.
+   Faixa com min-width porque, sem isso, a regra "vazava" pros breakpoints
+   mais estreitos abaixo (900px, 480px) onde a grade já tem menos colunas
+   explícitas — um "span 3" numa grade de 1 ou 2 colunas cria coluna
+   implícita e bagunça o posicionamento automático de TODOS os cards, não só
+   do órfão. */
+@media (min-width: 901px) {
+  .product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 3; max-width: 380px; margin: 0 auto; width: 100%; }
+}
 @media (max-width: 900px) {
   .product-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) and (min-width: 481px) {
   .product-card-grid .product-card:last-child:nth-child(3n+1),
   .product-card-grid .product-card:last-child:nth-child(2n+1) { grid-column: span 2; max-width: 380px; margin: 0 auto; width: 100%; }
 }
@@ -1544,6 +1561,13 @@ tr.is-hidden { display: none; }
 
 @media (max-width: 480px) {
   .product-card-grid { grid-template-columns: 1fr; }
+  /* Com só 1 coluna explícita, o "grid-column: span 2" do card órfão (regra
+     da faixa 900px acima, que continua válida aqui também) força a grade
+     inteira a criar uma coluna implícita extra pra caber o span — isso
+     bagunçava a distribuição de TODOS os cards em 2 colunas estreitas, não
+     só a do último. Reseta pro card órfão porque em 1 coluna não existe
+     linha parcial pra resolver: todo card já ocupa a largura toda. */
+  .product-card-grid .product-card:last-child { grid-column: auto; max-width: none; margin: 0; width: auto; }
 }
 
 .best-tag {
