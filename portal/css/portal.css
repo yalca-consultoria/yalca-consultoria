@@ -1304,7 +1304,13 @@ tr.is-hidden { display: none; }
 
 /* ---------- Barra de composição do preço (waterfall) ---------- */
 .waterfall-bar {
+  /* flex:1 é o que faltava — sem isso, a barra é item de .chart-wrap
+     (flex, sem grow definido) e encolhe pro tamanho do conteúdo em vez de
+     ocupar a linha inteira. Bug real visto em produção (2026-09-15): a
+     barra ficava com uns 100px de largura numa área de +1000px. */
   display: flex;
+  flex: 1;
+  min-width: 0;
   gap: 2px;
   height: 46px;
   border-radius: 12px;
