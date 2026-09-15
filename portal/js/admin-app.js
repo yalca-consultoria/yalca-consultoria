@@ -372,19 +372,19 @@ function renderClientsTable() {
     const margemClass = m.receita === 0 ? '' : (m.margem < 0 ? 'text-critical' : (m.margem < 15 ? '' : 'text-good'));
     return `
     <tr>
-      <td>${yalcaEscapeHtmlSafe(c.store_name) || '—'}</td>
-      <td>${yalcaEscapeHtmlSafe(c.email)}</td>
-      <td class="num">${yalcaFormatCurrency(m.receita)}</td>
-      <td class="num ${m.lucro < 0 ? 'text-critical' : ''}">${yalcaFormatCurrency(m.lucro)}</td>
-      <td class="num ${margemClass}">${m.receita > 0 ? m.margem.toFixed(1) + '%' : '—'}</td>
-      <td class="num">${m.produtos}</td>
-      <td>
+      <td data-label="Loja">${yalcaEscapeHtmlSafe(c.store_name) || '—'}</td>
+      <td data-label="E-mail">${yalcaEscapeHtmlSafe(c.email)}</td>
+      <td class="num" data-label="Faturamento">${yalcaFormatCurrency(m.receita)}</td>
+      <td class="num ${m.lucro < 0 ? 'text-critical' : ''}" data-label="Lucro">${yalcaFormatCurrency(m.lucro)}</td>
+      <td class="num ${margemClass}" data-label="Margem">${m.receita > 0 ? m.margem.toFixed(1) + '%' : '—'}</td>
+      <td class="num" data-label="Produtos">${m.produtos}</td>
+      <td data-label="Seller ID (Amazon)">
         <button class="icon-btn" title="Cadastrar/editar seller ID" data-action="openSellerId" data-id="${c.user_id}" style="width:auto; padding:0 10px; font-size:0.78rem;">
           ${c.amazon_seller_id ? yalcaEscapeHtmlSafe(c.amazon_seller_id) : '+ cadastrar'}
         </button>
       </td>
-      <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
-      <td>${badge[c.status] || c.status}</td>
+      <td data-label="Cadastro">${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
+      <td data-label="Status">${badge[c.status] || c.status}</td>
       <td class="row-actions">
         <button class="icon-btn" title="Ver detalhes" data-action="openClientDetail" data-id="${c.user_id}">👁</button>
         <button class="icon-btn" title="Observações" data-action="openNotes" data-id="${c.user_id}">📝</button>
