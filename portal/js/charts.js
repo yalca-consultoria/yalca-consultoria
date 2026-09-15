@@ -710,7 +710,7 @@ function yalcaRenderWaterfallBar(container, opts) {
     <div class="chart-card">
       <button type="button" class="table-view-toggle">Ver como tabela</button>
       ${tableHtml}
-      <div class="chart-wrap">
+      <div class="chart-wrap" style="flex-direction:column; align-items:stretch;">
         <div class="waterfall-bar">${bar}</div>
         <div class="chart-legend" style="margin-top:14px;">${legend}</div>
       </div>
