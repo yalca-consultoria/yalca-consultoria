@@ -1352,7 +1352,119 @@ tr.is-hidden { display: none; }
 }
 .fee-editor-row__note { font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; }
 
-/* ---------- Tabela de comparação de marketplaces ---------- */
+/* ---------- Slider de margem (input[type=range]) ----------
+   .field input já estiliza toda entrada como caixa com padding/borda —
+   errado pra um range, que precisa da própria trilha/manopla. Reseta só
+   o essencial (largura/cursor) e desenha a trilha/manopla do zero, sem
+   depender do estilo nativo do navegador (inconsistente entre eles). */
+.field input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: 20px;
+  cursor: pointer;
+}
+.field input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.field input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--primary-2);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--primary-2);
+  cursor: pointer;
+}
+.field input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--primary-2);
+  box-shadow: 0 0 0 1px var(--primary-2);
+  cursor: pointer;
+}
+.field__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: -2px;
+}
+
+/* ---------- Grid de cards de comparação de marketplaces ----------
+   Substituiu a tabela — um card por canal/plano, com preço e
+   detalhamento de taxa/frete/imposto/lucro já visíveis sem precisar
+   clicar em nada (pedido do usuário, inspirado num concorrente,
+   2026-09-14). O painel de detalhamento com gráfico waterfall abaixo
+   continua existindo pra quem quer o detalhamento visual — o card só
+   precisa ser clicado pra focar nele. */
+.pricing-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.pricing-card {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top-color: var(--p-edge-light);
+  border-radius: var(--p-radius);
+  padding: 18px;
+  cursor: pointer;
+  box-shadow: var(--p-shadow);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.pricing-card:hover { transform: translateY(-2px); border-color: var(--primary-2); box-shadow: var(--p-shadow-lg); }
+.pricing-card.is-selected { border-color: var(--primary-2); background: var(--p-primary-soft); }
+.pricing-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.pricing-card__price {
+  font-family: var(--font-heading);
+  font-size: clamp(1.15rem, 9cqi, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.pricing-card__list-price { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+.pricing-card__profit {
+  display: inline-flex;
+  width: fit-content;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.pricing-card__profit.is-positive { color: var(--good); background: rgba(12,163,12,0.14); }
+.pricing-card__profit.is-negative { color: var(--critical); background: rgba(208,59,59,0.16); }
+.pricing-card__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.8rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+}
+.pricing-card__row { display: flex; justify-content: space-between; color: var(--text-muted); }
+.pricing-card__row strong { color: var(--text); font-weight: 600; }
+
 .best-tag {
   display: inline-block;
   width: fit-content;
@@ -1362,9 +1474,7 @@ tr.is-hidden { display: none; }
   background: rgba(12,163,12,0.14);
   padding: 2px 8px;
   border-radius: 999px;
-  margin-top: 2px;
 }
-.comparison-row--selected { background: var(--p-primary-soft); }
 
 /* ---------- Calculadora de precificação ---------- */
 .calc-result {

@@ -304,12 +304,14 @@ function recalcPricing() {
   const manualPriceRaw = document.getElementById('pManualPrice').value;
   const manualPrice = manualPriceRaw !== '' ? parseFloat(manualPriceRaw) : null;
 
+  document.getElementById('pMarginValue').textContent = `${marginDesired.toFixed(marginDesired % 1 === 0 ? 0 : 1)}%`;
+
   const inputs = { cost, shipping, tax, marginDesired, manualPrice };
   const results = PRICING_VARIANTS.map(v => calcPricingVariant(v, inputs));
   const validResults = results.filter(r => r.mode !== 'invalid');
 
   if (validResults.length === 0) {
-    comparisonBody.innerHTML = '<tr><td colspan="5" class="alert-empty" style="color:var(--critical);">A soma de taxa, imposto e margem desejada ultrapassa 100% em todas as opções. Reduza algum valor.</td></tr>';
+    comparisonBody.innerHTML = '<p class="alert-empty" style="color:var(--critical);">A soma de taxa, imposto e margem desejada ultrapassa 100% em todas as opções. Reduza algum valor.</p>';
     document.getElementById('pricingWaterfall').innerHTML = '';
     document.getElementById('pricingBreakdown').innerHTML = '';
     return;
@@ -323,13 +325,16 @@ function recalcPricing() {
     FOCUSED_VARIANT_KEY = bestKeyOnBestMargin;
   }
 
+  // Um card por canal/plano — preço, lucro e o detalhamento de taxa/frete/
+  // imposto já visíveis sem clicar em nada (a tabela antiga escondia o
+  // detalhamento inteiro atrás do painel de baixo). Clicar no card ainda
+  // foca ele no painel de detalhamento com o gráfico waterfall.
   comparisonBody.innerHTML = sorted.map(r => {
     const isBest = r.key === bestKeyOnBestMargin;
     const isSelected = r.key === FOCUSED_VARIANT_KEY;
-    const marginClass = r.marginPct < 0 ? 'text-critical' : (r.marginPct < 15 ? '' : 'text-good');
     return `
-    <tr class="${isSelected ? 'comparison-row--selected' : ''}" style="cursor:pointer;" data-action="selectVariantForDetail" data-key="${r.key}">
-      <td>
+    <div class="pricing-card${isSelected ? ' is-selected' : ''}" data-action="selectVariantForDetail" data-key="${r.key}">
+      <div class="pricing-card__head">
         <div class="marketplace-cell">
           ${renderChannelBadge(r.channel)}
           <div class="marketplace-cell__text">
@@ -338,17 +343,20 @@ function recalcPricing() {
             ${isBest ? '<span class="best-tag">Melhor margem</span>' : ''}
           </div>
         </div>
-      </td>
-      <td class="num">
-        ${yalcaFormatCurrency(r.price)}
-        ${r.listPrice != null ? `<div style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Publicar como ${yalcaFormatCurrency(r.listPrice)} <span style="color:var(--warning);">${r.listPriceDiscountPct}% OFF</span></div>` : ''}
-      </td>
-      <td class="num ${r.netProfit < 0 ? 'text-critical' : ''}">${yalcaFormatCurrency(r.netProfit)}</td>
-      <td class="num ${marginClass}">${r.marginPct.toFixed(1)}%</td>
-      <td class="row-actions">
         <button class="icon-btn" title="Salvar como produto" data-action="openSaveAsProduct" data-channel="${yalcaEscapeHtml(r.channel)}" data-price="${r.price.toFixed(2)}" data-cost="${cost}">＋</button>
-      </td>
-    </tr>`;
+      </div>
+      <div>
+        <div class="pricing-card__price">${yalcaFormatCurrency(r.price)}</div>
+        ${r.listPrice != null ? `<div class="pricing-card__list-price">Publicar como ${yalcaFormatCurrency(r.listPrice)} <span style="color:var(--warning);">${r.listPriceDiscountPct}% OFF</span></div>` : ''}
+        <div class="pricing-card__profit ${r.netProfit < 0 ? 'is-negative' : 'is-positive'}" style="margin-top:8px;">${r.netProfit < 0 ? '' : '+'}${yalcaFormatCurrency(r.netProfit)} (${r.marginPct.toFixed(1)}%)</div>
+      </div>
+      <div class="pricing-card__rows">
+        <div class="pricing-card__row"><span>Taxa do marketplace</span><strong>${yalcaFormatCurrency(r.feeValue)}</strong></div>
+        <div class="pricing-card__row"><span>Frete</span><strong>${yalcaFormatCurrency(shipping)}</strong></div>
+        <div class="pricing-card__row"><span>Imposto</span><strong>${yalcaFormatCurrency(r.taxValue)}</strong></div>
+        <div class="pricing-card__row"><span>Lucro líquido</span><strong>${yalcaFormatCurrency(r.netProfit)}</strong></div>
+      </div>
+    </div>`;
   }).join('');
 
   renderPricingDetail(results.find(r => r.key === FOCUSED_VARIANT_KEY), inputs);
