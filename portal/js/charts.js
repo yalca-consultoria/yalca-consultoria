@@ -686,7 +686,13 @@ function yalcaRenderWaterfallBar(container, opts) {
 
   const bar = segments.filter(s => s.value > 0).map(s => {
     const pct = (s.value / total) * 100;
-    const showLabel = pct >= 9;
+    // 9% era baixo demais: numa barra de ~450px um segmento de 12% vira uma
+    // caixa de ~50px, estreita demais pro texto "12%" caber — o
+    // text-overflow:ellipsis cortava pra "1…", ilegível (bug real visto em
+    // produção, 2026-09-15). O valor completo continua acessível no title
+    // (hover) e na legenda abaixo, então segmentos pequenos ficam só com a
+    // cor — sem tentar espremer um número que não cabe.
+    const showLabel = pct >= 15;
     return `<div class="waterfall-seg" style="flex:${pct} 0 0%; background:${s.color};" title="${yalcaEscapeHtml(s.label)}: ${formatValue(s.value)} (${pct.toFixed(1)}%)">
       ${showLabel ? `<span>${pct.toFixed(0)}%</span>` : ''}
     </div>`;
