@@ -1517,7 +1517,8 @@ tr.is-hidden { display: none; }
   padding-top: 10px;
 }
 .product-card__row { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); gap: 8px; }
-.product-card__row strong { color: var(--text); font-weight: 600; }
+.product-card__row > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-card__row strong { color: var(--text); font-weight: 600; flex-shrink: 0; }
 .product-card__row strong.text-critical { color: var(--critical); }
 .product-card__row strong.text-good { color: var(--good); }
 .product-card__empty { grid-column: 1 / -1; }
