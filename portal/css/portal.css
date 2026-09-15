@@ -676,8 +676,14 @@ body.portal-body {
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
+/* Quando sobra 1 card sozinho na última linha (ex: 5 cards numa grade de 4
+   colunas), ele ocupa a linha inteira em vez de ficar solto ocupando só 1/4
+   da largura com um vazio enorme ao lado. */
+.kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 4; }
 @media (max-width: 1180px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 3; }
+  .kpi-grid .kpi-card:last-child:nth-child(3n+1) { grid-column: span 3; }
 }
 .kpi-card {
   position: relative;
@@ -1475,10 +1481,20 @@ tr.is-hidden { display: none; }
    Substitui a tabela "Produtos por marketplace" por um card por produto,
    no mesmo espírito do .pricing-card-grid da Calculadora de Preço (pedido
    do usuário, 2026-09-14). */
+/* Colunas fixas (mesmo raciocínio do .kpi-grid acima): com auto-fill a
+   última linha ficava órfã de forma imprevisível (ex: 10 produtos em 3
+   colunas sobrava 1 card sozinho ocupando 1/3 da largura). Fixo + regra de
+   "último card órfão ocupa a linha inteira" abaixo resolve isso. */
 .product-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+}
+.product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 3; }
+@media (max-width: 900px) {
+  .product-card-grid { grid-template-columns: repeat(2, 1fr); }
+  .product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 2; }
+  .product-card-grid .product-card:last-child:nth-child(2n+1) { grid-column: span 2; }
 }
 .product-card {
   position: relative;
