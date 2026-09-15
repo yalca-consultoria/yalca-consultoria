@@ -678,8 +678,16 @@ body.portal-body {
 }
 /* Quando sobra 1 card sozinho na última linha (ex: 5 cards numa grade de 4
    colunas), ele ocupa a linha inteira em vez de ficar solto ocupando só 1/4
-   da largura com um vazio enorme ao lado. */
-.kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 4; }
+   da largura com um vazio enorme ao lado. Quando sobram 2 (ex: 6 cards, como
+   no painel admin), os 2 dividem a linha inteira em vez de ficar 2 cards
+   normais com metade da linha vazia do lado. Escopado com min-width porque,
+   sem isso, "vazava" pro breakpoint de 3 colunas abaixo (mesmo bug já visto
+   com o card órfão único). */
+@media (min-width: 1181px) {
+  .kpi-grid .kpi-card:last-child:nth-child(4n+1) { grid-column: span 4; }
+  .kpi-grid .kpi-card:nth-last-child(2):nth-child(4n+1),
+  .kpi-grid .kpi-card:nth-last-child(2):nth-child(4n+1) ~ .kpi-card { grid-column: span 2; }
+}
 @media (max-width: 1180px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
