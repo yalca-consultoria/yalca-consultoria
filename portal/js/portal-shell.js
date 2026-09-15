@@ -209,6 +209,16 @@ function initModals() {
       if (e.target === backdrop) closeModal(backdrop.id);
     });
   });
+  // Esc fecha o modal aberto no momento — clicar fora já fechava, mas o
+  // teclado não tinha nenhum jeito (bug real achado numa auditoria de
+  // acessibilidade, 2026-09-15). Fecha só o mais recente aberto (":last-of-type"
+  // não serve aqui porque são elementos diferentes — usa a ordem do DOM,
+  // que é suficiente já que não empilhamos modal sobre modal no portal).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('.modal-backdrop.is-open');
+    if (open) closeModal(open.id);
+  });
 }
 function openModal(id) { document.getElementById(id).classList.add('is-open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('is-open'); }

@@ -275,6 +275,12 @@ function initModals() {
       if (e.target === backdrop) closeModal(backdrop.id);
     });
   });
+  // Esc fecha o modal aberto — mesmo fix da auditoria em portal-shell.js.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('.modal-backdrop.is-open');
+    if (open) closeModal(open.id);
+  });
 }
 function openModal(id) { document.getElementById(id).classList.add('is-open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('is-open'); }
