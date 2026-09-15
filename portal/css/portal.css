@@ -1490,11 +1490,14 @@ tr.is-hidden { display: none; }
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
-.product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 3; }
+/* Ocupa a linha inteira mas SEM esticar o conteúdo interno (as linhas
+   label/valor do card ficam com um vão enorme no meio se o card vira 3x
+   mais largo) — centraliza o card no tamanho normal dele dentro da linha. */
+.product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 3; max-width: 380px; margin: 0 auto; width: 100%; }
 @media (max-width: 900px) {
   .product-card-grid { grid-template-columns: repeat(2, 1fr); }
-  .product-card-grid .product-card:last-child:nth-child(3n+1) { grid-column: span 2; }
-  .product-card-grid .product-card:last-child:nth-child(2n+1) { grid-column: span 2; }
+  .product-card-grid .product-card:last-child:nth-child(3n+1),
+  .product-card-grid .product-card:last-child:nth-child(2n+1) { grid-column: span 2; max-width: 380px; margin: 0 auto; width: 100%; }
 }
 .product-card {
   position: relative;
