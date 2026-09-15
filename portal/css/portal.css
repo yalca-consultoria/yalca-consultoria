@@ -620,7 +620,7 @@ body.portal-body {
 .portal-section { display: none; flex-direction: column; gap: 24px; }
 .portal-section.is-active { display: flex; }
 
-.section-intro p { max-width: 640px; }
+.section-intro p { max-width: none; }
 
 /* ---------- Barra de filtro de período + comparação (estilo Bling) ---------- */
 .period-filter-bar {
